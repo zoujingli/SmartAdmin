@@ -69,7 +69,7 @@
 | 操作日志、请求日志、变更审计 | `plugin/Library/Events`、`plugin/System/src/Controller/Logs*Controller.php` | [日志审计与公告](系统功能/日志审计与公告.md) |
 | 多租户管理和租户上下文 | `plugin/System`、`TenantContext` | [租户与发布构建](系统功能/租户与发布构建.md) |
 | 微信客户端与开放平台 | `plugin/WechatClient`、`plugin/WechatService` | [微信客户端接口](接口参考/微信客户端接口.md)、[微信开放平台接口](接口参考/微信开放平台接口.md) |
-| 数据库发布快照和 Phar 打包 | `plugin/Library/Command`、`plugin/Builder` | [发布升级](部署运维/发布升级.md) |
+| 数据库发布快照和 Phar 打包 | `plugin/Library/Command`、`zoujingli/smart-admin-builder` | [发布升级](部署运维/发布升级.md) |
 | Vue 3 管理端 | `web/apps/web-antd` 通用壳、`plugin/*/stc/view` 插件页面 | [前端接入](开发指南/前端接入.md) |
 
 ## 🚀 5 分钟启动

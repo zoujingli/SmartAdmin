@@ -46,10 +46,6 @@
   "repositories": [
     {
       "type": "path",
-      "url": "plugin/Builder"
-    },
-    {
-      "type": "path",
       "url": "plugin/System"
     },
     {

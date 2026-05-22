@@ -28,8 +28,9 @@ final class BuildHardeningSourceTest extends TestCase
     public function testBuilderEnablesFirstPartyPhpSourceHardening(): void
     {
         $root = dirname(__DIR__, 3);
-        $builder = file_get_contents($root . '/plugin/Builder/Support/Builder.php');
-        $custom = file_get_contents($root . '/plugin/Builder/Support/Custom.php');
+        $builderRoot = $this->builderRoot($root);
+        $builder = file_get_contents($builderRoot . '/Support/Builder.php');
+        $custom = file_get_contents($builderRoot . '/Support/Custom.php');
 
         self::assertIsString($builder);
         self::assertIsString($custom);
@@ -273,5 +274,21 @@ PHP_CODE;
         self::assertStringContainsString('opcache_reset', $bootstrap);
         self::assertStringContainsString('FrontendPublisher::clean', $publish);
         self::assertStringContainsString('FrontendPublisher::publish', $publish);
+    }
+
+    private function builderRoot(string $root): string
+    {
+        $sourcePath = $root . '/plugin/Builder';
+        if (is_dir($sourcePath)) {
+            return $sourcePath;
+        }
+
+        // SmartAdmin 开源仓不携带 Builder 源目录，导出测试需回退到 Composer 包路径。
+        $vendorPath = $root . '/vendor/zoujingli/smart-admin-builder';
+        if (is_dir($vendorPath)) {
+            return $vendorPath;
+        }
+
+        self::fail('SmartAdminBuilder source path not found.');
     }
 }

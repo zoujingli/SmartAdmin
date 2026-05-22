@@ -19,7 +19,7 @@
 - `Mapper` 负责数据访问、查询条件、数据范围、分页、软删、状态变更和列表后处理。
 - `Model` 只负责表结构映射、fillable、隐藏字段、关联、访问器和转换器。
 - 标准 CRUD 优先继承 `CoreController`、`CoreService`、`CoreMapper`、`CoreModel`。
-- `Library/System/Builder` 是基础插件；新业务能力优先放在 `plugin/<Business>`，不要把业务功能继续堆入 `System` 或 `web/apps/web-antd`。
+- `Library/System` 是基础插件，`SmartAdminBuilder` 是独立构建器 Composer 包；新业务能力优先放在 `plugin/<Business>`，不要把业务功能继续堆入 `System` 或 `web/apps/web-antd`。
 - 应用插件推荐目录结构：`plugin/<Module>/src/Controller`、`src/Service`、`src/Mapper`、`src/Model`、`src/Support`、`src/Provider.php`，静态与资料目录可使用 `stc/view`、`stc/languages`、`stc/migrations`，并由 `plugin.view_root`、`plugin.language_root`、`plugin.migration_root` 显式启用。
 - 不要把 SQL 查询写在 Controller；不要把 HTTP Request、Response 传入 Mapper。
 
