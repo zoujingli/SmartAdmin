@@ -38,7 +38,7 @@
     "overtrue/flysystem-cos": "^5.2",
     "zoujingli/wechat-developer": "^2.0@dev",
     "zoujingli/smart-admin-library": "^1.0",
-    "zoujingli/smart-admin-plugin-builder": "^1.0",
+    "zoujingli/smart-admin-builder": "^1.0",
     "zoujingli/smart-admin-plugin-system": "^1.0",
     "zoujingli/smart-admin-plugin-wechat-client": "^1.0",
     "zoujingli/smart-admin-plugin-wechat-service": "^1.0"

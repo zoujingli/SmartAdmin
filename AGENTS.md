@@ -9,7 +9,7 @@
 - 后端代码主要位于 `plugin/*/src`，业务插件前端、语言包、迁移等资源位于 `plugin/*/stc`，主前端 `web/apps/web-antd` 只作为通用壳、公共页面、共享组件和编译期插件宿主。
 - 插件通过本地 Composer path 包、Provider、`plugin.json`、菜单/节点同步和 Web 编译期扫描接入；源码/CI 模式下由 Library 内置 `xadmin:plugin:package/install/remove/backup/restore` 辅助打包、安装、移除和备份恢复，backup 默认只备份代码，显式 `--with-data` 才备份插件自有表，remove 自动备份必须带数据。命令必须使用 `SourceOnlyCommand`，发布 Phar/SFX 内不出现这些命令，也不是运行时远程插件加载。插件前端变更后需要重新生成前端产物。
 - 仓库与发布链仅使用 GitHub：`SmartAdmin` 为私有全量开发源，TAG Actions 自动同步 `SmartAdminLibrary` 与 `SmartAdmin`；不得再配置其它代码托管地址或发布说明。
-- Composer 包名统一使用横线规则：主包为 `zoujingli/smartadmin`，基础库为 `zoujingli/smart-admin-library`，插件为 `zoujingli/smart-admin-plugin-xxx`；私有/商用插件不发布 Composer 远程包，只通过 `xadmin:plugin:*` ZIP 分发，ZIP 内 `composer.json` 仅服务本地 path autoload。
+- Composer 包名统一使用横线规则：主包为 `zoujingli/smartadmin`，基础库为 `zoujingli/smart-admin-library`，构建器为 `zoujingli/smart-admin-builder`，插件为 `zoujingli/smart-admin-plugin-xxx`；私有/商用插件不发布 Composer 远程包，只通过 `xadmin:plugin:*` ZIP 分发，ZIP 内 `composer.json` 仅服务本地 path autoload。
 - AI 修改时优先复用现有基类和注册机制，不新增重复框架层。
 
 ## 分层标准

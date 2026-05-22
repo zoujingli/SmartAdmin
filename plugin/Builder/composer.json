@@ -1,6 +1,8 @@
 {
-  "name": "zoujingli/smart-admin-plugin-builder",
+  "name": "zoujingli/smart-admin-builder",
   "description": "SmartAdmin builder component for packaging Hyperf projects as Phar/SFX stand-alone packages.",
+  "minimum-stability": "dev",
+  "prefer-stable": true,
   "license": "Apache-2.0",
   "version": "1.0.0",
   "homepage": "https://hyperf.io",
@@ -10,7 +12,8 @@
     "hyperf/command": "^3.2",
     "hyperf/contract": "^3.2",
     "nikic/php-parser": "^5.6",
-    "psr/container": "^1.0 || ^2.0"
+    "psr/container": "^1.0 || ^2.0",
+    "symfony/finder": "^7.3 || ^8.0"
   },
   "autoload": {
     "psr-4": {

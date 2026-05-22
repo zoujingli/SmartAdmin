@@ -6,15 +6,16 @@
 
 ## 仓库与发布模型
 
-SmartAdmin 只使用 GitHub 维护，采用“私有开发仓 + 开源核心仓 + 独立基础库仓”的发布模型：
+SmartAdmin 只使用 GitHub 维护，采用“私有开发仓 + 开源核心仓 + 独立基础包仓”的发布模型：
 
 | 仓库 | 可见性 | 角色 |
 |------|--------|------|
 | [`SmartAdmin`](https://github.com/zoujingli/SmartAdmin) | Private | 全量开发源，包含开源核心、私有/商用插件和发布 Actions，是唯一手工打 TAG 的仓库 |
 | [`SmartAdminLibrary`](https://github.com/zoujingli/SmartAdminLibrary) | Public | `zoujingli/smart-admin-library` 基础库 Composer 包，承载 Core、权限、数据范围、租户、日志、发布和源码插件管理能力 |
+| [`SmartAdminBuilder`](https://github.com/zoujingli/SmartAdminBuilder) | Public | `zoujingli/smart-admin-builder` 构建器 Composer 包，承载 Phar/SFX 打包、配置 AST 改写和源码加固能力 |
 | [`SmartAdmin`](https://github.com/zoujingli/SmartAdmin) | Public | `zoujingli/smartadmin` 开源主项目，只包含通用后台核心、开源插件、Web 通用壳、文档和测试 |
 
-`SmartAdmin` 推送 `v*` TAG 时会自动同步有变更的 `SmartAdminLibrary` 与 `SmartAdmin`，并把所有带 `plugin.json` 的可安装插件打包为 ZIP。私有/商用插件不发布 Composer 包，只通过 ZIP 安装；ZIP 内的 `composer.json` 仅用于本地 path autoload。
+`SmartAdmin` 推送 `v*` TAG 时会自动同步有变更的 `SmartAdminLibrary`、`SmartAdminBuilder` 与 `SmartAdmin`，并把所有带 `plugin.json` 的可安装插件打包为 ZIP。私有/商用插件不发布 Composer 包，只通过 ZIP 安装；ZIP 内的 `composer.json` 仅用于本地 path autoload。
 
 
 ## 快捷入口
