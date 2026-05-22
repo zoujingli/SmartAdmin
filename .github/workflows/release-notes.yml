@@ -1,0 +1,64 @@
+name: Release Notes
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to generate notes for'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-notes-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release-notes:
+    # SmartAdminDeveloper 的私有 Release 由 .github/workflows/release.yml 统一生成，公开仓使用本工作流。
+    if: github.repository != format('{0}{1}', 'zoujingli/SmartAdmin', 'Developer')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release tag
+        shell: bash
+        run: |
+          CURRENT_TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          if [[ -z "$CURRENT_TAG" ]]; then
+            echo 'Release tag is required.' >&2
+            exit 1
+          fi
+          git fetch --tags --force
+          git rev-parse -q --verify "refs/tags/${CURRENT_TAG}" >/dev/null
+          echo "CURRENT_TAG=${CURRENT_TAG}" >> "$GITHUB_ENV"
+
+      - name: Generate release notes
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python .github/release/generate-release-notes.py --tag "$CURRENT_TAG" --output release-notes.md
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          TITLE="Release ${CURRENT_TAG}"
+          if gh release view "$CURRENT_TAG" >/dev/null 2>&1; then
+            gh release edit "$CURRENT_TAG" --title "$TITLE" --notes-file release-notes.md
+          else
+            args=("$CURRENT_TAG" --title "$TITLE" --notes-file release-notes.md --target "$(git rev-list -n 1 "$CURRENT_TAG")")
+            if [[ "$CURRENT_TAG" == *-* ]]; then
+              args+=(--prerelease)
+            fi
+            gh release create "${args[@]}"
+          fi

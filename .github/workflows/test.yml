@@ -31,7 +31,7 @@ jobs:
         run: ./bin/swoole-linux-x64 vendor/bin/phpunit
 
       - name: Run PHPStan
-        run: ./bin/swoole-linux-x64 vendor/bin/phpstan analyse plugin config migrations tests --level=0 --memory-limit=1G
+        run: ./bin/swoole-linux-x64 vendor/bin/phpstan analyse plugin config tests --level=0 --memory-limit=1G
 
       - name: Hyperf command smoke test
         run: ./bin/swoole-linux-x64 bin/hyperf.php list

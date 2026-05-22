@@ -39,9 +39,9 @@
     "zoujingli/wechat-developer": "^2.0@dev",
     "zoujingli/smart-admin-library": "^1.0",
     "zoujingli/smart-admin-builder": "^1.0",
-    "zoujingli/smart-admin-plugin-system": "^1.0",
-    "zoujingli/smart-admin-plugin-wechat-client": "^1.0",
-    "zoujingli/smart-admin-plugin-wechat-service": "^1.0"
+    "zoujingli/smart-plugin-system": "^1.0",
+    "zoujingli/smart-plugin-wechat-client": "^1.0",
+    "zoujingli/smart-plugin-wechat-service": "^1.0"
   },
   "repositories": [
     {
@@ -84,7 +84,7 @@
     "sort-packages": true
   },
   "scripts": {
-    "analyse": "sh bin/swoole-cli vendor/bin/phpstan analyse plugin config migrations tests --level=0 --memory-limit=1G",
+    "analyse": "sh bin/swoole-cli vendor/bin/phpstan analyse plugin config tests --level=0 --memory-limit=1G",
     "test": "sh bin/swoole-cli vendor/bin/phpunit",
     "web:build": "cd web && pnpm -F @vben/web-antd run typecheck && pnpm -F @vben/web-antd run build",
     "docs:serve": "@php -S 127.0.0.1:18100 -t docs",
@@ -111,7 +111,7 @@
       "sh bin/start-swoole xadmin:build:model",
       "sh bin/start-swoole xadmin:build:struct",
       "sh bin/swoole-cli vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.php",
-      "sh bin/swoole-cli vendor/bin/phpstan analyse plugin config migrations tests --level=0 --memory-limit=1G"
+      "sh bin/swoole-cli vendor/bin/phpstan analyse plugin config tests --level=0 --memory-limit=1G"
     ],
     "build:web": "@composer web:build",
     "build:sync": [

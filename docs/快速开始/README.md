@@ -18,12 +18,22 @@
 3. [用户教程](../用户教程/README.md)
 4. [开发指南](../开发指南/README.md)
 
+## 使用路径
+
+SmartAdmin 生态采用“私有 Developer 统一维护、公开 SmartAdmin 直接使用”的方式：
+
+- 生态维护者只在 `SmartAdminDeveloper` 私有仓开发和打 TAG，由 Actions 同步基础库、构建器、公开主仓和插件 ZIP。
+- 普通用户优先使用 `composer create-project zoujingli/smartadmin SmartAdmin` 创建公开正式版项目，也可以克隆公开 `SmartAdmin` 仓库跟踪最新源码。
+- 需要扩展插件时，在 SmartAdmin 源码环境使用 `xadmin:plugin:install <zip>` 安装插件；更新同一插件时使用 `--force` 覆盖安装，并重新执行前端构建。
+- 已发布 Phar/SFX 二进制只运行随包构建进去的插件，不作为运行时远程插件市场；新增或更新插件后应在源码环境重新构建发布包。
+
 ## 最小可用路径
 
 如果本机已经具备 PHP/Swoole、MySQL、Redis、Node.js 和 pnpm，可以按下面路径启动：
 
 ```bash
-composer install
+composer create-project zoujingli/smartadmin SmartAdmin
+cd SmartAdmin
 cp .env.example .env
 composer setup
 sh bin/start-swoole start
@@ -32,6 +42,16 @@ cd web
 pnpm install
 pnpm dev:antd
 ```
+
+如果需要跟踪 GitHub 最新源码或提交 PR，可以改用：
+
+```bash
+git clone https://github.com/zoujingli/SmartAdmin.git
+cd SmartAdmin
+composer install
+```
+
+然后继续执行 `.env` 配置、`composer setup`、后端启动和前端启动命令。
 
 另开终端启动文档：
 
@@ -42,7 +62,8 @@ composer docs:serve
 ## 项目启动路径
 
 ```bash
-composer install
+composer create-project zoujingli/smartadmin SmartAdmin
+cd SmartAdmin
 cp .env.example .env
 composer setup
 sh bin/start-swoole start
@@ -104,4 +125,4 @@ pnpm dev:antd
 - 想上线部署：进入 [部署运维](../部署运维/README.md)
 - 想贡献代码：进入 [贡献指南](../开源协作/贡献指南.md)
 
-最后更新：2026-04-27
+最后更新：2026-05-22

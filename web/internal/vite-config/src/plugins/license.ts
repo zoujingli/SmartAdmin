@@ -40,7 +40,7 @@ async function viteLicensePlugin(
           `  * Description: ${description.trim()}`,
           `  * Date Created: ${date}`,
           `  * Homepage: ${homepage.trim()}`,
-          '  * Third-party notices: THIRD_PARTY_NOTICES.md',
+          '  * Third-party notices: NOTICE',
           '*/',
         ]
           .map((line) => line.trimEnd())

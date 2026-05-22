@@ -81,6 +81,6 @@ sh bin/start-swoole xadmin:node:sync --dry-run --json
 - 不要把请求态、用户态、租户态存在单例 Service 属性。
 - 不要依赖前端隐藏按钮作为安全边界。
 - 不要把密码、Token、Secret、Key 写入日志、响应、导出或文档。
-- 插件新增或升级走源码合并、菜单/节点同步和前端重新构建；需要 ZIP 分发时使用 Library 内置 `xadmin:plugin:*` 源码命令，backup 默认只备份代码，`--with-data` 才包含插件自有表，已发布二进制不支持动态安装、更新或移除插件。
+- 插件新增或升级走源码合并、菜单/节点同步和前端重新构建；需要 ZIP 分发时使用 SmartAdminLibrary 提供的 `xadmin:plugin:*` 源码命令，backup 默认只备份代码，`--with-data` 才包含插件自有表，已发布二进制不支持动态安装、更新或移除插件。
 
 最后更新：2026-05-18
