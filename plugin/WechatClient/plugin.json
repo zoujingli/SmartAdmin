@@ -1,0 +1,374 @@
+{
+  "plugin": {
+    "code": "wechat-client",
+    "name": "微信公众号平台",
+    "version": "1.0.0",
+    "description": "Apache-2.0 开源插件，提供租户侧公众号、小程序、粉丝、菜单、回复、素材和微信支付管理。",
+    "license_name": "Apache License 2.0",
+    "license_type": "open_source",
+    "license_url": "https://www.apache.org/licenses/LICENSE-2.0",
+    "pricing_type": "free",
+    "support_url": "https://github.com/zoujingli/SmartAdmin/issues",
+    "license_notice": "本插件随 SmartAdmin 以 Apache License 2.0 开源发布；使用微信相关能力仍需遵守微信官方平台、支付和数据安全协议。",
+    "view_root": "stc/view",
+    "language_root": "stc/languages",
+    "migration_root": "stc/migrations"
+  },
+  "apps": [
+    {
+      "id": 3100,
+      "name": "微信公众号平台",
+      "route": "/wechat/client",
+      "component": "BasicLayout",
+      "icon": "lucide:message-circle",
+      "sort": 70,
+      "type": "D",
+      "redirect": "/wechat/client/account",
+      "menus": [
+        {
+          "id": 3101,
+          "name": "基础管理",
+          "route": "/wechat/client/basic",
+          "icon": "lucide:settings-2",
+          "sort": 50,
+          "type": "D",
+          "redirect": "/wechat/client/account",
+          "menus": [
+            {
+              "id": 3110,
+              "name": "接口账号",
+              "code": "wechat.client.account.index",
+              "route": "/wechat/client/account",
+              "icon": "lucide:settings-2",
+              "sort": 50,
+              "view": "account/index.vue",
+              "module": {
+                "key": "wechat-client-account",
+                "summary": "租户侧公众号与小程序账号绑定、接口配置和回调入口。",
+                "features": [
+                  "账号绑定",
+                  "安全脱敏",
+                  "回调配置",
+                  "SDK 调用"
+                ]
+              },
+              "permissions": [
+                {
+                  "id": 31101,
+                  "name": "新增接口账号",
+                  "code": "wechat.client.account.create",
+                  "sort": 10
+                },
+                {
+                  "id": 31102,
+                  "name": "编辑接口账号",
+                  "code": "wechat.client.account.update",
+                  "sort": 20
+                },
+                {
+                  "id": 31103,
+                  "name": "删除接口账号",
+                  "code": "wechat.client.account.delete",
+                  "sort": 30
+                }
+              ]
+            },
+            {
+              "id": 3120,
+              "name": "粉丝管理",
+              "code": "wechat.client.user.index",
+              "route": "/wechat/client/user",
+              "icon": "lucide:users",
+              "sort": 40,
+              "view": "user/index.vue",
+              "module": {
+                "key": "wechat-client-user",
+                "summary": "公众号粉丝、本地标签和同步状态管理。",
+                "features": [
+                  "粉丝台账",
+                  "标签管理",
+                  "同步记录"
+                ]
+              },
+              "permissions": [
+                {
+                  "id": 31201,
+                  "name": "同步粉丝",
+                  "code": "wechat.client.user.sync",
+                  "sort": 10
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": 3102,
+          "name": "内容互动",
+          "route": "/wechat/client/content",
+          "icon": "lucide:messages-square",
+          "sort": 40,
+          "type": "D",
+          "redirect": "/wechat/client/menu",
+          "menus": [
+            {
+              "id": 3130,
+              "name": "菜单发布",
+              "code": "wechat.client.menu.index",
+              "route": "/wechat/client/menu",
+              "icon": "lucide:list-tree",
+              "sort": 50,
+              "view": "menu/index.vue",
+              "permissions": [
+                {
+                  "id": 31301,
+                  "name": "保存菜单",
+                  "code": "wechat.client.menu.save",
+                  "sort": 10
+                },
+                {
+                  "id": 31302,
+                  "name": "发布菜单",
+                  "code": "wechat.client.menu.publish",
+                  "sort": 20
+                },
+                {
+                  "id": 31303,
+                  "name": "删除菜单",
+                  "code": "wechat.client.menu.delete",
+                  "sort": 30
+                }
+              ]
+            },
+            {
+              "id": 3170,
+              "name": "自动回复",
+              "code": "wechat.client.reply.index",
+              "route": "/wechat/client/reply",
+              "icon": "lucide:message-square-reply",
+              "sort": 40,
+              "view": "reply/index.vue",
+              "module": {
+                "key": "wechat-client-reply",
+                "summary": "订阅、默认、关键词和菜单点击回复规则，支持订阅延时多回复。",
+                "features": [
+                  "订阅回复",
+                  "延时多回复",
+                  "关键词回复",
+                  "菜单点击回复"
+                ]
+              },
+              "permissions": [
+                {
+                  "id": 31701,
+                  "name": "保存自动回复",
+                  "code": "wechat.client.reply.save",
+                  "sort": 10
+                },
+                {
+                  "id": 31702,
+                  "name": "删除自动回复",
+                  "code": "wechat.client.reply.delete",
+                  "sort": 20
+                }
+              ]
+            },
+            {
+              "id": 3150,
+              "name": "素材管理",
+              "code": "wechat.client.media.index",
+              "route": "/wechat/client/media",
+              "icon": "lucide:images",
+              "sort": 30,
+              "view": "media/index.vue",
+              "module": {
+                "key": "wechat-client-media",
+                "summary": "微信永久素材、本地文件关联和官方素材同步管理。",
+                "features": [
+                  "素材台账",
+                  "官方同步",
+                  "永久素材上传",
+                  "菜单资源"
+                ]
+              },
+              "permissions": [
+                {
+                  "id": 31501,
+                  "name": "保存素材",
+                  "code": "wechat.client.media.save",
+                  "sort": 10
+                },
+                {
+                  "id": 31502,
+                  "name": "同步素材",
+                  "code": "wechat.client.media.sync",
+                  "sort": 20
+                },
+                {
+                  "id": 31503,
+                  "name": "上传素材",
+                  "code": "wechat.client.media.upload",
+                  "sort": 30
+                },
+                {
+                  "id": 31504,
+                  "name": "删除素材",
+                  "code": "wechat.client.media.delete",
+                  "sort": 40
+                }
+              ]
+            },
+            {
+              "id": 3160,
+              "name": "文章管理",
+              "code": "wechat.client.article.index",
+              "route": "/wechat/client/article",
+              "icon": "lucide:newspaper",
+              "sort": 20,
+              "view": "article/index.vue",
+              "module": {
+                "key": "wechat-client-article",
+                "summary": "微信图文文章、本地草稿、官方草稿上传和发布状态管理。",
+                "features": [
+                  "文章草稿",
+                  "草稿上传",
+                  "图文发布",
+                  "菜单文章资源"
+                ]
+              },
+              "permissions": [
+                {
+                  "id": 31601,
+                  "name": "保存文章",
+                  "code": "wechat.client.article.save",
+                  "sort": 10
+                },
+                {
+                  "id": 31602,
+                  "name": "上传草稿",
+                  "code": "wechat.client.article.upload-draft",
+                  "sort": 20
+                },
+                {
+                  "id": 31603,
+                  "name": "发布文章",
+                  "code": "wechat.client.article.publish",
+                  "sort": 30
+                },
+                {
+                  "id": 31604,
+                  "name": "查询发布状态",
+                  "code": "wechat.client.article.query",
+                  "sort": 40
+                },
+                {
+                  "id": 31605,
+                  "name": "删除文章",
+                  "code": "wechat.client.article.delete",
+                  "sort": 50
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": 3103,
+          "name": "支付能力",
+          "route": "/wechat/client/payment",
+          "icon": "lucide:wallet-cards",
+          "sort": 30,
+          "type": "D",
+          "redirect": "/wechat/client/payment/merchant",
+          "menus": [
+            {
+              "id": 3140,
+              "name": "支付商户",
+              "code": "wechat.client.payment.merchant.index",
+              "route": "/wechat/client/payment/merchant",
+              "icon": "lucide:badge-japanese-yen",
+              "sort": 50,
+              "view": "payment/merchant/index.vue",
+              "module": {
+                "key": "wechat-client-payment-merchant",
+                "summary": "微信支付 APIv3 商户配置、证书和回调参数管理。",
+                "features": [
+                  "商户配置",
+                  "证书密钥",
+                  "回调地址",
+                  "安全脱敏"
+                ]
+              },
+              "permissions": [
+                {
+                  "id": 31401,
+                  "name": "保存支付商户",
+                  "code": "wechat.client.payment.merchant.save",
+                  "sort": 10
+                }
+              ]
+            },
+            {
+              "id": 3141,
+              "name": "支付订单",
+              "code": "wechat.client.payment.order.index",
+              "route": "/wechat/client/payment/order",
+              "icon": "lucide:receipt-text",
+              "sort": 40,
+              "view": "payment/order/index.vue",
+              "module": {
+                "key": "wechat-client-payment-order",
+                "summary": "微信支付订单流水、主动查单补偿和退款入口管理。",
+                "features": [
+                  "订单记录",
+                  "支付状态",
+                  "主动查单",
+                  "退款入口"
+                ]
+              },
+              "permissions": [
+                {
+                  "id": 31411,
+                  "name": "查询支付订单",
+                  "code": "wechat.client.payment.order.query",
+                  "sort": 10
+                },
+                {
+                  "id": 31412,
+                  "name": "发起退款",
+                  "code": "wechat.client.payment.refund.create",
+                  "sort": 20
+                }
+              ]
+            },
+            {
+              "id": 3142,
+              "name": "退款记录",
+              "code": "wechat.client.payment.refund.index",
+              "route": "/wechat/client/payment/refund",
+              "icon": "lucide:rotate-ccw",
+              "sort": 30,
+              "view": "payment/refund/index.vue",
+              "module": {
+                "key": "wechat-client-payment-refund",
+                "summary": "微信支付退款流水、退款状态同步和异常退款排查。",
+                "features": [
+                  "退款记录",
+                  "退款状态",
+                  "主动查退",
+                  "异常排查"
+                ]
+              },
+              "permissions": [
+                {
+                  "id": 31421,
+                  "name": "查询退款订单",
+                  "code": "wechat.client.payment.refund.query",
+                  "sort": 10
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,160 @@
+{
+  "type": "project",
+  "name": "zoujingli/smart_admin",
+  "keywords": [
+    "admin",
+    "hyperf"
+  ],
+  "description": "SmartAdmin open-source Hyperf administration framework.",
+  "license": "Apache-2.0",
+  "require": {
+    "php": ">=8.4",
+    "ext-bcmath": "*",
+    "ext-bz2": "*",
+    "ext-curl": "*",
+    "ext-dom": "*",
+    "ext-fileinfo": "*",
+    "ext-gd": "*",
+    "ext-json": "*",
+    "ext-mbstring": "*",
+    "ext-opcache": "*",
+    "ext-openssl": "*",
+    "ext-pcntl": "*",
+    "ext-pdo": "*",
+    "ext-pdo_mysql": "*",
+    "ext-posix": "*",
+    "ext-redis": "*",
+    "ext-simplexml": "*",
+    "ext-sockets": "*",
+    "ext-sodium": "*",
+    "ext-tokenizer": "*",
+    "ext-xml": "*",
+    "ext-xmlreader": "*",
+    "ext-xmlwriter": "*",
+    "ext-zip": "*",
+    "ext-zlib": "*",
+    "hyperf/filesystem": "^3.2",
+    "hyperf/flysystem-oss": "^1.4",
+    "overtrue/flysystem-cos": "^5.2",
+    "zoujingli/wechat-developer": "^2.0@dev",
+    "zoujingli/smart_admin_library": "^1.0",
+    "zoujingli/smart_admin_plugin_builder": "^1.0",
+    "zoujingli/smart_admin_plugin_system": "^1.0",
+    "zoujingli/smart_admin_plugin_wechat_client": "^1.0",
+    "zoujingli/smart_admin_plugin_wechat_service": "^1.0"
+  },
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/zoujingli/SmartAdminLibrary.git"
+    },
+    {
+      "type": "path",
+      "url": "plugin/Builder"
+    },
+    {
+      "type": "path",
+      "url": "plugin/System"
+    },
+    {
+      "type": "path",
+      "url": "plugin/WechatClient"
+    },
+    {
+      "type": "path",
+      "url": "plugin/WechatService"
+    }
+  ],
+  "require-dev": {
+    "friendsofphp/php-cs-fixer": "^3.89",
+    "swoole/ide-helper": "^6.0",
+    "phpunit/phpunit": "^11.5",
+    "phpstan/phpstan": "^2.1",
+    "symfony/var-dumper": "^8.0"
+  },
+  "suggest": {
+    "ext-pdo": "Required for MySQL Client.",
+    "ext-pdo_mysql": "Required for MySQL Client.",
+    "ext-json": "Required for JSON support.",
+    "ext-redis": "Required for Redis Client.",
+    "ext-swoole": "Recommended for coroutine support."
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "app/",
+      "Tests\\": "tests/"
+    }
+  },
+  "prefer-stable": true,
+  "minimum-stability": "dev",
+  "config": {
+    "optimize-autoloader": true,
+    "sort-packages": true
+  },
+  "scripts": {
+    "analyse": "sh bin/swoole-cli vendor/bin/phpstan analyse plugin config migrations tests --level=0 --memory-limit=1G",
+    "test": "sh bin/swoole-cli vendor/bin/phpunit",
+    "web:build": "cd web && pnpm -F @vben/web-antd run typecheck && pnpm -F @vben/web-antd run build",
+    "docs:serve": "@php -S 127.0.0.1:18100 -t docs",
+    "docs:check": "sh bin/start-swoole xadmin:docs:check",
+    "release:backup": "sh bin/start-swoole xadmin:release:backup",
+    "release:upgrade:dry-run": "sh bin/start-swoole xadmin:release:upgrade --dry-run --json",
+    "release:snapshot": [
+      "@composer release:backup",
+      "@composer release:upgrade:dry-run"
+    ],
+    "release:check": [
+      "@composer analyse",
+      "@composer test",
+      "@composer web:build",
+      "@composer release:snapshot",
+      "sh bin/start-swoole xadmin:menu:sync --dry-run --json",
+      "sh bin/start-swoole xadmin:node:sync --dry-run --json"
+    ],
+    "post-autoload-dump": [
+      "rm -rf runtime/container",
+      "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+    ],
+    "sync": [
+      "sh bin/start-swoole xadmin:build:model",
+      "sh bin/start-swoole xadmin:build:struct",
+      "sh bin/swoole-cli vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.php",
+      "sh bin/swoole-cli vendor/bin/phpstan analyse plugin config migrations tests --level=0 --memory-limit=1G"
+    ],
+    "build:web": "@composer web:build",
+    "build:sync": [
+      "sh bin/start-swoole xadmin:menu:sync --details",
+      "sh bin/start-swoole xadmin:node:sync --details",
+      "export COMPOSER_ALLOW_SUPERUSER=1 && sh bin/runtime-composer sync"
+    ],
+    "build:clean": "rm -rf system.bin build runtime/container",
+    "build:install-prod": "export COMPOSER_ALLOW_SUPERUSER=1 && sh bin/runtime-composer install --no-dev --optimize-autoloader --classmap-authoritative --no-interaction --prefer-dist --no-progress",
+    "build:snapshot": [
+      "@composer release:backup",
+      "mkdir -p build/runtime/release && cp runtime/release/database.schema.gz runtime/release/database.data.gz build/runtime/release/"
+    ],
+    "build:precompile": "@php .php-sfx-packer.php precompile .",
+    "build:phar": [
+      "rm -f system.bin",
+      "APP_ENV=prod SCAN_CACHEABLE=true sh bin/swoole-cli -d phar.readonly=Off -d opcache.enable=0 ./bin/hyperf.php xadmin:build:phar --mount=.env --name=system.bin --phar-version=2.0.0",
+      "@php .php-sfx-packer.php pack system.bin build/system"
+    ],
+    "build:audit": "@php .php-sfx-packer.php audit build/system",
+    "build:cleanup": "rm -f system.bin",
+    "build:restore-dev": "export COMPOSER_ALLOW_SUPERUSER=1 && sh bin/runtime-composer install --optimize-autoloader --no-interaction --prefer-dist --no-progress",
+    "build": "@php .php-sfx-packer.php build",
+    "setup": [
+      "sh bin/start-swoole migrate",
+      "sh bin/start-swoole xadmin:menu:sync --details",
+      "sh bin/start-swoole xadmin:node:sync --details"
+    ],
+    "watch": [
+      "Composer\\Config::disableProcessTimeout",
+      "sh bin/swoole-cli bin/start-watch"
+    ],
+    "start": [
+      "Composer\\Config::disableProcessTimeout",
+      "sh bin/start-swoole"
+    ]
+  }
+}

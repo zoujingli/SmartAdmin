@@ -1,0 +1,14 @@
+#!/bin/sh
+
+set -eu
+
+BASE_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+COMPOSER_BIN=$(command -v composer)
+
+if [ -z "$COMPOSER_BIN" ]; then
+  echo "Composer executable not found in PATH." >&2
+  exit 127
+fi
+
+# 构建链路统一使用项目内置 Swoole CLI 运行 Composer，避免回落到系统 PHP 版本导致平台检查失败。
+exec sh "$BASE_DIR/bin/swoole-cli" "$COMPOSER_BIN" "$@"

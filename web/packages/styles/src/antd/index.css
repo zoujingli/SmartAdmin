@@ -1,0 +1,122 @@
+/* ant-design-vue 组件库的一些样式重置 */
+
+.ant-app {
+  width: 100%;
+  height: 100%;
+  overscroll-behavior: none;
+  color: inherit;
+}
+
+.ant-btn {
+  .anticon {
+    display: inline-flex;
+  }
+
+  /* * 修复按钮添加图标时的位置问题 */
+  > svg {
+    display: inline-block;
+  }
+
+  > svg + span {
+    margin-inline-start: 6px;
+  }
+}
+
+.ant-tag {
+  > svg {
+    display: inline-block;
+  }
+
+  > svg + span {
+    margin-inline-start: 4px;
+  }
+}
+
+.ant-message-notice-content,
+.ant-notification-notice {
+  @apply dark:border-border/60 dark:border;
+}
+
+.form-valid-error {
+  /** select 选择器的样式 */
+
+  .ant-select:not(.valid-success) .ant-select-selector:not(.valid-success) {
+    border-color: hsl(var(--destructive)) !important;
+  }
+
+  .ant-select-focused .ant-select-selector {
+    box-shadow: 0 0 0 2px rgb(255 38 5 / 6%) !important;
+  }
+
+  /** 数字输入框样式 */
+  .ant-input-number-focused {
+    box-shadow: 0 0 0 2px rgb(255 38 5 / 6%);
+  }
+
+  /** 密码输入框样式 */
+  .ant-input-affix-wrapper:hover {
+    border-color: hsl(var(--destructive));
+    box-shadow: 0 0 0 2px rgb(255 38 5 / 6%);
+  }
+
+  .ant-input:not(.valid-success) {
+    border-color: hsl(var(--destructive)) !important;
+  }
+}
+
+/** 区间选择器下面来回切换时的样式 */
+.ant-app .form-valid-error .ant-picker-active-bar {
+  background-color: hsl(var(--destructive));
+}
+
+/** 时间选择器的样式 */
+.ant-app .form-valid-error .ant-picker-focused {
+  box-shadow: 0 0 0 2px rgb(255 38 5 / 6%);
+}
+
+:root {
+  --app-list-table-min-width: 720px;
+  --app-crud-section-gap: 24px;
+  --app-crud-shell-padding: 16px 20px 20px;
+  --app-crud-tabs-nav-margin-bottom: 12px;
+}
+
+.crud-page-shell > .ant-card-body {
+  /* CRUD 页面壳统一托管内部区块间距，避免统计卡片、筛选卡片、表格卡片边框贴合。 */
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-crud-section-gap);
+  padding: var(--app-crud-shell-padding);
+}
+
+.crud-page-shell > .ant-card-body > .mb-5 {
+  /* 兼容历史页面仍使用 mb-5 的写法，实际间距统一交给父级 gap，避免不同来源间距叠加。 */
+  margin-bottom: 0 !important;
+}
+
+.crud-page-tabs > .ant-tabs-nav {
+  margin-bottom: var(--app-crud-tabs-nav-margin-bottom);
+}
+
+.crud-page-tabs .ant-tabs-tabpane-active {
+  /* Tabs 内部的 CRUD 区块同样使用统一纵向间距，覆盖用户、角色等带页签页面的卡片边框贴合问题。 */
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-crud-section-gap);
+}
+
+.crud-page-tabs .ant-tabs-tabpane-active > .mb-5 {
+  margin-bottom: 0 !important;
+}
+
+.crud-page-shell .ant-table-wrapper .ant-table-body > table,
+.crud-page-shell .ant-table-wrapper .ant-table-content > table {
+  min-width: max(100%, var(--app-list-table-min-width));
+}
+
+@media (max-width: 768px) {
+  :root {
+    --app-crud-section-gap: 16px;
+    --app-crud-shell-padding: 12px;
+  }
+}

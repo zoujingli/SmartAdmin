@@ -1,0 +1,47 @@
+# === IDE / OS ===
+.git
+.svn
+.DS_Store
+.idea
+.vscode
+.project
+.settings
+.phpintel
+.buildpath
+.htaccess
+.codex
+
+# === PHP 项目 ===
+.env
+**/.env
+*.lock
+*.phar
+*.cache
+*.patch
+.phpunit*
+/start*
+/build
+/vendor
+/public
+/runtime
+/package.xml
+
+# === 前端（web/）===
+# 依赖目录（pnpm install 自动生成）
+web/**/node_modules/
+# Turbo 构建缓存
+web/**/.turbo/
+# Vite 缓存
+web/**/.vite/
+# 主前端发布产物（由 composer web:build 生成，composer build 只复用并打包）
+/web/dist/
+# 子包 stub 产物（pnpm postinstall 自动生成，非发布产物）
+/web/internal/**/dist/
+/web/packages/**/dist/
+/web/scripts/**/dist/
+# 构建压缩包
+/web/apps/web-antd/dist.zip
+# 编辑器 / CI 配置（上游同步，本项目不维护）
+/web/.vscode
+/web/.github
+/web/.changeset

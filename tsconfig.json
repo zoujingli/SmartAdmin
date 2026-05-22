@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./web/apps/web-antd/tsconfig.json",
+  "compilerOptions": {
+    "types": []
+  },
+  "include": [
+    "web/node_modules/.pnpm/vite@*/node_modules/vite/client.d.ts",
+    "web/apps/web-antd/src/**/*.d.ts",
+    "web/packages/types/global.d.ts",
+    "plugin/*/**/*.ts",
+    "plugin/*/**/*.tsx",
+    "plugin/*/**/*.vue",
+    "plugin/*/plugin.json"
+  ]
+}

@@ -1,0 +1,51 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    name: Build Smoke
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo, pdo_mysql, redis, zlib, bcmath, openssl, opcache
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install backend dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader --ignore-platform-req=ext-opcache
+
+      - name: Install frontend dependencies
+        working-directory: web
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        working-directory: web
+        run: pnpm -F @vben/web-antd run build
+
+      - name: Enable bundled Swoole runtime
+        run: chmod +x bin/swoole-linux-x64
+
+      - name: Hyperf command smoke test
+        run: ./bin/swoole-linux-x64 bin/hyperf.php list

@@ -1,0 +1,3 @@
+/bin/swoole-cli text eol=lf
+/bin/start-swoole text eol=lf
+/bin/start-watch text eol=lf

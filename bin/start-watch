@@ -1,0 +1,265 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+/**
+ * This file is part of ThinkAdmin for Hyperf.
+ *
+ * @document  https://hyperf.thinkadmin.top
+ * @contact  Anyon <zoujingli@qq.com>
+ * @license  https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ */
+
+use Hyperf\Di\ClassLoader;
+use Swoole\Event;
+use Swoole\Process;
+use Swoole\Timer;
+
+use function Hyperf\Support\env;
+
+include __DIR__ . '/../vendor/autoload.php';
+defined('BASE_PATH') || define('BASE_PATH', dirname(__DIR__));
+
+new class {
+    public function __construct()
+    {
+        // 初始化配置
+        ClassLoader::init();
+
+        // 检查 exec 函数是否可用
+        if (! function_exists('exec')) {
+            Logger::error('[x] exec 函数被禁用，请在 php.ini 中启用后重试。');
+            exit(1);
+        }
+
+        // 获取 PHP Worker 可执行文件路径
+        $phpBinary = $this->getPhpBinaryPath();
+        if (! $phpBinary || ! is_executable($phpBinary)) {
+            Logger::error(sprintf('[x] swoole-cli 路径无效或不可执行：%s', $phpBinary));
+            exit(1);
+        }
+
+        date_default_timezone_set('Asia/Shanghai');
+        swoole_async_set(['log_level' => SWOOLE_LOG_INFO, 'enable_coroutine' => false]);
+
+        $phpWorker = BASE_PATH . '/bin/hyperf.php';
+        // 排除目录（按路径名字母序）。迁移不参与 HTTP 运行时；整棵 web 已覆盖其下 node_modules、dist 等，无需单独写 node_modules。
+        $fileWatcher = new FileWatcher(BASE_PATH, 'env,php', [
+            '.git',
+            'build',
+            'migrations',
+            'public',
+            'runtime',
+            'vendor',
+            'web',
+        ]);
+        $procManager = new ProcManager($phpBinary, $phpWorker, [$phpWorker, 'start'], intval(env('APP_WORKER_PORT', 9501)));
+
+        $procManager->start();
+        $fileWatcher->init()->watch(1000, fn() => $procManager->restart());
+        Event::wait();
+    }
+
+    /**
+     * 获取 Swoole 可执行路径.
+     */
+    private function getPhpBinaryPath(): ?string
+    {
+        $binDir = BASE_PATH . '/bin';
+        // 与 start-swoole 一致：Linux ARM 常见为 aarch64；x86 Debian/Ubuntu 部分环境为 amd64
+        $binarys = [
+            'Linux_aarch64' => $binDir . '/swoole-linux-a64',
+            'Linux_arm64' => $binDir . '/swoole-linux-a64',
+            'Linux_x86_64' => $binDir . '/swoole-linux-x64',
+            'Linux_amd64' => $binDir . '/swoole-linux-x64',
+            'Darwin_arm64' => $binDir . '/swoole-macos-a64',
+        ];
+        $key = php_uname('s') . '_' . php_uname('m');
+        if (isset($binarys[$key])) {
+            foreach (array_unique($binarys) as $path) {
+                is_file($path) && @chmod($path, 0755);
+            }
+            return $binarys[$key];
+        }
+        return PHP_BINARY;
+    }
+};
+
+class ProcManager
+{
+    private ?Process $serve = null;
+
+    public function __construct(
+        private readonly string $phpBinary,
+        private readonly string $phpWorker,
+        private readonly array $workerStart,
+        private readonly int $workerPort
+    ) {}
+
+    public function start(): void
+    {
+        $this->terminateProcesses();
+        Logger::info('🔄 Starting service...');
+        ($this->serve = new Process([$this, 'serve'], true))->start();
+        Event::add($this->serve->pipe, fn() => $this->output($this->serve->read()));
+    }
+
+    public function restart(): void
+    {
+        if ($this->serve?->pid) {
+            Process::kill($this->serve->pid);
+            Event::del($this->serve->pipe);
+        }
+        $this->start();
+    }
+
+    public function serve(Process $process): void
+    {
+        $process->exec($this->phpBinary, $this->workerStart);
+    }
+
+    private function terminateProcesses(): void
+    {
+        do {
+            $pids = [];
+            // 检查文件关联的进程
+            $this->terminateByCommand("ps -ef | grep '{$this->phpWorker}' | grep -v grep | awk '{print $2}'", $pids);
+            // 检查占用端口的进程
+            $this->terminateByCommand("lsof -i:{$this->workerPort} | grep LISTEN | awk '{print $2}'", $pids);
+            if ($pids) {
+                Logger::info(sprintf('🔄 Killed PIDS [%s] ...', join(',', $pids)));
+                usleep(800000);
+            }
+        } while ($pids);
+
+        // 清理缓存文件
+        $container = BASE_PATH . '/runtime/container';
+        @exec('rm -rf ' . escapeshellarg($container));
+        sleep(1);
+    }
+
+    private function terminateByCommand(string $command, array &$pids): void
+    {
+        @exec($command, $output);
+        foreach (array_filter(array_unique($this->str2arr($output, "\n"))) as $pid) {
+            $pid && is_numeric($pid) && @Process::kill($pids[] = (int) $pid);
+        }
+    }
+
+    private function str2arr(null|array|int|string $text, string $separ = ','): array
+    {
+        $items = [];
+        foreach (is_array($text) ? $text : explode($separ, trim("{$text}", $separ)) as $item) {
+            $item !== '' && $items[] = trim("{$item}");
+        }
+        return $items;
+    }
+
+    private function output(?string $message): void
+    {
+        if ($message) {
+            match (true) {
+                str_contains($message, '[INFO]') => Logger::info($message, false),
+                str_contains($message, '[DEBUG]') => Logger::debug($message, false),
+                str_contains($message, '[ERROR]') => Logger::error($message, false),
+                str_contains($message, '[WARNING]') => Logger::warning($message, false),
+                default => Logger::debug($message, false),
+            };
+        }
+    }
+}
+
+class FileWatcher
+{
+    private array $hashes = [];
+
+    public function __construct(
+        private readonly string $watchDir,
+        private readonly string $watchExt,
+        private readonly array $excludeDirs
+    ) {}
+
+    public function init(): static
+    {
+        $files = $this->getWatchedFiles();
+        $this->hashes = array_combine($files, array_map([$this, 'getFileHash'], $files));
+        Logger::info('🔄 Watching ' . count($this->hashes) . ' files...');
+        return $this;
+    }
+
+    public function watch(int $interval, callable $onChange): void
+    {
+        Timer::tick($interval, function () use ($onChange) {
+            foreach ($this->hashes as $path => $hash) {
+                if (! file_exists($path) || $this->getFileHash($path) !== $hash) {
+                    Logger::warning('📡 File change detected. Restarting...');
+                    [$onChange(), $this->init()];
+                    break;
+                }
+            }
+        });
+    }
+
+    private function getWatchedFiles(): array
+    {
+        $files = [];
+        $dirIt = new RecursiveDirectoryIterator($this->watchDir, FilesystemIterator::SKIP_DOTS);
+        $filterIt = new RecursiveCallbackFilterIterator($dirIt, function (\SplFileInfo $current): bool {
+            $path = $current->getPathname();
+            if ($current->isDir()) {
+                return ! $this->isExcluded($path . DIRECTORY_SEPARATOR . '_');
+            }
+
+            return ! $this->isExcluded($path);
+        });
+        foreach (new RecursiveIteratorIterator($filterIt, RecursiveIteratorIterator::LEAVES_ONLY) as $fileInfo) {
+            if ($this->isExcluded($fileInfo->getPathname())) {
+                continue;
+            }
+            if (in_array(pathinfo($fileInfo->getFilename(), PATHINFO_EXTENSION), explode(',', $this->watchExt), true)) {
+                $files[] = $fileInfo->getPathname();
+            }
+        }
+        return $files;
+    }
+
+    private function isExcluded(string $path): bool
+    {
+        $pathNorm = str_replace('\\', '/', $path);
+        foreach ($this->excludeDirs as $exclude) {
+            $seg = trim(str_replace('\\', '/', $exclude), '/');
+            if ($seg !== '' && str_contains($pathNorm, '/' . $seg . '/')) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private function getFileHash(string $path): string
+    {
+        return md5_file($path) ?: 'deleted';
+    }
+}
+
+class Logger
+{
+    public static function info(string $message, bool $newLine = true): void
+    {
+        echo sprintf("\033[0;32m%s\033[0m", $message) . ($newLine ? PHP_EOL : '');
+    }
+
+    public static function debug(string $message, bool $newLine = true): void
+    {
+        echo sprintf("\033[0;34m%s\033[0m", $message) . ($newLine ? PHP_EOL : '');
+    }
+
+    public static function error(string $message, bool $newLine = true): void
+    {
+        echo sprintf("\033[0;31m%s\033[0m", $message) . ($newLine ? PHP_EOL : '');
+    }
+
+    public static function warning(string $message, bool $newLine = true): void
+    {
+        echo sprintf("\033[0;33m%s\033[0m", $message) . ($newLine ? PHP_EOL : '');
+    }
+}

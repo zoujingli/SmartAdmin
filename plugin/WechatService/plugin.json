@@ -1,0 +1,136 @@
+{
+  "plugin": {
+    "code": "wechat-service",
+    "name": "微信开放平台",
+    "version": "1.0.0",
+    "description": "Apache-2.0 开源插件，提供微信开放平台第三方平台配置、授权管理、回调接入和内部接口网关。",
+    "license_name": "Apache License 2.0",
+    "license_type": "open_source",
+    "license_url": "https://www.apache.org/licenses/LICENSE-2.0",
+    "pricing_type": "free",
+    "support_url": "https://github.com/zoujingli/SmartAdmin/issues",
+    "license_notice": "本插件随 SmartAdmin 以 Apache License 2.0 开源发布；使用微信相关能力仍需遵守微信官方平台、支付和数据安全协议。",
+    "view_root": "stc/view",
+    "language_root": "stc/languages",
+    "migration_root": "stc/migrations"
+  },
+  "apps": [
+    {
+      "id": 3000,
+      "name": "微信开放平台",
+      "route": "/wechat/service",
+      "component": "BasicLayout",
+      "icon": "lucide:messages-square",
+      "sort": 80,
+      "type": "D",
+      "redirect": "/wechat/service/config",
+      "menus": [
+        {
+          "id": 3030,
+          "name": "接口网关",
+          "code": "wechat.service.gateway.index",
+          "route": "/wechat/service/gateway",
+          "icon": "lucide:key-round",
+          "sort": 10,
+          "view": "gateway/index.vue",
+          "module": {
+            "key": "wechat-service-gateway",
+            "summary": "开放平台内部 JSON-RPC 网关调用凭据与授权账号白名单。",
+            "features": [
+              "调用凭据",
+              "密钥轮换",
+              "AppID 白名单",
+              "调用统计"
+            ]
+          },
+          "permissions": [
+            {
+              "id": 30301,
+              "name": "保存网关凭据",
+              "code": "wechat.service.gateway.save",
+              "sort": 10
+            },
+            {
+              "id": 30302,
+              "name": "删除网关凭据",
+              "code": "wechat.service.gateway.delete",
+              "sort": 20
+            }
+          ]
+        },
+        {
+          "id": 3020,
+          "name": "授权账号",
+          "code": "wechat.service.auth.index",
+          "route": "/wechat/service/auth",
+          "icon": "lucide:badge-check",
+          "sort": 20,
+          "view": "auth/index.vue",
+          "module": {
+            "key": "wechat-service-auth",
+            "summary": "开放平台已授权公众号和小程序的租户归属与调用状态。",
+            "features": [
+              "授权账号",
+              "租户归属",
+              "状态管理",
+              "接口网关"
+            ]
+          },
+          "permissions": [
+            {
+              "id": 30201,
+              "name": "同步授权账号",
+              "code": "wechat.service.auth.sync",
+              "sort": 10
+            },
+            {
+              "id": 30202,
+              "name": "更新授权状态",
+              "code": "wechat.service.auth.update",
+              "sort": 20
+            },
+            {
+              "id": 30203,
+              "name": "删除授权账号",
+              "code": "wechat.service.auth.delete",
+              "sort": 30
+            }
+          ]
+        },
+        {
+          "id": 3010,
+          "name": "平台配置",
+          "code": "wechat.service.config.index",
+          "route": "/wechat/service/config",
+          "icon": "lucide:settings",
+          "sort": 30,
+          "view": "config/index.vue",
+          "module": {
+            "key": "wechat-service-config",
+            "summary": "微信开放平台第三方平台参数、回调地址和授权入口。",
+            "features": [
+              "平台配置",
+              "授权链接",
+              "Ticket 回调",
+              "安全脱敏"
+            ]
+          },
+          "permissions": [
+            {
+              "id": 30101,
+              "name": "保存平台配置",
+              "code": "wechat.service.config.save",
+              "sort": 10
+            },
+            {
+              "id": 30102,
+              "name": "生成授权链接",
+              "code": "wechat.service.config.auth-url",
+              "sort": 20
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

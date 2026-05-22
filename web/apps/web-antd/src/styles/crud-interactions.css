@@ -1,0 +1,77 @@
+/* 全局按钮点击反馈：不使用位移/缩放，避免点击、loading 切换时产生视觉抖动。 */
+:where(.ant-btn) {
+  transition:
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    color 0.18s ease,
+    opacity 0.18s ease;
+}
+
+:where(.ant-btn:not(:disabled):not(.ant-btn-disabled):not(.ant-btn-loading)):active {
+  filter: brightness(0.96);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 10%);
+}
+
+:where(.ant-btn-primary:not(:disabled):not(.ant-btn-disabled):not(.ant-btn-loading)):hover {
+  box-shadow: 0 8px 18px rgb(22 119 255 / 18%);
+}
+
+:where(.ant-btn-dangerous:not(:disabled):not(.ant-btn-disabled):not(.ant-btn-loading)):hover {
+  box-shadow: 0 8px 18px rgb(255 77 79 / 16%);
+}
+
+:where(.ant-btn:focus-visible) {
+  outline: 2px solid var(--ant-colorPrimaryBorder, rgb(145 202 255));
+  outline-offset: 2px;
+}
+
+:where(.ant-btn.ant-btn-loading),
+:where(.ant-btn:disabled),
+:where(.ant-btn.ant-btn-disabled) {
+  cursor: not-allowed;
+  transform: none !important;
+  filter: none !important;
+}
+
+/* Ant loading 图标默认进入文档流会撑宽按钮；改为绝对定位，按钮文字和宽度不随 loading 抖动。 */
+:where(.ant-btn.ant-btn-loading:not(.ant-btn-icon-only)) {
+  position: relative;
+}
+
+:where(.ant-btn.ant-btn-loading:not(.ant-btn-icon-only) > .ant-btn-icon:first-child) {
+  position: absolute;
+  inset-inline-start: 10px;
+  margin-inline-end: 0 !important;
+}
+
+:where(.ant-btn.ant-btn-loading:not(.ant-btn-icon-only) > .ant-btn-icon:first-child + span) {
+  margin-inline-start: 0 !important;
+}
+
+/* 搜索区按钮空间固定，短按钮 loading 时图标绝对定位也不会压住文字。 */
+:where(.crud-search-grid__actions .ant-btn:not(.ant-btn-icon-only)) {
+  min-width: 72px;
+}
+
+/* 表格 link 操作在禁用/执行中时降低存在感，避免误以为还能继续点击。 */
+:where(.crud-table-actions .ant-btn-link[disabled]),
+:where(.crud-table-actions .ant-btn-link.ant-btn-disabled) {
+  opacity: 0.55;
+}
+
+/* 表格行操作以文字宽度稳定为先，执行中通过禁用态和行级 cursor 反馈，避免行内按钮闪动。 */
+:where(.crud-table-actions .ant-btn-loading > .ant-btn-icon:first-child) {
+  display: none;
+}
+
+/* Shadcn/Vben 登录等非 Ant 按钮也提供一致的轻量点击反馈。 */
+:where(button:not(.ant-btn):not(:disabled)):active {
+  filter: brightness(0.96);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 10%);
+}
+
+:where(button:not(.ant-btn):focus-visible) {
+  outline: 2px solid var(--ant-colorPrimaryBorder, rgb(145 202 255));
+  outline-offset: 2px;
+}

@@ -1,0 +1,44 @@
+{
+  "name": "@vben-core/typings",
+  "version": "5.6.0",
+  "homepage": "https://github.com/vbenjs/vue-vben-admin",
+  "bugs": "https://github.com/vbenjs/vue-vben-admin/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vbenjs/vue-vben-admin.git",
+    "directory": "packages/@vben-core/base/typings"
+  },
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm unbuild"
+  },
+  "files": [
+    "dist"
+  ],
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "development": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./vue-router": {
+      "types": "./vue-router.d.ts"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.mjs"
+      }
+    }
+  },
+  "dependencies": {
+    "vue": "catalog:",
+    "vue-router": "catalog:"
+  }
+}

@@ -1,0 +1,9 @@
+Apache License
+Version 2.0, January 2004
+http://www.apache.org/licenses/
+
+The SmartAdmin web application is distributed under the Apache License,
+Version 2.0. See the repository root LICENSE file for the full license text.
+
+Portions of this directory are derived from Vue Vben Admin and retain their
+original MIT license notices. See THIRD_PARTY_NOTICES.md for details.

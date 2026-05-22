@@ -1,0 +1,92 @@
+/**
+ * 日志模块共用样式：使用 Vben 在 :root 上的 HSL 分量变量（与 useAntdDesignTokens 同源），
+ * 勿使用 --ant-color-*（未在全局注入时会导致 border/background 整条声明无效）。
+ * 仅保留日志页列表与告警分析共用的页面级样式。
+ */
+
+.logs-text-label {
+  margin-top: 4px;
+  color: hsl(var(--muted-foreground));
+}
+
+.logs-text-body {
+  color: hsl(var(--foreground));
+}
+
+.logs-stat-value {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 700;
+}
+
+.logs-stat-value--primary {
+  color: hsl(var(--primary));
+}
+
+.logs-stat-value--success {
+  color: hsl(var(--success));
+}
+
+.logs-stat-value--warning {
+  color: hsl(var(--warning));
+}
+
+.logs-stat-value--error {
+  color: hsl(var(--destructive));
+}
+
+.logs-alert-card {
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.logs-alert-card--danger {
+  border-color: hsl(var(--destructive) / 0.28);
+  background: hsl(var(--destructive) / 0.08);
+}
+
+.logs-alert-card--warning {
+  border-color: hsl(var(--warning) / 0.28);
+  background: hsl(var(--warning) / 0.08);
+}
+
+.logs-alert-card--info {
+  border-color: hsl(var(--primary) / 0.22);
+  background: hsl(var(--primary) / 0.06);
+}
+
+.logs-alert-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.logs-alert-card-title {
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.logs-alert-card-description {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: hsl(var(--muted-foreground));
+}
+
+.logs-alert-card-footer {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.logs-alert-card-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+}

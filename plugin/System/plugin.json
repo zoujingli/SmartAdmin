@@ -1,0 +1,753 @@
+{
+  "plugin": {
+    "code": "system",
+    "name": "系统基础应用",
+    "version": "1.0.0",
+    "description": "提供仪表盘、系统管理、平台运维、租户、权限、日志、文件和系统参数等基础后台能力。",
+    "view_root": "stc/view",
+    "language_root": "stc/languages",
+    "migration_root": "stc/migrations"
+  },
+  "apps": [
+    {
+      "id": 200,
+      "name": "平台运维",
+      "route": "/system/ops",
+      "component": "BasicLayout",
+      "icon": "lucide:blocks",
+      "sort": 100,
+      "type": "D",
+      "redirect": "/system/logs/action",
+      "menus": [
+        {
+          "id": 180,
+          "name": "系统数据",
+          "code": "system.data.index",
+          "route": "/system/data",
+          "icon": "lucide:database",
+          "sort": 10,
+          "view": "data/index.vue",
+          "module": {
+            "key": "data",
+            "summary": "系统运行态、配置和模块能力总览。",
+            "features": [
+              "系统信息",
+              "配置管理",
+              "模块矩阵",
+              "在线概览"
+            ]
+          },
+          "permissions": [
+            {
+              "id": 1801,
+              "name": "保存配置",
+              "code": "system.data.save",
+              "sort": 10
+            },
+            {
+              "id": 1802,
+              "name": "清理缓存",
+              "code": "system.data.clear-cache",
+              "sort": 20
+            }
+          ]
+        },
+        {
+          "id": 190,
+          "name": "系统参数",
+          "code": "system.setting.index",
+          "route": "/system/setting",
+          "icon": "lucide:sliders-horizontal",
+          "sort": 15,
+          "view": "setting/index.vue",
+          "module": {
+            "key": "setting",
+            "summary": "系统品牌、登录展示、Logo、版权与备案参数维护。",
+            "features": [
+              "品牌参数",
+              "登录展示",
+              "Logo 上传",
+              "版权备案"
+            ]
+          },
+          "permissions": [
+            {
+              "id": 1901,
+              "name": "保存系统参数",
+              "code": "system.setting.save",
+              "sort": 10
+            }
+          ]
+        },
+        {
+          "id": 160,
+          "name": "文件管理",
+          "code": "system.file.index",
+          "route": "/system/file",
+          "icon": "lucide:folder-open",
+          "sort": 20,
+          "view": "file/index.vue",
+          "module": {
+            "key": "file",
+            "summary": "统一文件台账、上传通道配置和上传运行时规则中心。",
+            "features": [
+              "文件列表",
+              "回收站",
+              "上传配置",
+              "本地上传",
+              "OSS 直传"
+            ]
+          },
+          "permissions": [
+            {
+              "id": 1601,
+              "name": "上传文件",
+              "code": "system.file.upload",
+              "sort": 10
+            },
+            {
+              "id": 1602,
+              "name": "编辑文件",
+              "code": "system.file.update",
+              "sort": 20
+            },
+            {
+              "id": 1603,
+              "name": "删除文件",
+              "code": "system.file.delete",
+              "sort": 30
+            },
+            {
+              "id": 1604,
+              "name": "恢复文件",
+              "code": "system.file.recovery",
+              "sort": 40
+            },
+            {
+              "id": 1605,
+              "name": "彻底删除文件",
+              "code": "system.file.real-delete",
+              "sort": 50
+            },
+            {
+              "id": 1606,
+              "name": "维护上传通道配置",
+              "code": "system.file.upload-config",
+              "sort": 60
+            },
+            {
+              "id": 1607,
+              "name": "导出文件",
+              "code": "system.file.export",
+              "sort": 70
+            }
+          ]
+        },
+        {
+          "id": 155,
+          "name": "变更日志",
+          "code": "system.logs.change.index",
+          "route": "/system/logs/change",
+          "icon": "lucide:file-diff",
+          "sort": 25,
+          "view": "logs/change/index.vue",
+          "module": {
+            "key": "logs-change",
+            "summary": "业务数据变更明细的独立检索与审计中心。",
+            "features": [
+              "变更列表",
+              "字段差异",
+              "对象追踪",
+              "关联操作"
+            ]
+          },
+          "permissions": [
+            {
+              "id": 1551,
+              "name": "导出变更日志",
+              "code": "system.logs.change.export",
+              "sort": 10
+            }
+          ]
+        },
+        {
+          "id": 150,
+          "name": "操作日志",
+          "code": "system.logs.action.index",
+          "route": "/system/logs/action",
+          "icon": "lucide:file-text",
+          "sort": 30,
+          "view": "logs/action/index.vue",
+          "module": {
+            "key": "logs-action",
+            "summary": "登录与操作日志的查询、分析和清理中心。",
+            "features": [
+              "日志列表",
+              "统计分析",
+              "清空回收",
+              "请求追踪"
+            ]
+          },
+          "permissions": [
+            {
+              "id": 1501,
+              "name": "删除日志",
+              "code": "system.logs.action.delete",
+              "sort": 10
+            },
+            {
+              "id": 1502,
+              "name": "清空日志",
+              "code": "system.logs.action.clear",
+              "sort": 20
+            },
+            {
+              "id": 1503,
+              "name": "导出日志",
+              "code": "system.logs.action.export",
+              "sort": 30
+            },
+            {
+              "id": 1504,
+              "name": "恢复日志",
+              "code": "system.logs.action.recovery",
+              "sort": 40
+            },
+            {
+              "id": 1505,
+              "name": "彻底删除日志",
+              "code": "system.logs.action.real-delete",
+              "sort": 50
+            }
+          ]
+        },
+        {
+          "id": 220,
+          "name": "通知中心",
+          "code": "system.notice.index",
+          "route": "/system/notice",
+          "icon": "lucide:bell-ring",
+          "sort": 40,
+          "view": "notice/index.vue",
+          "module": {
+            "key": "notice",
+            "summary": "公告发布、精确投放、收件箱与右上角通知铃铛的统一中心。",
+            "features": [
+              "我的通知",
+              "通知管理",
+              "回收站",
+              "指定用户投放"
+            ]
+          },
+          "permissions": [
+            {
+              "id": 2201,
+              "name": "新增公告",
+              "code": "system.notice.create",
+              "sort": 10
+            },
+            {
+              "id": 2202,
+              "name": "编辑公告",
+              "code": "system.notice.update",
+              "sort": 20
+            },
+            {
+              "id": 2203,
+              "name": "删除公告",
+              "code": "system.notice.delete",
+              "sort": 30
+            },
+            {
+              "id": 2204,
+              "name": "发布公告",
+              "code": "system.notice.publish",
+              "sort": 40
+            },
+            {
+              "id": 2205,
+              "name": "恢复公告",
+              "code": "system.notice.recovery",
+              "sort": 50
+            },
+            {
+              "id": 2206,
+              "name": "彻底删除公告",
+              "code": "system.notice.real-delete",
+              "sort": 60
+            },
+            {
+              "id": 2207,
+              "name": "更新公告状态",
+              "code": "system.notice.status",
+              "sort": 70
+            },
+            {
+              "id": 2208,
+              "name": "导出公告",
+              "code": "system.notice.export",
+              "sort": 80
+            }
+          ]
+        },
+        {
+          "id": 210,
+          "name": "租户管理",
+          "code": "system.tenant.index",
+          "route": "/system/tenant",
+          "icon": "lucide:building-2",
+          "sort": 50,
+          "view": "tenant/index.vue",
+          "module": {
+            "key": "tenant",
+            "summary": "租户启停、到期回收与平台租户生命周期管理中心。",
+            "features": [
+              "分页检索",
+              "状态管理",
+              "到期管理",
+              "租户开通"
+            ]
+          },
+          "permissions": [
+            {
+              "id": 2101,
+              "name": "新增租户",
+              "code": "system.tenant.create",
+              "sort": 10
+            },
+            {
+              "id": 2102,
+              "name": "编辑租户",
+              "code": "system.tenant.update",
+              "sort": 20
+            },
+            {
+              "id": 2103,
+              "name": "删除租户",
+              "code": "system.tenant.delete",
+              "sort": 30
+            },
+            {
+              "id": 2104,
+              "name": "导出租户",
+              "code": "system.tenant.export",
+              "sort": 40
+            },
+            {
+              "id": 2105,
+              "name": "恢复租户",
+              "code": "system.tenant.recovery",
+              "sort": 50
+            },
+            {
+              "id": 2106,
+              "name": "彻底删除租户",
+              "code": "system.tenant.real-delete",
+              "sort": 60
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 100,
+      "name": "系统管理",
+      "route": "/system",
+      "component": "BasicLayout",
+      "icon": "lucide:settings",
+      "sort": 200,
+      "type": "D",
+      "redirect": "/system/user",
+      "menus": [
+        {
+          "id": 175,
+          "name": "数据字典",
+          "code": "system.dict.index",
+          "route": "/system/dict",
+          "icon": "lucide:book-open-text",
+          "sort": 5,
+          "view": "dict/index.vue",
+          "module": {
+            "key": "dict",
+            "summary": "平台全局数据字典分类和字典项维护中心。",
+            "features": [
+              "分类管理",
+              "字典项维护",
+              "状态管理",
+              "选项接口"
+            ]
+          },
+          "permissions": [
+            {
+              "id": 1751,
+              "name": "新增字典",
+              "code": "system.dict.create",
+              "sort": 10
+            },
+            {
+              "id": 1752,
+              "name": "编辑字典",
+              "code": "system.dict.update",
+              "sort": 20
+            },
+            {
+              "id": 1753,
+              "name": "删除字典",
+              "code": "system.dict.delete",
+              "sort": 30
+            },
+            {
+              "id": 1754,
+              "name": "导出字典",
+              "code": "system.dict.export",
+              "sort": 40
+            },
+            {
+              "id": 1755,
+              "name": "恢复字典",
+              "code": "system.dict.recovery",
+              "sort": 50
+            },
+            {
+              "id": 1756,
+              "name": "彻底删除字典",
+              "code": "system.dict.real-delete",
+              "sort": 60
+            }
+          ]
+        },
+        {
+          "id": 170,
+          "name": "岗位管理",
+          "code": "system.post.index",
+          "route": "/system/post",
+          "icon": "lucide:briefcase",
+          "sort": 10,
+          "view": "post/index.vue",
+          "module": {
+            "key": "post",
+            "summary": "岗位编码、状态和排序的基础维护。",
+            "features": [
+              "分页检索",
+              "状态管理",
+              "统计概览",
+              "排序管理"
+            ]
+          },
+          "permissions": [
+            {
+              "id": 1701,
+              "name": "新增岗位",
+              "code": "system.post.create",
+              "sort": 10
+            },
+            {
+              "id": 1702,
+              "name": "编辑岗位",
+              "code": "system.post.update",
+              "sort": 20
+            },
+            {
+              "id": 1703,
+              "name": "删除岗位",
+              "code": "system.post.delete",
+              "sort": 30
+            },
+            {
+              "id": 1704,
+              "name": "导出岗位",
+              "code": "system.post.export",
+              "sort": 40
+            },
+            {
+              "id": 1705,
+              "name": "恢复岗位",
+              "code": "system.post.recovery",
+              "sort": 50
+            },
+            {
+              "id": 1706,
+              "name": "彻底删除岗位",
+              "code": "system.post.real-delete",
+              "sort": 60
+            }
+          ]
+        },
+        {
+          "id": 140,
+          "name": "部门管理",
+          "code": "system.dept.index",
+          "route": "/system/dept",
+          "icon": "lucide:building",
+          "sort": 20,
+          "view": "dept/index.vue",
+          "module": {
+            "key": "dept",
+            "summary": "部门树、成员归属与组织层级维护。",
+            "features": [
+              "树形结构",
+              "状态管理",
+              "排序管理",
+              "成员查看"
+            ]
+          },
+          "permissions": [
+            {
+              "id": 1401,
+              "name": "新增部门",
+              "code": "system.dept.create",
+              "sort": 10
+            },
+            {
+              "id": 1402,
+              "name": "编辑部门",
+              "code": "system.dept.update",
+              "sort": 20
+            },
+            {
+              "id": 1403,
+              "name": "删除部门",
+              "code": "system.dept.delete",
+              "sort": 30
+            },
+            {
+              "id": 1404,
+              "name": "导出部门",
+              "code": "system.dept.export",
+              "sort": 40
+            },
+            {
+              "id": 1405,
+              "name": "恢复部门",
+              "code": "system.dept.recovery",
+              "sort": 50
+            },
+            {
+              "id": 1406,
+              "name": "彻底删除部门",
+              "code": "system.dept.real-delete",
+              "sort": 60
+            }
+          ]
+        },
+        {
+          "id": 130,
+          "name": "菜单管理",
+          "code": "system.menu.index",
+          "route": "/system/menu",
+          "icon": "lucide:menu",
+          "sort": 30,
+          "view": "menu/index.vue",
+          "module": {
+            "key": "menu",
+            "summary": "后台路由、菜单树与按钮权限的定义中心。",
+            "features": [
+              "树形结构",
+              "路由元数据",
+              "按钮权限",
+              "排序管理"
+            ]
+          },
+          "permissions": [
+            {
+              "id": 1301,
+              "name": "新增菜单",
+              "code": "system.menu.create",
+              "sort": 10
+            },
+            {
+              "id": 1302,
+              "name": "编辑菜单",
+              "code": "system.menu.update",
+              "sort": 20
+            },
+            {
+              "id": 1303,
+              "name": "删除菜单",
+              "code": "system.menu.delete",
+              "sort": 30
+            },
+            {
+              "id": 1304,
+              "name": "导出菜单",
+              "code": "system.menu.export",
+              "sort": 40
+            },
+            {
+              "id": 1305,
+              "name": "恢复菜单",
+              "code": "system.menu.recovery",
+              "sort": 50
+            },
+            {
+              "id": 1306,
+              "name": "彻底删除菜单",
+              "code": "system.menu.real-delete",
+              "sort": 60
+            }
+          ]
+        },
+        {
+          "id": 120,
+          "name": "角色管理",
+          "code": "system.role.index",
+          "route": "/system/role",
+          "icon": "lucide:shield",
+          "sort": 40,
+          "view": "role/index.vue",
+          "module": {
+            "key": "role",
+            "summary": "角色授权与权限节点分配中心。",
+            "features": [
+              "分页检索",
+              "状态管理",
+              "角色授权",
+              "节点绑定",
+              "用户查看"
+            ]
+          },
+          "permissions": [
+            {
+              "id": 1201,
+              "name": "新增角色",
+              "code": "system.role.create",
+              "sort": 10
+            },
+            {
+              "id": 1202,
+              "name": "编辑角色",
+              "code": "system.role.update",
+              "sort": 20
+            },
+            {
+              "id": 1203,
+              "name": "删除角色",
+              "code": "system.role.delete",
+              "sort": 30
+            },
+            {
+              "id": 1204,
+              "name": "分配权限",
+              "code": "system.role.assign",
+              "sort": 40
+            },
+            {
+              "id": 1205,
+              "name": "导出角色",
+              "code": "system.role.export",
+              "sort": 50
+            },
+            {
+              "id": 1206,
+              "name": "恢复角色",
+              "code": "system.role.recovery",
+              "sort": 60
+            },
+            {
+              "id": 1207,
+              "name": "彻底删除角色",
+              "code": "system.role.real-delete",
+              "sort": 70
+            }
+          ]
+        },
+        {
+          "id": 110,
+          "name": "用户管理",
+          "code": "system.user.index",
+          "route": "/system/user",
+          "icon": "lucide:users",
+          "sort": 50,
+          "view": "user/index.vue",
+          "module": {
+            "key": "user",
+            "summary": "用户、角色、部门、岗位关联管理的统一入口。",
+            "features": [
+              "分页检索",
+              "状态管理",
+              "重置密码",
+              "角色分配",
+              "部门岗位绑定"
+            ]
+          },
+          "permissions": [
+            {
+              "id": 1101,
+              "name": "新增用户",
+              "code": "system.user.create",
+              "sort": 10
+            },
+            {
+              "id": 1102,
+              "name": "编辑用户",
+              "code": "system.user.update",
+              "sort": 20
+            },
+            {
+              "id": 1103,
+              "name": "删除用户",
+              "code": "system.user.delete",
+              "sort": 30
+            },
+            {
+              "id": 1104,
+              "name": "重置密码",
+              "code": "system.user.reset-password",
+              "sort": 40
+            },
+            {
+              "id": 1105,
+              "name": "导出用户",
+              "code": "system.user.export",
+              "sort": 50
+            },
+            {
+              "id": 1106,
+              "name": "恢复用户",
+              "code": "system.user.recovery",
+              "sort": 60
+            },
+            {
+              "id": 1107,
+              "name": "彻底删除用户",
+              "code": "system.user.real-delete",
+              "sort": 70
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "name": "仪表盘",
+      "route": "/dashboard",
+      "component": "BasicLayout",
+      "icon": "lucide:layout-dashboard",
+      "sort": 300,
+      "type": "D",
+      "redirect": "/dashboard/analytics",
+      "module_root": false,
+      "menus": [
+        {
+          "id": 12,
+          "name": "工作台",
+          "code": "dashboard.workspace",
+          "route": "/dashboard/workspace",
+          "icon": "carbon:workspace",
+          "sort": 10,
+          "component": "/dashboard/workspace/index"
+        },
+        {
+          "id": 11,
+          "name": "分析页",
+          "code": "dashboard.analytics",
+          "route": "/dashboard/analytics",
+          "icon": "lucide:area-chart",
+          "sort": 20,
+          "affix_tab": 1,
+          "component": "/dashboard/analytics/index"
+        }
+      ]
+    }
+  ]
+}

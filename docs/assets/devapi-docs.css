@@ -1,0 +1,1125 @@
+:root {
+    --theme-color: #06b6d4;
+    --devapi-ui-scale: 1;
+    --devapi-font-body: calc(15px * var(--devapi-ui-scale));
+    --devapi-font-sidebar: calc(14px * var(--devapi-ui-scale));
+    --devapi-font-table: calc(13px * var(--devapi-ui-scale));
+    --devapi-font-code: calc(13px * var(--devapi-ui-scale));
+    --devapi-radius: 8px;
+    --devapi-radius-lg: 14px;
+    --devapi-ink: #101a32;
+    --devapi-muted: #64748b;
+    --devapi-line: #d7e5f2;
+    --devapi-soft: #f7fbff;
+    --devapi-soft-green: #ecfeff;
+    --devapi-soft-blue: #eef5ff;
+    --devapi-cyan: #06b6d4;
+    --devapi-blue: #2563eb;
+    --devapi-violet: #7c3aed;
+    --devapi-pink: #db2777;
+    --devapi-glow: 0 0 0 1px rgba(6, 182, 212, 0.14), 0 18px 48px rgba(37, 99, 235, 0.12);
+    --devapi-shadow: 0 14px 36px rgba(15, 23, 42, 0.08);
+    --devapi-shadow-lg: 0 24px 64px rgba(15, 23, 42, 0.14);
+    /* 侧边栏用统一图标槽计算文本起点，避免有下级箭头和无下级链接缩进不一致。 */
+    --devapi-sidebar-child-indent: 8px;
+    --devapi-sidebar-icon-left: 7px;
+    --devapi-sidebar-icon-width: 14px;
+    --devapi-sidebar-icon-gap: 3px;
+    --devapi-sidebar-row-padding-y: 5px;
+    --devapi-sidebar-heading-padding-top: 12px;
+    --devapi-sidebar-label-indent: calc(var(--devapi-sidebar-icon-left) + var(--devapi-sidebar-icon-width) + var(--devapi-sidebar-icon-gap));
+    --devapi-sidebar-link-toggle-top: calc(var(--devapi-sidebar-row-padding-y) + 0.72em);
+    --devapi-sidebar-heading-toggle-top: calc(var(--devapi-sidebar-heading-padding-top) + 0.71em);
+}
+
+* {
+    scrollbar-color: rgba(6, 182, 212, 0.30) rgba(238, 244, 255, 0.34);
+    scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(238, 244, 255, 0.42);
+}
+
+::-webkit-scrollbar-thumb {
+    border: 2px solid rgba(238, 244, 255, 0.72);
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(6, 182, 212, 0.34), rgba(124, 58, 237, 0.26));
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(6, 182, 212, 0.58), rgba(124, 58, 237, 0.44));
+}
+
+::selection {
+    background: rgba(6, 182, 212, 0.22);
+    color: #0f172a;
+}
+
+html {
+    min-height: 100%;
+}
+
+body {
+    background:
+        radial-gradient(circle at 14% 5%, rgba(6, 182, 212, 0.18), transparent 28%),
+        radial-gradient(circle at 88% 8%, rgba(124, 58, 237, 0.15), transparent 26%),
+        radial-gradient(circle at 70% 96%, rgba(219, 39, 119, 0.08), transparent 30%),
+        linear-gradient(135deg, #f8fcff 0%, #eef7ff 42%, #fbf7ff 100%);
+    /* 文档内容滚动时固定底层氛围背景，避免背景跟随正文一起滚动。 */
+    background-attachment: fixed, fixed, fixed, fixed;
+    background-repeat: no-repeat;
+    color: var(--devapi-ink);
+    font-size: var(--devapi-font-body);
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+        linear-gradient(rgba(37, 99, 235, 0.055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(6, 182, 212, 0.055) 1px, transparent 1px);
+    background-size: 34px 34px;
+    -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.82), transparent 82%);
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.82), transparent 82%);
+}
+
+.markdown-section {
+    max-width: min(calc(1180px * var(--devapi-ui-scale)), calc(100vw - 80px));
+    margin-top: 18px;
+    border: 1px solid rgba(186, 230, 253, 0.72);
+    border-radius: 24px;
+    padding: 28px 34px 42px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(248, 250, 252, 0.78)),
+        rgba(255, 255, 255, 0.82);
+    box-shadow: var(--devapi-glow), var(--devapi-shadow-lg);
+    -webkit-backdrop-filter: blur(14px) saturate(1.12);
+    backdrop-filter: blur(14px) saturate(1.12);
+}
+
+.markdown-section h1 {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 24px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.26);
+    border-radius: 18px;
+    padding: 18px 22px;
+    background:
+        radial-gradient(circle at 8% 0%, rgba(255, 255, 255, 0.24), transparent 28%),
+        linear-gradient(125deg, #071b4f 0%, #0e7490 46%, #2563eb 74%, #7c3aed 100%);
+    color: #fff;
+    box-shadow: 0 22px 58px rgba(37, 99, 235, 0.24);
+    letter-spacing: 0;
+    line-height: 1.25;
+}
+
+.markdown-section h1::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(110deg, transparent 0%, rgba(255, 255, 255, 0.20) 44%, transparent 58%),
+        radial-gradient(circle at 92% 18%, rgba(103, 232, 249, 0.35), transparent 16%);
+    mix-blend-mode: screen;
+}
+
+.markdown-section h1::before {
+    content: "◈";
+    display: inline-grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 auto;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.14);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.28),
+        0 0 24px rgba(103, 232, 249, 0.36);
+    font-size: calc(22px * var(--devapi-ui-scale));
+}
+
+.markdown-section h1 a,
+.markdown-section h1 a:hover,
+.markdown-section h1 a:focus-visible,
+.markdown-section h1 .anchor span {
+    color: #fff;
+    text-decoration: none;
+}
+
+.markdown-section h1 a {
+    font-weight: 900;
+}
+
+.markdown-section h1 a:hover,
+.markdown-section h1 a:focus-visible {
+    text-shadow: 0 2px 10px rgba(255, 255, 255, 0.22);
+}
+
+.markdown-section h2 {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin: 34px 0 14px;
+    border: 1px solid rgba(125, 211, 252, 0.40);
+    border-left: 5px solid var(--devapi-cyan);
+    border-radius: 14px;
+    padding: 11px 14px;
+    background:
+        linear-gradient(90deg, rgba(236, 254, 255, 0.92) 0%, rgba(238, 245, 255, 0.80) 58%, rgba(250, 245, 255, 0.70) 100%);
+    color: #0f3f5f;
+    box-shadow: 0 10px 28px rgba(6, 182, 212, 0.08);
+}
+
+.markdown-section h2::before {
+    content: "📌";
+    font-size: calc(18px * var(--devapi-ui-scale));
+}
+
+.markdown-section h2:nth-of-type(6n + 1)::before {
+    content: "🎯";
+}
+
+.markdown-section h2:nth-of-type(6n + 2)::before {
+    content: "🧭";
+}
+
+.markdown-section h2:nth-of-type(6n + 3)::before {
+    content: "🔐";
+}
+
+.markdown-section h2:nth-of-type(6n + 4)::before {
+    content: "🧩";
+}
+
+.markdown-section h2:nth-of-type(6n + 5)::before {
+    content: "🧪";
+}
+
+.markdown-section h2:nth-of-type(6n + 6)::before {
+    content: "⚙️";
+}
+
+.markdown-section h3 {
+    position: relative;
+    margin-top: 26px;
+    margin-bottom: 12px;
+    padding-left: 14px;
+    color: #075985;
+}
+
+.markdown-section h3::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.35em;
+    width: 5px;
+    height: 1.05em;
+    border-radius: 999px;
+    background: linear-gradient(180deg, var(--devapi-cyan), var(--devapi-violet));
+    box-shadow: 0 0 12px rgba(6, 182, 212, 0.45);
+}
+
+.markdown-section p,
+.markdown-section li {
+    color: #243044;
+}
+
+.markdown-section p {
+    margin: 0.85em 0;
+}
+
+.markdown-section ul,
+.markdown-section ol {
+    padding-left: 1.35rem;
+}
+
+.markdown-section li::marker {
+    color: var(--devapi-cyan);
+}
+
+.markdown-section hr {
+    height: 1px;
+    margin: 30px 0;
+    border: 0;
+    background: linear-gradient(90deg, transparent, #67e8f9, #a78bfa, transparent);
+}
+
+.markdown-section strong {
+    color: #0f3f5f;
+}
+
+.markdown-section blockquote {
+    margin: 18px 0;
+    border: 1px solid rgba(125, 211, 252, 0.42);
+    border-left: 5px solid var(--devapi-cyan);
+    border-radius: 14px;
+    padding: 12px 16px;
+    background:
+        linear-gradient(100deg, rgba(236, 254, 255, 0.92), rgba(245, 243, 255, 0.78));
+    box-shadow: 0 10px 30px rgba(6, 182, 212, 0.08);
+}
+
+.markdown-section blockquote p {
+    margin: 0.35em 0;
+}
+
+.markdown-section table {
+    display: table;
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid rgba(191, 219, 254, 0.86);
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 14px 36px rgba(37, 99, 235, 0.06);
+    font-size: var(--devapi-font-table);
+}
+
+.markdown-section table + table,
+.markdown-section table + p,
+.markdown-section table + ul,
+.markdown-section table + ol {
+    margin-top: 18px;
+}
+
+.markdown-section th {
+    background: linear-gradient(180deg, #eef6ff 0%, #e6fffb 100%);
+    color: #0f3f5f;
+    font-weight: 800;
+}
+
+.markdown-section td,
+.markdown-section th {
+    border-color: #dbeafe;
+    padding: 9px 11px;
+    vertical-align: top;
+}
+
+.markdown-section td:first-child,
+.markdown-section th:first-child {
+    border-left: 0;
+}
+
+.markdown-section tr:first-child th {
+    border-top: 0;
+}
+
+.markdown-section tr td:last-child,
+.markdown-section tr th:last-child {
+    border-right: 0;
+}
+
+.markdown-section tbody tr:nth-child(even) td {
+    background: #fbfdff;
+}
+
+.markdown-section tbody tr:hover td {
+    background: #eefbff;
+}
+
+.markdown-section code {
+    border: 1px solid rgba(6, 182, 212, 0.16);
+    border-radius: 6px;
+    padding: 0.1em 0.38em;
+    color: #075985;
+    background: #ecfeff;
+    font-size: var(--devapi-font-code);
+    font-weight: 700;
+}
+
+.markdown-section pre {
+    position: relative;
+    overflow: hidden;
+    margin: 18px 0 24px;
+    border: 1px solid rgba(103, 232, 249, 0.25);
+    border-radius: 16px;
+    background:
+        radial-gradient(circle at 0% 0%, rgba(6, 182, 212, 0.18), transparent 36%),
+        #08111f;
+    box-shadow: 0 18px 46px rgba(8, 17, 31, 0.22), 0 0 0 1px rgba(6, 182, 212, 0.08);
+}
+
+.markdown-section pre::before {
+    content: "⟡ 示例代码";
+    display: block;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+    padding: 8px 12px;
+    color: #67e8f9;
+    background: linear-gradient(90deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.88));
+    font-size: calc(12px * var(--devapi-ui-scale));
+    font-weight: 800;
+}
+
+.markdown-section pre > code {
+    display: block;
+    padding: 14px 16px;
+    color: #dff7ff;
+    background: transparent;
+    font-size: var(--devapi-font-code);
+    line-height: 1.65;
+}
+
+.markdown-section .devapi-mermaid-shell {
+    overflow-x: auto;
+    margin: 18px 0 24px;
+    border: 1px solid rgba(186, 230, 253, 0.78);
+    border-radius: 18px;
+    padding: 14px 16px 18px;
+    background:
+        radial-gradient(circle at 0% 0%, rgba(6, 182, 212, 0.10), transparent 32%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 252, 255, 0.88));
+    box-shadow: 0 18px 46px rgba(37, 99, 235, 0.10);
+}
+
+.markdown-section .devapi-mermaid-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 12px;
+    border: 1px solid rgba(125, 211, 252, 0.42);
+    border-radius: 999px;
+    padding: 4px 10px;
+    background: rgba(236, 254, 255, 0.84);
+    color: #075985;
+    font-size: calc(12px * var(--devapi-ui-scale));
+    font-weight: 900;
+    line-height: 1.2;
+}
+
+.markdown-section .devapi-mermaid-title::before {
+    content: "⌁";
+    color: var(--devapi-cyan);
+    font-weight: 950;
+}
+
+.markdown-section .devapi-mermaid {
+    display: flex;
+    justify-content: center;
+    min-width: min-content;
+}
+
+.markdown-section .devapi-mermaid svg {
+    max-width: 100%;
+    height: auto;
+}
+
+.markdown-section .devapi-mermaid-message,
+.markdown-section .devapi-mermaid-error {
+    margin: 12px 0 0;
+    border: 1px solid rgba(239, 68, 68, 0.28);
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: #fff1f2;
+    color: #991b1b;
+    white-space: pre-wrap;
+}
+
+.markdown-section .devapi-mermaid-source {
+    margin: 12px 0 0;
+    border-color: rgba(191, 219, 254, 0.68);
+    background: rgba(248, 250, 252, 0.92);
+    color: #334155;
+    white-space: pre-wrap;
+}
+
+.markdown-section pre .docsify-copy-code-button {
+    top: 7px;
+    right: 10px;
+    z-index: 4;
+    overflow: visible;
+    min-width: auto;
+    min-height: auto;
+    border: 1px solid rgba(103, 232, 249, 0.34);
+    border-radius: 999px;
+    padding: 4px 10px;
+    background: rgba(8, 145, 178, 0.36);
+    color: #dff7ff;
+    font-size: calc(12px * var(--devapi-ui-scale));
+    font-weight: 800;
+    line-height: 1.35;
+    opacity: 0.78;
+    box-shadow: 0 8px 20px rgba(6, 182, 212, 0.10), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    -webkit-backdrop-filter: blur(10px) saturate(1.12);
+    backdrop-filter: blur(10px) saturate(1.12);
+}
+
+.markdown-section pre:hover .docsify-copy-code-button,
+.markdown-section pre .docsify-copy-code-button:focus {
+    transform: translateY(-1px);
+    border-color: rgba(103, 232, 249, 0.72);
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.88), rgba(37, 99, 235, 0.82));
+    color: #fff;
+    opacity: 1;
+    outline: none;
+    box-shadow: 0 10px 24px rgba(6, 182, 212, 0.22);
+}
+
+.markdown-section pre .docsify-copy-code-button span {
+    border-radius: 999px;
+    background: transparent;
+    line-height: 1.35;
+}
+
+.markdown-section pre .docsify-copy-code-button .error,
+.markdown-section pre .docsify-copy-code-button .success {
+    top: 50%;
+    right: calc(100% + 8px);
+    z-index: 5;
+    border: 1px solid rgba(103, 232, 249, 0.30);
+    border-radius: 999px;
+    padding: 4px 9px;
+    background: rgba(15, 23, 42, 0.92);
+    color: #dff7ff;
+    font-size: calc(12px * var(--devapi-ui-scale));
+    font-weight: 800;
+    white-space: nowrap;
+    box-shadow: 0 10px 24px rgba(8, 17, 31, 0.24);
+}
+
+.markdown-section pre .docsify-copy-code-button.error .error,
+.markdown-section pre .docsify-copy-code-button.success .success {
+    right: calc(100% + 8px);
+    opacity: 1;
+    transform: translateY(-50%);
+}
+
+.markdown-section details {
+    margin: 16px 0;
+    border: 1px solid rgba(191, 219, 254, 0.88);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.86);
+    box-shadow: 0 14px 34px rgba(37, 99, 235, 0.06);
+}
+
+.markdown-section summary {
+    cursor: pointer;
+    padding: 12px 14px;
+    color: #0f3f5f;
+    font-weight: 800;
+}
+
+.markdown-section details[open] summary {
+    border-bottom: 1px solid #e2e8f0;
+    background: linear-gradient(90deg, #ecfeff, #f5f3ff);
+}
+
+.markdown-section a {
+    color: #075985;
+    font-weight: 600;
+    text-decoration: none;
+    text-underline-offset: 3px;
+}
+
+.markdown-section a:hover,
+.markdown-section a:focus-visible {
+    color: var(--devapi-violet);
+    text-decoration: underline;
+}
+
+.devapi-module-nav {
+    position: fixed;
+    top: 20px;
+    left: calc(300px + 32px);
+    right: calc(132px * var(--devapi-ui-scale));
+    z-index: 42;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: none;
+    margin: 0;
+    border: 1px solid rgba(186, 230, 253, 0.76);
+    border-radius: 18px;
+    padding: 10px 12px;
+    background:
+        linear-gradient(90deg, rgba(255, 255, 255, 0.94), rgba(236, 254, 255, 0.84)),
+        rgba(255, 255, 255, 0.86);
+    box-shadow: 0 12px 34px rgba(37, 99, 235, 0.09);
+    -webkit-backdrop-filter: blur(12px) saturate(1.08);
+    backdrop-filter: blur(12px) saturate(1.08);
+}
+
+.devapi-module-nav__title {
+    flex: 0 0 auto;
+    border-right: 1px solid rgba(125, 211, 252, 0.42);
+    padding: 0 12px 0 4px;
+    color: #075985;
+    font-size: calc(13px * var(--devapi-ui-scale));
+    font-weight: 900;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.devapi-module-nav__title:hover,
+.devapi-module-nav__title:focus-visible {
+    color: var(--devapi-violet);
+    outline: none;
+    text-decoration: none;
+}
+
+.devapi-module-nav__links {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 8px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    padding: 2px 2px 4px;
+}
+
+.devapi-module-nav__link {
+    flex: 0 0 auto;
+    border: 1px solid rgba(191, 219, 254, 0.78);
+    border-radius: 999px;
+    padding: 6px 11px;
+    background: rgba(255, 255, 255, 0.76);
+    color: #475569;
+    font-size: calc(13px * var(--devapi-ui-scale));
+    font-weight: 800;
+    line-height: 1.2;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.devapi-module-nav__link:hover,
+.devapi-module-nav__link:focus-visible {
+    transform: translateY(-1px);
+    border-color: rgba(6, 182, 212, 0.66);
+    background: rgba(236, 254, 255, 0.94);
+    color: #075985;
+    outline: none;
+    text-decoration: none;
+}
+
+.devapi-module-nav__link.is-active {
+    border-color: rgba(6, 182, 212, 0.72);
+    background: linear-gradient(90deg, rgba(207, 250, 254, 0.96), rgba(237, 233, 254, 0.88));
+    color: #075985;
+    box-shadow: inset 0 0 0 1px rgba(6, 182, 212, 0.18), 0 8px 22px rgba(6, 182, 212, 0.12);
+}
+
+.devapi-module-nav__actions {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-left: 1px solid rgba(125, 211, 252, 0.34);
+    padding-left: 10px;
+}
+
+.devapi-module-nav__download {
+    flex: 0 0 auto;
+    border: 1px solid rgba(6, 182, 212, 0.58);
+    border-radius: 999px;
+    padding: 6px 11px;
+    background: linear-gradient(135deg, rgba(236, 254, 255, 0.96), rgba(245, 243, 255, 0.84));
+    color: #075985;
+    cursor: pointer;
+    font: inherit;
+    font-size: calc(13px * var(--devapi-ui-scale));
+    font-weight: 900;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.devapi-module-nav__download:hover,
+.devapi-module-nav__download:focus-visible {
+    transform: translateY(-1px);
+    border-color: rgba(6, 182, 212, 0.82);
+    background: linear-gradient(135deg, #ecfeff, #ede9fe);
+    color: #075985;
+    outline: none;
+}
+
+.devapi-module-nav__download:disabled {
+    cursor: wait;
+    opacity: 0.68;
+    transform: none;
+}
+
+.devapi-module-nav + .markdown-section {
+    margin-top: calc(40px * var(--devapi-ui-scale));
+}
+
+.sidebar,
+.sidebar-nav,
+.app-sub-sidebar {
+    font-size: var(--devapi-font-sidebar);
+}
+
+.sidebar {
+    border-right: 1px solid rgba(191, 219, 254, 0.88);
+    background:
+        radial-gradient(circle at 0% 0%, rgba(6, 182, 212, 0.14), transparent 34%),
+        linear-gradient(180deg, rgba(239, 246, 255, 0.94) 0%, rgba(255, 255, 255, 0.98) 240px),
+        #ffffff;
+    box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.86);
+    scrollbar-color: rgba(6, 182, 212, 0.34) transparent;
+}
+
+.sidebar::-webkit-scrollbar {
+    width: 7px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    border: 2px solid rgba(255, 255, 255, 0.76);
+    background: linear-gradient(180deg, rgba(6, 182, 212, 0.36), rgba(37, 99, 235, 0.28));
+}
+
+.sidebar .app-name {
+    margin: 24px 16px 18px;
+    padding: 0;
+    text-align: center;
+}
+
+.sidebar .app-name a {
+    display: block;
+    color: #075985;
+    font-size: calc(23px * var(--devapi-ui-scale));
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    line-height: 1.22;
+}
+
+.docs-sidebar-actions {
+    position: sticky;
+    top: 0;
+    z-index: 7;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    margin: 0 10px 5px;
+    border: 1px solid rgba(186, 230, 253, 0.40);
+    border-radius: 10px;
+    padding: 3px;
+    /* 快捷操作只是辅助工具，使用紧凑弱化样式，避免挤占左侧目录的可视区域。 */
+    background: rgba(255, 255, 255, 0.72);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+    -webkit-backdrop-filter: blur(8px) saturate(1.02);
+    backdrop-filter: blur(8px) saturate(1.02);
+}
+
+.docs-sidebar-action {
+    min-width: 0;
+    min-height: 24px;
+    border: 1px solid rgba(125, 211, 252, 0.42);
+    border-radius: 8px;
+    padding: 2px 4px;
+    background: rgba(255, 255, 255, 0.62);
+    color: #075985;
+    font-size: calc(11px * var(--devapi-ui-scale));
+    font-weight: 700;
+    line-height: 1.15;
+    cursor: pointer;
+    transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.docs-sidebar-action:hover,
+.docs-sidebar-action:focus-visible {
+    transform: translateY(-0.5px);
+    border-color: rgba(6, 182, 212, 0.72);
+    background: linear-gradient(90deg, rgba(207, 250, 254, 0.82), rgba(237, 233, 254, 0.66));
+    color: #0f3f5f;
+    outline: none;
+    box-shadow: 0 4px 10px rgba(6, 182, 212, 0.10);
+}
+
+/* 左侧树形菜单：覆盖 Docsify 默认多级 ul 缩进，减少层级横向占用。 */
+.sidebar-nav {
+    padding: 0 9px 34px;
+}
+
+.sidebar .sidebar-nav ul,
+.sidebar .sidebar-nav > ul {
+    margin: 0 !important;
+    padding-left: 0 !important;
+}
+
+.sidebar .sidebar-nav li {
+    margin: 1px 0;
+    padding-left: 0 !important;
+}
+
+.sidebar .sidebar-nav ul ul {
+    padding-left: var(--devapi-sidebar-child-indent) !important;
+}
+
+/* 二级及以下菜单由 devapi-sidebar-state.js 统一折叠；只隐藏子树，不改变 Docsify 路由与接口调试入口。 */
+.sidebar-nav li {
+    position: relative;
+}
+
+.sidebar-nav li.docs-sidebar-collapsed > ul {
+    display: none !important;
+}
+
+.sidebar-nav li.docs-sidebar-branch > a,
+.sidebar-nav li.docs-sidebar-branch > p,
+.sidebar-nav li.docs-sidebar-branch > strong,
+.sidebar-nav li.docs-sidebar-branch > .docs-sidebar-label {
+    padding-left: var(--devapi-sidebar-label-indent);
+}
+
+.sidebar-nav li.docs-sidebar-branch > a,
+.sidebar-nav li.docs-sidebar-branch > p,
+.sidebar-nav li.docs-sidebar-branch > strong,
+.sidebar-nav li.docs-sidebar-branch > .docs-sidebar-label {
+    cursor: pointer;
+    user-select: none;
+}
+
+.sidebar-nav .docs-sidebar-toggle {
+    position: absolute;
+    left: var(--devapi-sidebar-icon-left);
+    /* 默认按一级分组标题定位，避免 Docsify/缓存尚未补齐 heading class 时箭头贴到文字上沿。 */
+    top: var(--devapi-sidebar-heading-toggle-top);
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--devapi-sidebar-icon-width);
+    height: 20px;
+    border: 0;
+    border-radius: 4px;
+    padding: 0;
+    background: transparent;
+    color: #075985;
+    cursor: pointer;
+    box-shadow: none;
+    transition: background 0.16s ease, color 0.16s ease;
+    transform: translateY(-50%);
+}
+
+.sidebar-nav li.docs-sidebar-heading-branch > .docs-sidebar-toggle {
+    top: var(--devapi-sidebar-heading-toggle-top);
+}
+
+.sidebar-nav li.docs-sidebar-branch:not(.docs-sidebar-heading-branch) > .docs-sidebar-toggle {
+    top: var(--devapi-sidebar-link-toggle-top);
+}
+
+.sidebar-nav .docs-sidebar-toggle::before {
+    content: "";
+    display: block;
+    width: 0;
+    height: 0;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-left: 5px solid currentColor;
+    transition: color 0.16s ease, transform 0.16s ease;
+}
+
+.sidebar-nav li.docs-sidebar-expanded > .docs-sidebar-toggle {
+    color: var(--devapi-cyan);
+}
+
+.sidebar-nav li.docs-sidebar-expanded > .docs-sidebar-toggle::before {
+    border-top: 5px solid currentColor;
+    border-right: 4px solid transparent;
+    border-bottom: 0;
+    border-left: 4px solid transparent;
+    transform: translateY(1px);
+}
+
+.sidebar-nav .docs-sidebar-toggle:hover,
+.sidebar-nav .docs-sidebar-toggle:focus-visible {
+    background: rgba(207, 250, 254, 0.48);
+    color: var(--devapi-violet);
+    outline: none;
+}
+
+.sidebar-nav li.docs-sidebar-branch > a:focus-visible,
+.sidebar-nav li.docs-sidebar-branch > p:focus-visible,
+.sidebar-nav li.docs-sidebar-branch > strong:focus-visible,
+.sidebar-nav li.docs-sidebar-branch > .docs-sidebar-label:focus-visible {
+    border-radius: 10px;
+    outline: 2px solid rgba(6, 182, 212, 0.38);
+    outline-offset: 2px;
+}
+
+.sidebar-nav li > strong,
+.sidebar-nav li > p,
+.sidebar-nav li > .docs-sidebar-label {
+    display: block;
+    margin: 0 0 6px;
+    padding-top: var(--devapi-sidebar-heading-padding-top);
+    color: #075985;
+    font-size: calc(13px * var(--devapi-ui-scale));
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1.42;
+}
+
+/* Docsify loose list may wrap bold group titles as <p><strong>...</strong></p>; avoid applying heading padding twice. */
+.sidebar-nav li > p > strong {
+    display: inline;
+    margin: 0;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+}
+
+.sidebar-nav a {
+    position: relative;
+    display: block;
+    border-radius: 10px;
+    padding: var(--devapi-sidebar-row-padding-y) 8px var(--devapi-sidebar-row-padding-y) var(--devapi-sidebar-label-indent);
+    color: #475569;
+    line-height: 1.44;
+    transition: background 0.16s ease, color 0.16s ease;
+}
+
+/* 无下级菜单补一个轻量 CSS 圆点，占用与折叠箭头相同的槽位，保证同层级文本纵向对齐。 */
+.sidebar-nav li:not(.docs-sidebar-branch) > a::before {
+    content: "";
+    position: absolute;
+    left: calc(var(--devapi-sidebar-icon-left) + (var(--devapi-sidebar-icon-width) - 3px) / 2);
+    top: 50%;
+    width: 3px;
+    height: 3px;
+    border-radius: 999px;
+    background: rgba(6, 182, 212, 0.34);
+    transform: translateY(-50%);
+}
+
+.sidebar-nav li li a,
+.sidebar-nav li li li a {
+    padding-left: var(--devapi-sidebar-label-indent);
+    font-size: calc(13px * var(--devapi-ui-scale));
+}
+
+.sidebar-nav a:hover {
+    background: linear-gradient(90deg, rgba(236, 254, 255, 0.96), rgba(245, 243, 255, 0.78));
+    color: #075985;
+}
+
+.sidebar-nav .active > a,
+.sidebar-nav a.active {
+    background: linear-gradient(90deg, rgba(207, 250, 254, 0.92), rgba(237, 233, 254, 0.86));
+    color: #075985;
+    font-weight: 800;
+    box-shadow: inset 3px 0 0 rgba(6, 182, 212, 0.72);
+}
+
+.sidebar-nav li:not(.docs-sidebar-branch) > a:hover::before,
+.sidebar-nav li.active:not(.docs-sidebar-branch) > a::before,
+.sidebar-nav li:not(.docs-sidebar-branch) > a.active::before {
+    background: var(--devapi-cyan);
+}
+
+.search {
+    border-bottom-color: rgba(219, 234, 254, 0.78);
+    padding: 10px 12px 9px;
+    background: rgba(255, 255, 255, 0.50);
+}
+
+.search input {
+    min-height: 40px;
+    border: 1px solid rgba(203, 213, 225, 0.88);
+    border-radius: 999px;
+    padding: 7px 13px;
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+}
+
+.search input:focus {
+    border-color: var(--devapi-cyan);
+    box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.14);
+}
+
+/* Docsify 上/下章节导航：压缩默认大留白，长标题使用省略号，避免刷新后底部卡片挤出内容区。 */
+.markdown-section .docsify-pagination-container {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin: 34px 0 0;
+    border-top: 1px solid rgba(125, 211, 252, 0.34);
+    padding-top: 20px;
+    overflow: visible;
+}
+
+.markdown-section .docsify-pagination-container .pagination-item {
+    min-width: 0;
+    margin: 0;
+}
+
+.markdown-section .docsify-pagination-container .pagination-item--next {
+    margin-left: 0;
+    text-align: right;
+}
+
+.markdown-section .docsify-pagination-container .pagination-item--next:first-child {
+    grid-column: 2;
+}
+
+.markdown-section .docsify-pagination-container .pagination-item a {
+    position: relative;
+    display: flex;
+    min-height: 88px;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+    border: 1px solid rgba(191, 219, 254, 0.92);
+    border-radius: 18px;
+    padding: 15px 18px;
+    background:
+        radial-gradient(circle at 94% 0%, rgba(6, 182, 212, 0.14), transparent 34%),
+        linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.86));
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.07);
+    color: #0f172a;
+    text-decoration: none;
+    transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+
+.markdown-section .docsify-pagination-container .pagination-item--previous a {
+    align-items: flex-start;
+    padding-left: 54px;
+}
+
+.markdown-section .docsify-pagination-container .pagination-item--next a {
+    align-items: flex-end;
+    padding-right: 54px;
+}
+
+.markdown-section .docsify-pagination-container .pagination-item a::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: 30px;
+    height: 30px;
+    border: 1px solid rgba(103, 232, 249, 0.72);
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(236, 254, 255, 0.96), rgba(237, 233, 254, 0.88));
+    color: #075985;
+    line-height: 28px;
+    text-align: center;
+    transform: translateY(-50%);
+    box-shadow: 0 0 18px rgba(6, 182, 212, 0.16);
+}
+
+.markdown-section .docsify-pagination-container .pagination-item--previous a::before {
+    left: 16px;
+    content: "←";
+}
+
+.markdown-section .docsify-pagination-container .pagination-item--next a::before {
+    right: 16px;
+    content: "→";
+}
+
+.markdown-section .docsify-pagination-container .pagination-item a:hover,
+.markdown-section .docsify-pagination-container .pagination-item a:focus-visible {
+    transform: translateY(-2px);
+    border-color: rgba(6, 182, 212, 0.62);
+    outline: none;
+    background:
+        radial-gradient(circle at 94% 0%, rgba(124, 58, 237, 0.16), transparent 34%),
+        linear-gradient(135deg, rgba(236, 254, 255, 0.98), rgba(245, 243, 255, 0.94));
+    box-shadow: 0 18px 42px rgba(6, 182, 212, 0.16);
+}
+
+.markdown-section .docsify-pagination-container .pagination-item-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    opacity: 1 !important;
+    color: #64748b !important;
+    font-size: calc(12px * var(--devapi-ui-scale));
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
+
+.markdown-section .docsify-pagination-container .pagination-item-title {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    margin-top: 6px;
+    color: #0f172a !important;
+    font-size: calc(18px * var(--devapi-ui-scale));
+    font-weight: 900;
+    line-height: 1.32;
+    opacity: 1 !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.markdown-section .docsify-pagination-container .pagination-item a:hover .pagination-item-title,
+.markdown-section .docsify-pagination-container .pagination-item a:focus-visible .pagination-item-title {
+    color: #075985;
+    text-decoration: none;
+}
+
+.markdown-section .docsify-pagination-container .pagination-item a svg {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .markdown-section {
+        max-width: calc(100vw - 32px);
+        margin-top: 8px;
+        border-radius: 16px;
+        padding: 20px 18px 30px;
+    }
+
+    .markdown-section .docsify-pagination-container {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .markdown-section .docsify-pagination-container .pagination-item--next:first-child {
+        grid-column: 1;
+    }
+
+    .markdown-section .docsify-pagination-container .pagination-item a {
+        min-height: 78px;
+    }
+
+    .devapi-module-nav {
+        top: 20px;
+        left: 16px;
+        right: 16px;
+        max-width: none;
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 8px;
+        border-radius: 16px;
+    }
+
+    .devapi-module-nav + .markdown-section {
+        margin-top: calc(56px * var(--devapi-ui-scale));
+    }
+
+    .devapi-module-nav__title {
+        border-right: 0;
+        padding: 0 2px;
+    }
+
+    .devapi-module-nav__links {
+        width: 100%;
+    }
+
+    .devapi-module-nav__actions {
+        border-left: 0;
+        padding-left: 2px;
+    }
+
+}

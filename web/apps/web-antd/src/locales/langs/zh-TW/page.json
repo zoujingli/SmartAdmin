@@ -1,0 +1,14 @@
+{
+  "auth": {
+    "login": "登入",
+    "register": "註冊",
+    "codeLogin": "驗證碼登入",
+    "qrcodeLogin": "QR Code 登入",
+    "forgetPassword": "忘記密碼"
+  },
+  "dashboard": {
+    "title": "概覽",
+    "analytics": "分析頁",
+    "workspace": "工作臺"
+  }
+}
