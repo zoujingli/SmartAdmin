@@ -1,6 +1,6 @@
 {
   "type": "project",
-  "name": "zoujingli/smart_admin",
+  "name": "zoujingli/smartadmin",
   "keywords": [
     "admin",
     "hyperf"
@@ -37,17 +37,13 @@
     "hyperf/flysystem-oss": "^1.4",
     "overtrue/flysystem-cos": "^5.2",
     "zoujingli/wechat-developer": "^2.0@dev",
-    "zoujingli/smart_admin_library": "^1.0",
-    "zoujingli/smart_admin_plugin_builder": "^1.0",
-    "zoujingli/smart_admin_plugin_system": "^1.0",
-    "zoujingli/smart_admin_plugin_wechat_client": "^1.0",
-    "zoujingli/smart_admin_plugin_wechat_service": "^1.0"
+    "zoujingli/smart-admin-library": "^1.0",
+    "zoujingli/smart-admin-plugin-builder": "^1.0",
+    "zoujingli/smart-admin-plugin-system": "^1.0",
+    "zoujingli/smart-admin-plugin-wechat-client": "^1.0",
+    "zoujingli/smart-admin-plugin-wechat-service": "^1.0"
   },
   "repositories": [
-    {
-      "type": "vcs",
-      "url": "https://github.com/zoujingli/SmartAdminLibrary.git"
-    },
     {
       "type": "path",
       "url": "plugin/Builder"

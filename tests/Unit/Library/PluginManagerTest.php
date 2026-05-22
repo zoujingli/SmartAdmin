@@ -48,7 +48,7 @@ final class PluginManagerTest extends TestCase
 
         self::assertSame('demo-shop', $metadata->code);
         self::assertSame('1.2.3', $metadata->version);
-        self::assertSame('vendor/smart_admin_plugin_demo_shop', $metadata->composerName);
+        self::assertSame('vendor/smart-admin-plugin-demo-shop', $metadata->composerName);
         self::assertSame('DemoShop', $metadata->module);
         self::assertSame(['demo_order'], $metadata->tables);
         self::assertSame(['demo_ext_'], $metadata->tablePrefixes);
@@ -240,13 +240,13 @@ final class PluginManagerTest extends TestCase
         $manager->addPathPackage($metadata, 'plugin/DemoComposer');
         $rootComposer = json_decode((string)file_get_contents($this->root . '/composer.json'), true);
 
-        self::assertSame('^1.5', $rootComposer['require']['vendor/smart_admin_plugin_demo_composer']);
+        self::assertSame('^1.5', $rootComposer['require']['vendor/smart-admin-plugin-demo-composer']);
         self::assertSame('plugin/DemoComposer', $rootComposer['repositories'][0]['url']);
-        self::assertSame('1.5.0', $rootComposer['repositories'][0]['options']['versions']['vendor/smart_admin_plugin_demo_composer']);
+        self::assertSame('1.5.0', $rootComposer['repositories'][0]['options']['versions']['vendor/smart-admin-plugin-demo-composer']);
 
         $manager->removePathPackage($metadata, 'plugin/DemoComposer');
         $rootComposer = json_decode((string)file_get_contents($this->root . '/composer.json'), true);
-        self::assertArrayNotHasKey('vendor/smart_admin_plugin_demo_composer', $rootComposer['require']);
+        self::assertArrayNotHasKey('vendor/smart-admin-plugin-demo-composer', $rootComposer['require']);
         self::assertSame([], $rootComposer['repositories']);
     }
 
@@ -262,7 +262,7 @@ final class PluginManagerTest extends TestCase
         file_put_contents($path . '/stc/view/demo/index.vue', '<template><div /></template>');
 
         $composer = [
-            'name' => 'vendor/smart_admin_plugin_' . PluginMetadata::snake($module),
+            'name' => 'vendor/smart-admin-plugin-' . PluginMetadata::kebab($module),
             'type' => 'library',
             'autoload' => [
                 'psr-4' => [

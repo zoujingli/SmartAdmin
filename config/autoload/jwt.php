@@ -8,7 +8,6 @@ declare(strict_types=1);
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
  * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
  */
-use Plugin\Project\Model\ProjectAccount;
 use System\Model\SystemUser;
 
 /*
@@ -54,10 +53,6 @@ return [
         SystemUser::class => [
             'type' => 'mpop',                   // 多点登录，允许同时多个设备登录
             // 其他配置继承全局配置：secret、ttl、alg、blacklist_enabled等
-        ],
-
-        ProjectAccount::class => [
-            'type' => 'mpop',
         ],
 
         // 微信用户模型（按需启用时取消注释）

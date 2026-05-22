@@ -1,5 +1,5 @@
 {
-  "name": "zoujingli/smart_admin_plugin_wechat_client",
+  "name": "zoujingli/smart-admin-plugin-wechat-client",
   "description": "Open-source WeChat Client plugin for SmartAdmin.",
   "type": "library",
   "license": "Apache-2.0",
@@ -15,7 +15,7 @@
     "ext-json": "*",
     "ext-openssl": "*",
     "zoujingli/wechat-developer": "^2.0@dev",
-    "zoujingli/smart_admin_library": "^1.0"
+    "zoujingli/smart-admin-library": "^1.0"
   },
   "autoload": {
     "psr-4": {

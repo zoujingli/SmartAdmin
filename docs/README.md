@@ -64,12 +64,12 @@
 |---|---|---|
 | 登录、Token、个人资料 | `plugin/System/src/Controller/AuthController.php` | [认证接口](接口参考/认证接口.md) |
 | 用户、角色、菜单、部门、岗位 | `plugin/System` | [组织权限管理](用户教程/组织权限管理.md) |
-| 权限注解、节点同步、数据范围 | `SmartAdminLibrary/Events`、`plugin/System/src/Command` | [认证权限与数据范围](系统功能/认证权限与数据范围.md) |
+| 权限注解、节点同步、数据范围 | `plugin/Library/Events`、`plugin/System/src/Command` | [认证权限与数据范围](系统功能/认证权限与数据范围.md) |
 | 文件管理、上传通道、去重 | `plugin/System/src/Controller/FileController.php` | [文件上传与存储](系统功能/文件上传与存储.md) |
-| 操作日志、请求日志、变更审计 | `SmartAdminLibrary/Events`、`plugin/System/src/Controller/Logs*Controller.php` | [日志审计与公告](系统功能/日志审计与公告.md) |
+| 操作日志、请求日志、变更审计 | `plugin/Library/Events`、`plugin/System/src/Controller/Logs*Controller.php` | [日志审计与公告](系统功能/日志审计与公告.md) |
 | 多租户管理和租户上下文 | `plugin/System`、`TenantContext` | [租户与发布构建](系统功能/租户与发布构建.md) |
 | 微信客户端与开放平台 | `plugin/WechatClient`、`plugin/WechatService` | [微信客户端接口](接口参考/微信客户端接口.md)、[微信开放平台接口](接口参考/微信开放平台接口.md) |
-| 数据库发布快照和 Phar 打包 | `SmartAdminLibrary/Command`、`plugin/Builder` | [发布升级](部署运维/发布升级.md) |
+| 数据库发布快照和 Phar 打包 | `plugin/Library/Command`、`plugin/Builder` | [发布升级](部署运维/发布升级.md) |
 | Vue 3 管理端 | `web/apps/web-antd` 通用壳、`plugin/*/stc/view` 插件页面 | [前端接入](开发指南/前端接入.md) |
 
 ## 🚀 5 分钟启动

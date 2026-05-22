@@ -257,7 +257,12 @@ PHP_CODE;
     {
         $root = dirname(__DIR__, 3);
         $bootstrap = file_get_contents($root . '/bin/hyperf.php');
-        $publish = file_get_contents($root . '/SmartAdminLibrary/Command/SitePublish.php');
+        $publishPath = $root . '/plugin' . '/Library/Command/SitePublish.php';
+        if (! is_file($publishPath)) {
+            // SmartAdmin 开源仓不携带 Library 源目录，导出测试需回退到 Composer 包路径。
+            $publishPath = $root . '/vendor/zoujingli/smart-admin-library/Command/SitePublish.php';
+        }
+        $publish = file_get_contents($publishPath);
 
         self::assertIsString($bootstrap);
         self::assertIsString($publish);

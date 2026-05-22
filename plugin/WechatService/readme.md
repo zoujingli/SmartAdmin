@@ -9,7 +9,7 @@
 | 项目 | 说明 |
 |---|---|
 | 协议 | Apache License 2.0 |
-| 代码包 | `zoujingli/smart_admin_plugin_wechat_service` |
+| 代码包 | `zoujingli/smart-admin-plugin-wechat-service` |
 | 运行环境 | SmartAdmin、PHP >= 8.4、Hyperf 3.2、Swoole 6 |
 | 微信 SDK | `zoujingli/wechat-developer` 2.x |
 | 问题反馈 | 通过 SmartAdmin Issue 或项目维护渠道提交可复现信息 |

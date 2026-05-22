@@ -1,5 +1,5 @@
 {
-  "name": "zoujingli/smart_admin_plugin_builder",
+  "name": "zoujingli/smart-admin-plugin-builder",
   "description": "SmartAdmin builder component for packaging Hyperf projects as Phar/SFX stand-alone packages.",
   "license": "Apache-2.0",
   "version": "1.0.0",
