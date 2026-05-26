@@ -85,6 +85,8 @@ final class PluginManagerTest extends TestCase
         $archive = new PluginArchive($this->root . '/tmp');
         $zip = $archive->createPackage($metadata, $this->root . '/out', 'secret');
 
+        self::assertSame('plugin-demo-zip-1.0.0.zip', basename($zip));
+
         $this->expectException(\RuntimeException::class);
         $archive->extract($zip);
     }
