@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Support;
@@ -57,7 +57,6 @@ final class SystemAppMeta
      *
      * 合并顺序为默认值 < 历史 config_* < 当前 app_meta；只跳过 null 与空字符串，避免旧库已有的有效值被默认值覆盖。
      *
-     * @param mixed $meta
      * @param array<string, mixed> $config
      * @return array<string, mixed>
      */

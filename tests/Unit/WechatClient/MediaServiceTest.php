@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Tests\Unit\WechatClient;
 
@@ -9,8 +16,10 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Plugin\WechatClient\Model\WechatClientMedia;
 use Plugin\WechatClient\Service\WechatClientMediaService;
-use ReflectionClass;
 
+/**
+ * @internal
+ */
 #[CoversClass(WechatClientMediaService::class)]
 final class MediaServiceTest extends TestCase
 {
@@ -19,7 +28,7 @@ final class MediaServiceTest extends TestCase
         $this->expectException(ErrorResponseException::class);
         $this->expectExceptionMessage('文件地址必须是可访问的 http(s) URL，服务器本地文件请使用本地文件 ID');
 
-        $reflection = new ReflectionClass(WechatClientMediaService::class);
+        $reflection = new \ReflectionClass(WechatClientMediaService::class);
         $service = $reflection->newInstanceWithoutConstructor();
         $method = $reflection->getMethod('resolveUploadPath');
         $method->setAccessible(true);
@@ -75,7 +84,7 @@ final class MediaServiceTest extends TestCase
      */
     private function invokePrivate(string $method, mixed ...$args): mixed
     {
-        $reflection = new ReflectionClass(WechatClientMediaService::class);
+        $reflection = new \ReflectionClass(WechatClientMediaService::class);
         $service = $reflection->newInstanceWithoutConstructor();
         $methodReflection = $reflection->getMethod($method);
         $methodReflection->setAccessible(true);

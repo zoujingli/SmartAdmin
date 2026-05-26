@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Service;
@@ -21,8 +21,8 @@ use System\Mapper\TenantMapper;
 use System\Model\SystemDept;
 use System\Model\SystemNode;
 use System\Model\SystemRole;
-use System\Model\SystemUser;
 use System\Model\SystemTenant;
+use System\Model\SystemUser;
 
 final class TenantService extends CoreService
 {

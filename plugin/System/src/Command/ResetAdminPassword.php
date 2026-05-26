@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Command;
@@ -24,7 +24,7 @@ use System\Support\SystemBootstrapSeed;
  * 该命令只处理初始化超级管理员账号 `admin`，用于本地开发或生产应急恢复。
  * 密码写入仍走 SystemUser 模型访问器，由 password_hash() 生成数据库哈希。
  */
-#[Command(name: 'xadmin:pass:reset', description: 'Reset admin password')]
+#[Command(name: 'xadmin:password:reset', description: 'Reset admin password')]
 final class ResetAdminPassword extends HyperfCommand
 {
     /**

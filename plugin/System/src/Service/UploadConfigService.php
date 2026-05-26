@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Service;
@@ -37,8 +37,8 @@ final class UploadConfigService
      * @param UploadConfigValidator $validator 上传配置校验器
      */
     public function __construct(
-        protected ConfigInterface $configInterface,
-        protected UploadConfigValidator $validator,
+        private ConfigInterface $configInterface,
+        private UploadConfigValidator $validator,
     ) {}
 
     /**

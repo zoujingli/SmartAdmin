@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Plugin\WechatClient\Service;
 
@@ -79,40 +86,6 @@ final class WechatClientAccountService extends CoreService
             'POST' => $platform->post($uriOrPath, $payload, $options),
             default => $platform->call($uriOrPath, $payload, $method, $options),
         };
-    }
-
-    /**
-     * 处理微信消息安全模式伪路径。
-     *
-     * SDK 新版将消息加解密能力放在协议层客户端内，但客户端配置会校验 AppSecret；
-     * 公众号服务器回调只需要 Token、EncodingAESKey 与 AppID，因此这里直接复用 SDK 的 MessageCrypto 支持类。
-     *
-     * @param array<string,mixed> $payload
-     * @return array<string,mixed>
-     */
-    private function messageCryptoRequest(WechatClientAccount $account, string $uri, array $payload): array
-    {
-        $crypto = new MessageCrypto(
-            Secret::decrypt((string)$account->token),
-            Secret::decrypt((string)$account->encodingaeskey),
-            (string)$account->appid,
-        );
-        if ($uri === 'decrypt_message') {
-            return $crypto->decryptMessage(
-                (string)($payload['body'] ?? ''),
-                (string)($payload['msg_signature'] ?? ''),
-                (string)($payload['timestamp'] ?? ''),
-                (string)($payload['nonce'] ?? ''),
-            );
-        }
-
-        return [
-            'xml' => $crypto->encryptMessage(
-                (string)($payload['body'] ?? ''),
-                (string)($payload['timestamp'] ?? time()),
-                (string)($payload['nonce'] ?? ''),
-            ),
-        ];
     }
 
     /**
@@ -228,6 +201,40 @@ final class WechatClientAccountService extends CoreService
         }
 
         return $data;
+    }
+
+    /**
+     * 处理微信消息安全模式伪路径。
+     *
+     * SDK 新版将消息加解密能力放在协议层客户端内，但客户端配置会校验 AppSecret；
+     * 公众号服务器回调只需要 Token、EncodingAESKey 与 AppID，因此这里直接复用 SDK 的 MessageCrypto 支持类。
+     *
+     * @param array<string,mixed> $payload
+     * @return array<string,mixed>
+     */
+    private function messageCryptoRequest(WechatClientAccount $account, string $uri, array $payload): array
+    {
+        $crypto = new MessageCrypto(
+            Secret::decrypt((string)$account->token),
+            Secret::decrypt((string)$account->encodingaeskey),
+            (string)$account->appid,
+        );
+        if ($uri === 'decrypt_message') {
+            return $crypto->decryptMessage(
+                (string)($payload['body'] ?? ''),
+                (string)($payload['msg_signature'] ?? ''),
+                (string)($payload['timestamp'] ?? ''),
+                (string)($payload['nonce'] ?? ''),
+            );
+        }
+
+        return [
+            'xml' => $crypto->encryptMessage(
+                (string)($payload['body'] ?? ''),
+                (string)($payload['timestamp'] ?? time()),
+                (string)($payload['nonce'] ?? ''),
+            ),
+        ];
     }
 
     /**

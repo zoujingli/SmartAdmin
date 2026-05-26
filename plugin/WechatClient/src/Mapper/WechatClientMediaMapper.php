@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Plugin\WechatClient\Mapper;
 
@@ -31,10 +38,8 @@ final class WechatClientMediaMapper extends CoreMapper
      */
     public function upsertByMediaId(int $accountId, string $mediaId, array $data): WechatClientMedia
     {
-        /** @var WechatClientMedia $media */
-        $media = $this->model::query()->updateOrCreate(['account_id' => $accountId, 'media_id' => $mediaId], $data);
-
-        return $media;
+        /* @var WechatClientMedia $media */
+        return $this->model::query()->updateOrCreate(['account_id' => $accountId, 'media_id' => $mediaId], $data);
     }
 
     /**

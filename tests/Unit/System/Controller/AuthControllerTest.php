@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Tests\Unit\System\Controller;
 
@@ -18,13 +25,16 @@ use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use System\Controller\AuthController;
+use System\Model\SystemUser;
 use System\Service\DataService;
 use System\Service\MenuService;
 use System\Service\PasswordCryptoService;
 use System\Service\SystemUserSessionService;
 use System\Service\UserService;
-use System\Model\SystemUser;
 
+/**
+ * @internal
+ */
 #[CoversClass(AuthController::class)]
 #[UsesClass(ErrorResponseException::class)]
 #[UsesClass(UnauthorizedResponseException::class)]
@@ -84,7 +94,7 @@ final class AuthControllerTest extends TestCase
             ->getMock();
         $claimsToken->method('getParserData')->willReturn([
             'uid' => 123,
-            'class' => 'System\\Model\\SystemUser',
+            'class' => 'System\Model\SystemUser',
         ]);
 
         ApplicationContext::setContainer($this->makeContainer($claimsToken, $this->makeTranslator()));
@@ -186,7 +196,7 @@ final class AuthControllerTest extends TestCase
         ApplicationContext::setContainer($this->makeContainer(
             $this->makeClaimsToken([
                 'uid' => 9,
-                'class' => 'Custom\\User',
+                'class' => 'Custom\User',
             ]),
             $this->makeTranslator(),
             $this->makeLoginService(static function (?string $token, ?string $userModel) use (&$capturedUserModel): UserModelInterface {
@@ -329,7 +339,7 @@ final class AuthControllerTest extends TestCase
 
     private function makeLoginService(callable $resolver): object
     {
-        return new class ($resolver) {
+        return new class($resolver) {
             private \Closure $resolver;
 
             public function __construct(callable $resolver)
@@ -348,7 +358,7 @@ final class AuthControllerTest extends TestCase
 
     private function makeContainer(Token $token, TranslatorInterface $translator, ?object $loginService = null): ContainerInterface
     {
-        return new class ($token, $translator, $loginService) implements ContainerInterface {
+        return new class($token, $translator, $loginService) implements ContainerInterface {
             public function __construct(
                 private readonly Token $token,
                 private readonly TranslatorInterface $translator,
@@ -359,9 +369,9 @@ final class AuthControllerTest extends TestCase
             {
                 return match ($id) {
                     Token::class => $this->token,
-                    LoginService::class => $this->loginService ?? throw new class ('Login service not configured.') extends \RuntimeException implements NotFoundExceptionInterface {},
+                    LoginService::class => $this->loginService ?? throw new class('Login service not configured.') extends \RuntimeException implements NotFoundExceptionInterface {},
                     TranslatorInterface::class => $this->translator,
-                    default => throw new class (sprintf('Service "%s" not found.', $id)) extends \RuntimeException implements NotFoundExceptionInterface {},
+                    default => throw new class(sprintf('Service "%s" not found.', $id)) extends \RuntimeException implements NotFoundExceptionInterface {},
                 };
             }
 

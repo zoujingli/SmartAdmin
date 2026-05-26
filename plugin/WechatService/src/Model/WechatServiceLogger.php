@@ -1,9 +1,17 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Plugin\WechatService\Model;
 
+use Carbon\Carbon;
 use Library\CoreModel;
 
 /**
@@ -12,8 +20,8 @@ use Library\CoreModel;
  * @property string $appid 相关 AppID
  * @property int $status 处理状态(1成功,0失败)
  * @property string $message 处理消息
- * @property \Carbon\Carbon $created_at 创建时间
- * @property \Carbon\Carbon $updated_at 更新时间
+ * @property Carbon $created_at 创建时间
+ * @property Carbon $updated_at 更新时间
  * @property array $payload 回调数据 JSON
  */
 final class WechatServiceLogger extends CoreModel

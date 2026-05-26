@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Mapper;
@@ -51,47 +51,6 @@ final class LogsChangeMapper extends CoreMapper
             ->orderBy('id')
             ->get()
             ->toArray();
-    }
-
-    /**
-     * 变更日志独立列表筛选；只开放固定白名单字段，避免前端传入任意查询表达式。
-     */
-    protected function handleSearch(Builder $query, array $params): Builder
-    {
-        $builder = _query($query, $params)
-            ->like('username,model_name,record_id,record_label,change_remark')
-            ->equal('tenant_id,action_id,model,table_name,event')
-            ->dateBetween('created_at')
-            ->getQuery();
-
-        $keyword = trim((string)($params['keyword'] ?? ''));
-        if ($keyword !== '') {
-            $builder->where(function (Builder $subQuery) use ($keyword): void {
-                $like = "%{$keyword}%";
-                $subQuery->where('username', 'like', $like)
-                    ->orWhere('model', 'like', $like)
-                    ->orWhere('table_name', 'like', $like)
-                    ->orWhere('model_name', 'like', $like)
-                    ->orWhere('record_id', 'like', $like)
-                    ->orWhere('record_label', 'like', $like)
-                    ->orWhere('event', 'like', $like)
-                    ->orWhere('change_remark', 'like', $like);
-            });
-        }
-
-        return $builder;
-    }
-
-    /**
-     * 变更日志列表摘要只统计当前筛选范围，供前端看板和导出确认使用。
-     *
-     * @return array<string, mixed>
-     */
-    protected function handleListExtra(array $params = [], bool $isScope = true): array
-    {
-        return [
-            'statistics' => $this->getStatistics($params, $isScope),
-        ];
     }
 
     /**
@@ -196,6 +155,47 @@ final class LogsChangeMapper extends CoreMapper
             ->each(static function (SystemLogsChange $change): void {
                 $change->forceDelete();
             });
+    }
+
+    /**
+     * 变更日志独立列表筛选；只开放固定白名单字段，避免前端传入任意查询表达式。
+     */
+    protected function handleSearch(Builder $query, array $params): Builder
+    {
+        $builder = _query($query, $params)
+            ->like('username,model_name,record_id,record_label,change_remark')
+            ->equal('tenant_id,action_id,model,table_name,event')
+            ->dateBetween('created_at')
+            ->getQuery();
+
+        $keyword = trim((string)($params['keyword'] ?? ''));
+        if ($keyword !== '') {
+            $builder->where(function (Builder $subQuery) use ($keyword): void {
+                $like = "%{$keyword}%";
+                $subQuery->where('username', 'like', $like)
+                    ->orWhere('model', 'like', $like)
+                    ->orWhere('table_name', 'like', $like)
+                    ->orWhere('model_name', 'like', $like)
+                    ->orWhere('record_id', 'like', $like)
+                    ->orWhere('record_label', 'like', $like)
+                    ->orWhere('event', 'like', $like)
+                    ->orWhere('change_remark', 'like', $like);
+            });
+        }
+
+        return $builder;
+    }
+
+    /**
+     * 变更日志列表摘要只统计当前筛选范围，供前端看板和导出确认使用。
+     *
+     * @return array<string, mixed>
+     */
+    protected function handleListExtra(array $params = [], bool $isScope = true): array
+    {
+        return [
+            'statistics' => $this->getStatistics($params, $isScope),
+        ];
     }
 
     /**

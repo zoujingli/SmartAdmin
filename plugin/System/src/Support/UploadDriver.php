@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Support;
@@ -340,7 +340,7 @@ final class UploadDriver
     {
         $segments = array_filter(array_map(
             static fn (string $segment): string => trim($segment),
-            preg_split('#[\\\\/]+#', trim($path)) ?: []
+            preg_split('#[\\\/]+#', trim($path)) ?: []
         ), static fn (string $segment): bool => $segment !== '' && $segment !== '.' && $segment !== '..');
 
         return implode('/', $segments);

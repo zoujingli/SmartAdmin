@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Service;
@@ -197,60 +197,6 @@ final class LogsActionService extends CoreService implements OperateLogWriterInt
     }
 
     /**
-     * 日志写入入口只接受日志模型白名单字段；日志内容字段保留原始字符串，避免二次 JSON 处理破坏审计内容。
-     */
-    protected function filterData(array &$data, array $exists = []): array
-    {
-        foreach (['username', 'method', 'router', 'name', 'remark', 'ip', 'ip_location', 'os', 'browser', 'response_code'] as $field) {
-            if (array_key_exists($field, $data) && is_string($data[$field])) {
-                $data[$field] = trim($data[$field]);
-            }
-        }
-
-        $data = _vali([
-            'tenant_id',
-            'username',
-            'method',
-            'router',
-            'name',
-            'remark',
-            'ip',
-            'ip_location',
-            'os',
-            'browser',
-            'request_data',
-            'response_code',
-            'response_data',
-            'created_by',
-            'updated_by',
-            'tenant_id.integer' => '租户 ID 必须为数字',
-            'tenant_id.min:0' => '租户 ID 不能小于 0',
-            'username.max:20' => '操作用户最多 20 位',
-            'method.max:20' => '请求方法最多 20 位',
-            'router.max:500' => '请求路由最多 500 位',
-            'name.max:30' => '操作名称最多 30 位',
-            'remark.max:200' => '日志备注最多 200 位',
-            'ip.max:200' => 'IP 地址最多 200 位',
-            'ip_location.max:200' => 'IP 归属地最多 200 位',
-            'os.max:200' => '操作系统最多 200 位',
-            'browser.max:200' => '浏览器最多 200 位',
-            'response_code.max:5' => '响应码最多 5 位',
-            'created_by.integer' => '创建者必须为数字',
-            'created_by.min:0' => '创建者不能小于 0',
-            'updated_by.integer' => '更新者必须为数字',
-            'updated_by.min:0' => '更新者不能小于 0',
-        ], $data);
-
-        foreach (['tenant_id', 'created_by', 'updated_by'] as $field) {
-            if (array_key_exists($field, $data)) {
-                $data[$field] = (int)$data[$field];
-            }
-        }
-
-        return $data;
-    }
-
-    /**
      * 获取日志分析报告.
      */
     public function getAnalysisReport(array $params = []): array
@@ -328,6 +274,60 @@ final class LogsActionService extends CoreService implements OperateLogWriterInt
             'events_per_minute_5m' => $perMin5m,
             'by_response_code_last_5m' => $byCode5m,
         ];
+    }
+
+    /**
+     * 日志写入入口只接受日志模型白名单字段；日志内容字段保留原始字符串，避免二次 JSON 处理破坏审计内容。
+     */
+    protected function filterData(array &$data, array $exists = []): array
+    {
+        foreach (['username', 'method', 'router', 'name', 'remark', 'ip', 'ip_location', 'os', 'browser', 'response_code'] as $field) {
+            if (array_key_exists($field, $data) && is_string($data[$field])) {
+                $data[$field] = trim($data[$field]);
+            }
+        }
+
+        $data = _vali([
+            'tenant_id',
+            'username',
+            'method',
+            'router',
+            'name',
+            'remark',
+            'ip',
+            'ip_location',
+            'os',
+            'browser',
+            'request_data',
+            'response_code',
+            'response_data',
+            'created_by',
+            'updated_by',
+            'tenant_id.integer' => '租户 ID 必须为数字',
+            'tenant_id.min:0' => '租户 ID 不能小于 0',
+            'username.max:20' => '操作用户最多 20 位',
+            'method.max:20' => '请求方法最多 20 位',
+            'router.max:500' => '请求路由最多 500 位',
+            'name.max:30' => '操作名称最多 30 位',
+            'remark.max:200' => '日志备注最多 200 位',
+            'ip.max:200' => 'IP 地址最多 200 位',
+            'ip_location.max:200' => 'IP 归属地最多 200 位',
+            'os.max:200' => '操作系统最多 200 位',
+            'browser.max:200' => '浏览器最多 200 位',
+            'response_code.max:5' => '响应码最多 5 位',
+            'created_by.integer' => '创建者必须为数字',
+            'created_by.min:0' => '创建者不能小于 0',
+            'updated_by.integer' => '更新者必须为数字',
+            'updated_by.min:0' => '更新者不能小于 0',
+        ], $data);
+
+        foreach (['tenant_id', 'created_by', 'updated_by'] as $field) {
+            if (array_key_exists($field, $data)) {
+                $data[$field] = (int)$data[$field];
+            }
+        }
+
+        return $data;
     }
 
     /**
@@ -421,7 +421,7 @@ final class LogsActionService extends CoreService implements OperateLogWriterInt
         }
 
         $changeValues = json_encode($fields, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        $row = [
+        return [
             'tenant_id' => (int)($action['tenant_id'] ?? 0),
             'action_id' => $actionId,
             'username' => self::limitString($action['username'] ?? '', 20),
@@ -438,7 +438,6 @@ final class LogsActionService extends CoreService implements OperateLogWriterInt
         ];
 
         // 变更明细来自模型审计规则，这里只做写库边界归一化，避免异常结构进入日志表。
-        return $row;
     }
 
     /**
@@ -514,5 +513,4 @@ final class LogsActionService extends CoreService implements OperateLogWriterInt
 
         return $data;
     }
-
 }

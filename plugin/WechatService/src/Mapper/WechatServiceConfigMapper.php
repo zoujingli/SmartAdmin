@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Plugin\WechatService\Mapper;
 
@@ -26,10 +33,8 @@ final class WechatServiceConfigMapper extends CoreMapper
 
     public function active(): ?WechatServiceConfig
     {
-        /** @var null|WechatServiceConfig $config */
-        $config = $this->model::query()->orderBy('id')->first();
-
-        return $config;
+        /* @var null|WechatServiceConfig $config */
+        return $this->model::query()->orderBy('id')->first();
     }
 
     /**

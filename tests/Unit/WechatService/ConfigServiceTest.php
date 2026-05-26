@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Tests\Unit\WechatService;
 
@@ -8,8 +15,10 @@ use Library\Exception\ErrorResponseException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Plugin\WechatService\Service\WechatServiceConfigService;
-use ReflectionClass;
 
+/**
+ * @internal
+ */
 #[CoversClass(WechatServiceConfigService::class)]
 final class ConfigServiceTest extends TestCase
 {
@@ -31,11 +40,9 @@ final class ConfigServiceTest extends TestCase
 
     private function service(): WechatServiceConfigService
     {
-        $reflection = new ReflectionClass(WechatServiceConfigService::class);
+        $reflection = new \ReflectionClass(WechatServiceConfigService::class);
 
-        /** @var WechatServiceConfigService $service */
-        $service = $reflection->newInstanceWithoutConstructor();
-
-        return $service;
+        /* @var WechatServiceConfigService $service */
+        return $reflection->newInstanceWithoutConstructor();
     }
 }

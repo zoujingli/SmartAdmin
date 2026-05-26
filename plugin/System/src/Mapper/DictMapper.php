@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Mapper;
@@ -83,14 +83,12 @@ final class DictMapper extends CoreMapper
      */
     public function findEnabledCategoryByCode(string $code): ?SystemDict
     {
-        /** @var null|SystemDict $dict */
-        $dict = $this->model::query()
+        /* @var null|SystemDict $dict */
+        return $this->model::query()
             ->where('pid', 0)
             ->where('code', $code)
             ->where('status', Status::ENABLED)
             ->first();
-
-        return $dict;
     }
 
     /**

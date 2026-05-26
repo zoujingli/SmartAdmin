@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Plugin\WechatService\Mapper;
 
@@ -28,24 +35,20 @@ final class WechatServiceAuthMapper extends CoreMapper
 
     public function findByAppid(string $appid): ?WechatServiceAuth
     {
-        /** @var null|WechatServiceAuth $authorizer */
-        $authorizer = $this->model::query()
+        /* @var null|WechatServiceAuth $authorizer */
+        return $this->model::query()
             ->withoutGlobalScope(DataField::TENANT)
             ->where('authorizer_appid', $appid)
             ->first();
-
-        return $authorizer;
     }
 
     public function findAnyByAppid(string $appid): ?WechatServiceAuth
     {
-        /** @var null|WechatServiceAuth $authorizer */
-        $authorizer = $this->model::withTrashed()
+        /* @var null|WechatServiceAuth $authorizer */
+        return $this->model::withTrashed()
             ->withoutGlobalScope(DataField::TENANT)
             ->where('authorizer_appid', $appid)
             ->first();
-
-        return $authorizer;
     }
 
     /**

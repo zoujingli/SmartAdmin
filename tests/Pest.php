@@ -1,7 +1,13 @@
 <?php
 
 declare(strict_types=1);
-
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 use Hyperf\Context\ApplicationContext;
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\Contract\TranslatorInterface;
@@ -64,7 +70,7 @@ ApplicationContext::setContainer(new class implements ContainerInterface {
             return $this->config;
         }
 
-        throw new class (sprintf('Service "%s" not found.', $id)) extends RuntimeException implements NotFoundExceptionInterface {};
+        throw new class(sprintf('Service "%s" not found.', $id)) extends RuntimeException implements NotFoundExceptionInterface {};
     }
 
     public function has(string $id): bool

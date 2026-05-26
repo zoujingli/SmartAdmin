@@ -36,7 +36,7 @@ composer create-project zoujingli/smartadmin SmartAdmin
 cd SmartAdmin
 cp .env.example .env
 composer setup
-sh bin/start-swoole start
+./bin/smart start
 
 cd web
 pnpm install
@@ -66,7 +66,7 @@ composer create-project zoujingli/smartadmin SmartAdmin
 cd SmartAdmin
 cp .env.example .env
 composer setup
-sh bin/start-swoole start
+./bin/smart start
 cd web
 pnpm install
 pnpm dev:antd

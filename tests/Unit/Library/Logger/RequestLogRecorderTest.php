@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Tests\Unit\Library\Logger;
 
@@ -15,6 +22,9 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\AbstractLogger;
 
+/**
+ * @internal
+ */
 #[CoversClass(RequestLogRecorder::class)]
 final class RequestLogRecorderTest extends TestCase
 {
@@ -39,7 +49,7 @@ final class RequestLogRecorderTest extends TestCase
              */
             public array $records = [];
 
-            public function log($level, \Stringable|string $message, array $context = []): void
+            public function log($level, string|\Stringable $message, array $context = []): void
             {
                 $this->records[] = [
                     'level' => $level,
@@ -84,7 +94,7 @@ final class RequestLogRecorderTest extends TestCase
              */
             public array $messages = [];
 
-            public function log($level, \Stringable|string $message, array $context = []): void
+            public function log($level, string|\Stringable $message, array $context = []): void
             {
                 $this->messages[] = (string)$message;
             }
@@ -109,7 +119,7 @@ final class RequestLogRecorderTest extends TestCase
              */
             public array $contexts = [];
 
-            public function log($level, \Stringable|string $message, array $context = []): void
+            public function log($level, string|\Stringable $message, array $context = []): void
             {
                 $this->contexts[] = $context;
             }
@@ -141,7 +151,7 @@ final class RequestLogRecorderTest extends TestCase
              */
             public array $contexts = [];
 
-            public function log($level, \Stringable|string $message, array $context = []): void
+            public function log($level, string|\Stringable $message, array $context = []): void
             {
                 $this->contexts[] = $context;
             }

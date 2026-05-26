@@ -6,20 +6,28 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 use Hyperf\Database\Commands\Ast\ModelRewriteKeyInfoVisitor;
 use Hyperf\Database\Commands\Ast\ModelRewriteSoftDeletesVisitor;
 use Hyperf\Database\Commands\Ast\ModelRewriteTimestampsVisitor;
+use Library\Constants\System;
 
 use function Hyperf\Support\env;
 
 $driver = strtolower((string)env('DB_DRIVER', 'sqlite'));
 $isSqlite = $driver === 'sqlite';
 $database = (string)env('DB_DATABASE', $isSqlite ? 'runtime/system.db' : 'hyadmin');
-if ($isSqlite && $database !== ':memory:' && ! str_starts_with($database, '/')) {
-    // SQLite 是默认免 MySQL 体验库，相对路径固定解析到项目目录，避免命令在不同 cwd 下创建多份数据库。
-    $database = BASE_PATH . '/' . ltrim($database, '/');
+if ($isSqlite && $database !== ':memory:' && !str_starts_with($database, '/')) {
+    // SQLite 是默认免 MySQL 体验库；源码模式固定写入项目目录，Phar/SFX 模式固定写入二进制同级运行目录。
+    // 这样部署包内的只读 phar:// 路径不会被误当成数据库目录，也避免命令在不同 cwd 下创建多份数据库。
+    $basePath = System::isPharMode() && function_exists('runpath') ? runpath() : BASE_PATH;
+    $database = rtrim($basePath, '/\\') . '/' . ltrim($database, '/');
+}
+if ($isSqlite && $database !== ':memory:') {
+    // 二进制模式没有 bin/smart sqlite 包装器，首次执行 release install/restore 命令时按需创建空库文件。
+    is_dir(dirname($database)) || mkdir(dirname($database), 0755, true);
+    is_file($database) || touch($database);
 }
 
 $connection = [
@@ -51,7 +59,7 @@ $connection = [
     ],
 ];
 
-if (! $isSqlite) {
+if (!$isSqlite) {
     // 显式配置 MySQL 时保留原连接参数；默认 SQLite 不携带 host，避免连接工厂按多主机模式解析。
     $connection = array_merge($connection, [
         'host' => env('DB_HOST', 'localhost'),

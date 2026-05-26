@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Service;
@@ -14,9 +14,9 @@ namespace System\Service;
 use Hyperf\Database\Model\Model;
 use Library\Constants\DataField;
 use Library\Constants\System;
+use Library\Events\Processor\ScopeProcessor;
 use Library\Exception\ErrorResponseException;
 use Library\Exception\NotAllowResponseException;
-use Library\Events\Processor\ScopeProcessor;
 use System\Mapper\UserMapper;
 use System\Model\SystemRole;
 use System\Model\SystemUser;

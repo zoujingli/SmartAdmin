@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Tests\Unit\WechatClient;
 
@@ -8,8 +15,10 @@ use Library\Exception\ErrorResponseException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Plugin\WechatClient\Service\WechatClientMenuService;
-use ReflectionClass;
 
+/**
+ * @internal
+ */
 #[CoversClass(WechatClientMenuService::class)]
 final class MenuServiceTest extends TestCase
 {
@@ -149,20 +158,18 @@ final class MenuServiceTest extends TestCase
      */
     private function officialButtons(array $buttons): array
     {
-        $reflection = new ReflectionClass(WechatClientMenuService::class);
+        $reflection = new \ReflectionClass(WechatClientMenuService::class);
         $service = $reflection->newInstanceWithoutConstructor();
         $method = $reflection->getMethod('buildOfficialButtons');
         $method->setAccessible(true);
 
-        /** @var array<int,array<string,mixed>> $result */
-        $result = $method->invoke($service, $buttons);
-
-        return $result;
+        /* @var array<int,array<string,mixed>> $result */
+        return $method->invoke($service, $buttons);
     }
 
     private function invokePrivate(string $method, mixed ...$args): mixed
     {
-        $reflection = new ReflectionClass(WechatClientMenuService::class);
+        $reflection = new \ReflectionClass(WechatClientMenuService::class);
         $service = $reflection->newInstanceWithoutConstructor();
         $methodReflection = $reflection->getMethod($method);
         $methodReflection->setAccessible(true);

@@ -1,10 +1,16 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Tests\Unit\System\Service;
 
-use DateInterval;
 use Hyperf\Context\ApplicationContext;
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\Contract\TranslatorInterface;
@@ -17,6 +23,9 @@ use Psr\Container\NotFoundExceptionInterface;
 use Psr\SimpleCache\CacheInterface;
 use System\Service\PasswordCryptoService;
 
+/**
+ * @internal
+ */
 #[CoversClass(PasswordCryptoService::class)]
 #[UsesClass(ErrorResponseException::class)]
 final class PasswordCryptoServiceTest extends TestCase
@@ -201,7 +210,6 @@ final class PasswordCryptoServiceTest extends TestCase
             'ciphertext' => base64_encode($ciphertext),
         ];
     }
-
 }
 
 /**
@@ -226,7 +234,7 @@ final class ArrayCache implements CacheInterface
         return $item['value'];
     }
 
-    public function set(string $key, mixed $value, DateInterval|int|null $ttl = null): bool
+    public function set(string $key, mixed $value, \DateInterval|int|null $ttl = null): bool
     {
         $expiresAt = is_int($ttl) ? time() + $ttl : null;
         $this->values[$key] = ['value' => $value, 'expires_at' => $expiresAt];
@@ -258,7 +266,7 @@ final class ArrayCache implements CacheInterface
         return $items;
     }
 
-    public function setMultiple(iterable $values, DateInterval|int|null $ttl = null): bool
+    public function setMultiple(iterable $values, \DateInterval|int|null $ttl = null): bool
     {
         foreach ($values as $key => $value) {
             $this->set((string)$key, $value, $ttl);
@@ -288,6 +296,7 @@ final class ArrayCache implements CacheInterface
 final class PasswordCryptoTestContainer implements ContainerInterface
 {
     private ConfigInterface $config;
+
     private TranslatorInterface $translator;
 
     /**
@@ -295,7 +304,7 @@ final class PasswordCryptoTestContainer implements ContainerInterface
      */
     public function __construct(array $config)
     {
-        $this->config = new class ($config) implements ConfigInterface {
+        $this->config = new class($config) implements ConfigInterface {
             /**
              * @param array<string, mixed> $values
              */
@@ -359,7 +368,7 @@ final class PasswordCryptoTestContainer implements ContainerInterface
         return match ($id) {
             ConfigInterface::class => $this->config,
             TranslatorInterface::class => $this->translator,
-            default => throw new class (sprintf('Service "%s" not found.', $id)) extends \RuntimeException implements NotFoundExceptionInterface {},
+            default => throw new class(sprintf('Service "%s" not found.', $id)) extends \RuntimeException implements NotFoundExceptionInterface {},
         };
     }
 

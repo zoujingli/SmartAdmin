@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Command;
@@ -14,9 +14,10 @@ namespace System\Command;
 use Hyperf\Command\Annotation\Command;
 use Hyperf\Command\Command as HyperfCommand;
 use Hyperf\Di\Annotation\Inject;
+use Library\Constants\System;
 use Symfony\Component\Console\Input\InputOption;
-use System\Service\MenuSeedSyncService;
 use System\Service\AuthRegistryService;
+use System\Service\MenuSeedSyncService;
 
 /**
  * 同步鉴权节点到 `system_node` 注册表。
@@ -56,7 +57,7 @@ final class SyncAuthNodes extends HyperfCommand
             ->addOption('json', null, InputOption::VALUE_NONE, 'Emit the full report as JSON for CI or scripts')
             ->addOption('exit-code', null, InputOption::VALUE_NONE, 'Return a bitmask exit code: added=1, updated=2, disabled=4');
 
-        if (\Phar::running(false) !== '') {
+        if (System::isPharMode()) {
             // 发布包中的节点同步仅用于权限注册表应急修复，避免生产 list 继续提示常规发布后执行。
             $this->setHidden(true);
         }

@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Service;
@@ -27,8 +27,22 @@ use function Hyperf\Config\config;
 final class PasswordCryptoService
 {
     public const ALG = 'RSA-OAEP';
+
     public const HASH = 'SHA-1';
-    private const OPENSSL_CONFIG = <<<CONF
+
+    public const PURPOSE_LOGIN_PASSWORD = 'system.auth.login.password';
+
+    public const PURPOSE_CHANGE_OLD_PASSWORD = 'system.auth.password.old_password';
+
+    public const PURPOSE_CHANGE_NEW_PASSWORD = 'system.auth.password.new_password';
+
+    public const PURPOSE_USER_CREATE_PASSWORD = 'system.user.create.password';
+
+    public const PURPOSE_USER_UPDATE_PASSWORD = 'system.user.update.password';
+
+    public const PURPOSE_USER_RESET_PASSWORD = 'system.user.reset_password.password';
+
+    private const OPENSSL_CONFIG = <<<'CONF'
 [ req ]
 distinguished_name = req_distinguished_name
 
@@ -37,15 +51,8 @@ distinguished_name = req_distinguished_name
 [ v3_ca ]
 CONF;
 
-    public const PURPOSE_LOGIN_PASSWORD = 'system.auth.login.password';
-    public const PURPOSE_CHANGE_OLD_PASSWORD = 'system.auth.password.old_password';
-    public const PURPOSE_CHANGE_NEW_PASSWORD = 'system.auth.password.new_password';
-    public const PURPOSE_USER_CREATE_PASSWORD = 'system.user.create.password';
-    public const PURPOSE_USER_UPDATE_PASSWORD = 'system.user.update.password';
-    public const PURPOSE_USER_RESET_PASSWORD = 'system.user.reset_password.password';
-
     /**
-     * @param CacheInterface $cache nonce 缓存，必须支持 TTL；生产多实例需使用共享缓存如 Redis。
+     * @param CacheInterface $cache nonce 缓存，必须支持 TTL；生产多实例需使用共享缓存如 Redis
      */
     public function __construct(
         private readonly CacheInterface $cache,
@@ -64,7 +71,7 @@ CONF;
         $ttl = $this->nonceTtl();
         $kid = $this->keyId();
         $nonces = [];
-        for ($index = 0; $index < $count; $index++) {
+        for ($index = 0; $index < $count; ++$index) {
             $nonce = bin2hex(random_bytes(24));
             $this->cache->set($this->nonceCacheKey($kid, $nonce), [
                 'kid' => $kid,

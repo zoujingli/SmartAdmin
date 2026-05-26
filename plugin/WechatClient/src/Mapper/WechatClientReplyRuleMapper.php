@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Plugin\WechatClient\Mapper;
 
@@ -36,10 +43,8 @@ final class WechatClientReplyRuleMapper extends CoreMapper
 
     public function defaultRule(int $accountId): ?WechatClientReplyRule
     {
-        /** @var null|WechatClientReplyRule $rule */
-        $rule = $this->rulesQuery($accountId, 'default')->first();
-
-        return $rule;
+        /* @var null|WechatClientReplyRule $rule */
+        return $this->rulesQuery($accountId, 'default')->first();
     }
 
     public function menuClickRule(int $accountId, string $key): ?WechatClientReplyRule
@@ -49,15 +54,13 @@ final class WechatClientReplyRuleMapper extends CoreMapper
             return null;
         }
 
-        /** @var null|WechatClientReplyRule $rule */
-        $rule = $this->model::query()
+        /* @var null|WechatClientReplyRule $rule */
+        return $this->model::query()
             ->where('account_id', $accountId)
             ->where('id', $id)
             ->where('rule_type', 'menu_click')
             ->where('status', 1)
             ->first();
-
-        return $rule;
     }
 
     public function keywordRule(int $accountId, string $content): ?WechatClientReplyRule

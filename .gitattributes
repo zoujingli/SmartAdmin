@@ -1,6 +1,4 @@
-/bin/swoole-cli text eol=lf
-/bin/start-swoole text eol=lf
-/bin/start-watch text eol=lf
+/bin/smart text eol=lf
 
 # GitHub Linguist 语言统计以 PHP/Hyperf 后端为主；前端壳与插件页面是配套 UI，不参与仓库主语言占比。
 /web/** linguist-vendored

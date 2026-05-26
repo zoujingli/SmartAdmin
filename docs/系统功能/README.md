@@ -15,7 +15,7 @@
 
 | 模块 | 职责 |
 |------|------|
-| `zoujingli/smart-admin-library` | 基类、注解、异常、日志、数据范围、租户上下文、发布快照、站点中间件、源码插件管理命令 |
+| `zoujingli/smart-admin-library` | 基类、注解、异常、日志、数据范围、租户上下文、release 安装包、站点中间件、源码插件管理命令 |
 | `plugin/System` | 认证、用户、角色、菜单、部门、岗位、租户、文件、日志、公告、系统数据 |
 | `zoujingli/smart-admin-builder` | Phar 打包和配置 AST 改写 |
 | `web/apps/web-antd` | 通用管理端壳、布局、公共组件、共享依赖、插件扫描和运行时配置 |
@@ -32,7 +32,7 @@
 | 日志审计 | 请求日志、操作日志、字段变更、关联回看 | `/system/logs/action`、`/system/logs/change` |
 | 公告通知 | 管理端公告、用户收件箱、已读归档 | `/system/notice` |
 | 多租户 | 租户资料、状态、租户上下文 | `/system/tenant` |
-| 发布构建 | 数据库快照、dry-run、Phar 打包 | `xadmin:release:*`、`xadmin:build:phar` |
+| 发布构建 | release 安装包、运行备份、dry-run、Phar 打包 | `xadmin:release:*`、`xadmin:build:phar` |
 
 ## 章节
 
@@ -61,6 +61,6 @@
 | 新增审计要求 | `#[Logger]` 和 Model `$logRules` |
 | 新增组织隔离 | 部门数据范围和角色 scope |
 | 新增租户业务 | `TenantContext` 和 `tenant_id` 模型范围 |
-| 新增发布种子数据 | release 快照和 dry-run |
+| 新增发布种子数据 | release 安装包和 restore dry-run |
 
 最后更新：2026-05-18

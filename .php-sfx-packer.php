@@ -7,9 +7,8 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
-
 $argv = $_SERVER['argv'] ?? [];
 
 try {
@@ -104,16 +103,16 @@ function runReleaseBuild(string $baseDir): void
 
     try {
         assertFrontendDistReady();
-        runBuildCommand('同步菜单种子', ['sh', 'bin/start-swoole', 'xadmin:menu:sync', '--details']);
-        runBuildCommand('同步权限节点', ['sh', 'bin/start-swoole', 'xadmin:node:sync', '--details']);
+        runBuildCommand('同步菜单种子', ['./bin/smart', 'xadmin:menu:sync', '--details']);
+        runBuildCommand('同步权限节点', ['./bin/smart', 'xadmin:node:sync', '--details']);
 
         cleanReleaseWorkspace();
         runReleaseSnapshot();
 
         $restoreDevDependencies = true;
         runBuildCommand('安装生产依赖并启用权威 classmap', [
-            'sh',
-            'bin/runtime-composer',
+            './bin/smart',
+            'composer',
             'install',
             '--no-dev',
             '--optimize-autoloader',
@@ -124,8 +123,8 @@ function runReleaseBuild(string $baseDir): void
         ]);
 
         runBuildCommand('预热 Hyperf 扫描与 DI 缓存', [
-            'sh',
-            'bin/swoole-cli',
+            './bin/smart',
+            'runtime',
             '-d',
             'opcache.enable_cli=0',
             './bin/hyperf.php',
@@ -137,8 +136,8 @@ function runReleaseBuild(string $baseDir): void
         runBuildPrecompile('.');
 
         runBuildCommand('生成 Phar：system.bin', [
-            'sh',
-            'bin/swoole-cli',
+            './bin/smart',
+            'runtime',
             '-d',
             'phar.readonly=Off',
             '-d',
@@ -164,8 +163,8 @@ function runReleaseBuild(string $baseDir): void
         if ($restoreDevDependencies) {
             try {
                 runBuildCommand('恢复本地开发依赖', [
-                    'sh',
-                    'bin/runtime-composer',
+                    './bin/smart',
+                    'composer',
                     'install',
                     '--optimize-autoloader',
                     '--no-interaction',
@@ -237,21 +236,18 @@ function runBuildCommand(string $title, array $command, bool $discardStdout = fa
 }
 
 /**
- * 构建前生成数据库发布快照，并复制到 build/runtime/release；这些快照位于 Phar 外部，便于部署升级使用。
+ * 构建前生成 Phar 内安装包；安装包只包含完整结构与 release 必要数据，不携带运行期全量数据。
  */
 function runReleaseSnapshot(): void
 {
-    runBuildCommand('生成数据库发布快照', ['sh', 'bin/start-swoole', 'xadmin:release:backup']);
-    runBuildCommand('预览发布升级 SQL', ['sh', 'bin/start-swoole', 'xadmin:release:upgrade', '--dry-run', '--json']);
+    runBuildCommand('生成数据库安装包', ['./bin/smart', 'xadmin:release:backup', '--install']);
+    runBuildCommand('预览安装包恢复 SQL', ['./bin/smart', 'xadmin:release:restore', '--install', '--dry-run', '--json']);
 
-    foreach (['database.schema.gz', 'database.data.gz'] as $filename) {
-        $source = 'runtime/release/' . $filename;
-        $target = 'build/runtime/release/' . $filename;
+    foreach (['database.schema.gz', 'database.data.gz', 'database.meta.json'] as $filename) {
+        $source = 'storage/extra/release/' . $filename;
         if (!is_file($source) || filesize($source) === 0) {
-            throw new RuntimeException("发布快照缺失或为空：{$source}");
+            throw new RuntimeException("数据库安装包缺失或为空：{$source}");
         }
-        is_dir(dirname($target)) || mkdir(dirname($target), 0755, true);
-        copyFileAtomic($source, $target);
     }
 }
 
@@ -261,6 +257,7 @@ function runReleaseSnapshot(): void
 function cleanReleaseWorkspace(): void
 {
     removePath('build');
+    removePath('storage/extra/release');
     removePaths([
         'system.bin',
         'runtime/container',
@@ -319,7 +316,7 @@ function runBuildPrecompile(string $baseDir): void
     removePath($runtimeDir);
     is_dir($runtimeDir) || mkdir($runtimeDir, 0755, true);
 
-    runBuildCommand('生成 Hyperf 扫描缓存', ['sh', 'bin/start-swoole', 'list', '--no-ansi', '--no-interaction'], true, [
+    runBuildCommand('生成 Hyperf 扫描缓存', ['./bin/smart', 'list', '--no-ansi', '--no-interaction'], true, [
         'APP_ENV' => 'prod',
         'SCAN_CACHEABLE' => 'true',
     ]);
@@ -358,7 +355,7 @@ function runBuildPrecompile(string $baseDir): void
         'config_autoload' => hashTree('config/autoload'),
         'plugin_tree' => hashTree('plugin'),
         'web_dist' => hashTree('web/dist'),
-        'release_snapshots' => hashTree('runtime/release'),
+        'release_install_package' => hashTree('storage/extra/release'),
         'packages' => array_values(array_map(static fn (array $package): array => [
             'name' => (string)($package['name'] ?? ''),
             'version' => (string)($package['version'] ?? ''),
@@ -458,7 +455,7 @@ PHP_CODE;
     foreach ($env as $name => $value) {
         $parts[] = $name . '=' . escapeshellarg($value);
     }
-    foreach (['sh', 'bin/swoole-cli', '-r', $code] as $argument) {
+    foreach (['./bin/smart', 'runtime', '-r', $code] as $argument) {
         $parts[] = escapeshellarg($argument);
     }
 
@@ -621,6 +618,7 @@ function runBuildAudit(string $target): void
             $errors = array_merge($errors, auditPharEntries($pharFile));
             $errors = array_merge($errors, auditPharPrecompileState($pharFile));
             $errors = array_merge($errors, auditFrontendArchive($pharFile));
+            $errors = array_merge($errors, auditReleaseInstallPackage($pharFile));
             $errors = array_merge($errors, auditBinaryClearText($target));
             $errors = array_merge($errors, auditSfxTargets($target));
         } catch (Throwable $throwable) {
@@ -658,24 +656,8 @@ function auditBuildDirectory(string $buildDir): array
         $errors[] = '发布目录不再携带 public 静态资源，请使用 Phar 内 storage/extra/web-dist.zip 按需发布';
     }
 
-    $runtimeDir = $buildDir . '/runtime';
-    if (is_dir($runtimeDir)) {
-        $allowed = [
-            'release/database.schema.gz' => true,
-            'release/database.data.gz' => true,
-        ];
-        $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($runtimeDir, FilesystemIterator::SKIP_DOTS));
-        foreach ($iterator as $fileInfo) {
-            /** @var SplFileInfo $fileInfo */
-            if (!$fileInfo->isFile()) {
-                continue;
-            }
-            $path = str_replace('\\', '/', $fileInfo->getPathname());
-            $relative = ltrim(substr($path, strlen(str_replace('\\', '/', $runtimeDir))), '/');
-            if (!isset($allowed[$relative])) {
-                $errors[] = "发布目录 runtime 仅允许 release 快照，发现：{$relative}";
-            }
-        }
+    if (is_dir($buildDir . '/runtime')) {
+        $errors[] = '发布目录不再携带 runtime 快照，数据库安装包必须位于 Phar 内 storage/extra/release';
     }
 
     return $errors;
@@ -819,6 +801,9 @@ function auditPharPrecompileState(string $pharFile): array
         'vendor/composer/autoload_real.php',
         'vendor/composer/autoload_classmap.php',
         'storage/extra/web-dist.zip',
+        'storage/extra/release/database.schema.gz',
+        'storage/extra/release/database.data.gz',
+        'storage/extra/release/database.meta.json',
     ];
     foreach ($required as $path) {
         if (!isset($phar[$path]) || $phar[$path]->getSize() <= 0) {
@@ -840,6 +825,36 @@ function auditPharPrecompileState(string $pharFile): array
         }
         if ((int)($manifest['proxy_count'] ?? 0) <= 0) {
             $errors[] = '构建清单 proxy_count 异常';
+        }
+    }
+
+    return $errors;
+}
+
+/**
+ * 审计 Phar 内数据库安装包：安装包只能包含结构与必要数据，不能携带 --with-data 全量运行数据。
+ *
+ * @return string[]
+ */
+function auditReleaseInstallPackage(string $pharFile): array
+{
+    $phar = new Phar($pharFile);
+    $required = [
+        'storage/extra/release/database.schema.gz',
+        'storage/extra/release/database.data.gz',
+        'storage/extra/release/database.meta.json',
+    ];
+    $errors = [];
+    foreach ($required as $path) {
+        if (!isset($phar[$path]) || $phar[$path]->getSize() <= 0) {
+            $errors[] = "Phar 缺少数据库安装包：{$path}";
+        }
+    }
+
+    if (isset($phar['storage/extra/release/database.meta.json'])) {
+        $meta = json_decode($phar['storage/extra/release/database.meta.json']->getContent(), true);
+        if (!is_array($meta) || ($meta['kind'] ?? null) !== 'install' || ($meta['with_data'] ?? true) !== false) {
+            $errors[] = '数据库安装包元数据非法，必须 kind=install 且 with_data=false';
         }
     }
 
@@ -874,7 +889,7 @@ function auditFrontendArchive(string $pharFile): array
 
         $hasIndex = false;
         try {
-            for ($index = 0; $index < $zip->numFiles; $index++) {
+            for ($index = 0; $index < $zip->numFiles; ++$index) {
                 $name = $zip->getNameIndex($index);
                 if (!is_string($name)) {
                     continue;
@@ -948,7 +963,7 @@ function auditBinaryClearText(string $target): array
     $markers = [
         'This file is part of SmartAdmin',
         '@contact Anyon',
-        'github.com/zoujingli/SmartAdmin/blob/master/readme.md',
+        'zoujingli.github.io/SmartAdmin',
     ];
     $errors = [];
     foreach ($markers as $marker) {
@@ -1058,7 +1073,7 @@ function runtimeVersionValue(string $key): string
     $code = "echo json_encode(['php_version'=>PHP_VERSION,'swoole_version'=>defined('SWOOLE_VERSION') ? SWOOLE_VERSION : ''], JSON_UNESCAPED_SLASHES);";
     $output = [];
     $status = 0;
-    exec(escapeshellarg('sh') . ' ' . escapeshellarg('bin/swoole-cli') . ' -r ' . escapeshellarg($code), $output, $status);
+    exec(escapeshellarg('./bin/smart') . ' ' . escapeshellarg('runtime') . ' -r ' . escapeshellarg($code), $output, $status);
     if ($status !== 0) {
         return '';
     }

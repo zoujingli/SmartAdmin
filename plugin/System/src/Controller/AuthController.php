@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Controller;
@@ -17,10 +17,10 @@ use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\HttpServer\Annotation\PutMapping;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Lcobucci\JWT\Token as JwtToken;
-use Library\Auth\Token;
 use Library\Auth\Exception\JwtException;
 use Library\Auth\Exception\TokenExpireException;
 use Library\Auth\Exception\TokenValidException;
+use Library\Auth\Token;
 use Library\Constants\Status;
 use Library\CoreController;
 use Library\Events\Annotation\Auth;

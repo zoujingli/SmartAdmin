@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Tests\Unit\System\Service;
 
@@ -19,10 +26,13 @@ use System\Service\AuthCacheService;
 use System\Service\SystemUserSessionService;
 use System\Service\UserAuthorizationBoundaryService;
 use System\Service\UserListSnapshotService;
-use System\Service\UserRelationAssignmentService;
 use System\Service\UserPreferenceService;
+use System\Service\UserRelationAssignmentService;
 use System\Service\UserService;
 
+/**
+ * @internal
+ */
 #[CoversClass(UserService::class)]
 #[CoversClass(SystemUserSessionService::class)]
 #[CoversClass(UserPreferenceService::class)]

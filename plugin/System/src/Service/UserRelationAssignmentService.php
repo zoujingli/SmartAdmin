@@ -6,14 +6,14 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Service;
 
 use Hyperf\Database\Model\Model;
-use Library\Exception\ErrorResponseException;
 use Library\Events\Processor\ScopeProcessor;
+use Library\Exception\ErrorResponseException;
 use Library\Support\ModelChangeLog;
 use System\Mapper\UserMapper;
 use System\Model\SystemDept;

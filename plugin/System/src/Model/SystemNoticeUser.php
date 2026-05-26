@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Model;
@@ -25,8 +25,8 @@ use Library\CoreModel;
  * @property string $archived_at 归档时间
  * @property Carbon $created_at 创建时间
  * @property Carbon $updated_at 更新时间
- * @property-read null|SystemNotice $notice 
- * @property-read null|SystemUser $user 
+ * @property null|SystemNotice $notice
+ * @property null|SystemUser $user
  */
 final class SystemNoticeUser extends CoreModel
 {

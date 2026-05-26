@@ -6,19 +6,20 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Mapper;
 
 use Hyperf\Database\ConnectionInterface;
 use Hyperf\Database\Model\Builder;
+use Hyperf\Database\Model\Model;
 use Hyperf\Database\Query\Builder as QueryBuilder;
 use Hyperf\DbConnection\Db;
 use Library\Constants\DataField;
 use Library\Constants\DataScope;
-use Library\Constants\System;
 use Library\Constants\Status;
+use Library\Constants\System;
 use Library\CoreMapper;
 use Library\Events\Processor\ScopeProcessor;
 use Library\Interfaces\UserModelInterface;
@@ -165,7 +166,7 @@ final class UserMapper extends CoreMapper
     /**
      * 对 Service 暴露统一的关联 ID 可见性校验入口，避免业务层重复拼装不同模型的数据范围字段。
      *
-     * @param class-string<\Hyperf\Database\Model\Model> $modelClass
+     * @param class-string<Model> $modelClass
      * @param array<int|string, mixed> $ids
      */
     public function scopedRelationIdsExist(string $modelClass, array $ids): bool
@@ -916,7 +917,7 @@ final class UserMapper extends CoreMapper
      * 不同关联表的数据范围字段不完全一致：部门表按自身 `id` 表示部门归属，其它关联表按 `created_by` 过滤。
      * 所有传入 ID 必须全部命中，部分命中也视为越权，避免批量分配时混入不可见数据。
      *
-     * @param class-string<\Hyperf\Database\Model\Model> $modelClass
+     * @param class-string<Model> $modelClass
      * @param array<int, int> $ids
      */
     private function allScopedRelationIdsExist(string $modelClass, array $ids): bool
@@ -938,7 +939,7 @@ final class UserMapper extends CoreMapper
     /**
      * 平台管理员给租户用户分配关联数据时，仍必须保证角色/部门/岗位属于目标用户同一租户。
      *
-     * @param class-string<\Hyperf\Database\Model\Model> $modelClass
+     * @param class-string<Model> $modelClass
      * @param array<int, int> $ids
      */
     private function allRelationIdsInTenant(string $modelClass, array $ids, int $tenantId): bool

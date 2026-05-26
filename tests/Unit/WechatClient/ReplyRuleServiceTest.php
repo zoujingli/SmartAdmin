@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Tests\Unit\WechatClient;
 
@@ -8,8 +15,10 @@ use Library\Exception\ErrorResponseException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Plugin\WechatClient\Service\WechatClientReplyRuleService;
-use ReflectionClass;
 
+/**
+ * @internal
+ */
 #[CoversClass(WechatClientReplyRuleService::class)]
 final class ReplyRuleServiceTest extends TestCase
 {
@@ -57,7 +66,7 @@ final class ReplyRuleServiceTest extends TestCase
 
     private function invokePrivate(string $method, mixed ...$args): mixed
     {
-        $reflection = new ReflectionClass(WechatClientReplyRuleService::class);
+        $reflection = new \ReflectionClass(WechatClientReplyRuleService::class);
         $service = $reflection->newInstanceWithoutConstructor();
         $methodReflection = $reflection->getMethod($method);
         $methodReflection->setAccessible(true);

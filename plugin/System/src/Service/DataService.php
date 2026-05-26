@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Service;
@@ -16,8 +16,8 @@ use Library\CoreService;
 use Library\Events\Processor\AuthProcessor;
 use Library\Exception\UnauthorizedResponseException;
 use Library\Support\CacheDriverResolver;
-use Library\Support\ModuleRegistry;
 use Library\Support\ModelChangeLog;
+use Library\Support\ModuleRegistry;
 use System\Mapper\DataMapper;
 use System\Mapper\UserMapper;
 use System\Support\SystemAppMeta;

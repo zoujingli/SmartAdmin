@@ -1,9 +1,17 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Plugin\WechatService\Model;
 
+use Carbon\Carbon;
 use Hyperf\Database\Model\SoftDeletes;
 use Library\Constants\Status;
 use Library\CoreModel;
@@ -18,8 +26,8 @@ use Library\CoreModel;
  * @property string $remark 备注
  * @property int $created_by 创建者
  * @property int $updated_by 更新者
- * @property \Carbon\Carbon $created_at 创建时间
- * @property \Carbon\Carbon $updated_at 更新时间
+ * @property Carbon $created_at 创建时间
+ * @property Carbon $updated_at 更新时间
  * @property string $deleted_at 删除时间
  * @property array $allowed_appids 允许调用的授权 AppID JSON
  */

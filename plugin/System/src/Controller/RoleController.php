@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Controller;
@@ -194,5 +194,4 @@ final class RoleController extends CoreController
     {
         $this->success('获取成功', $this->service->getStatistics($request->all()));
     }
-
 }

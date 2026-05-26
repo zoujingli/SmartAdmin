@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Tests\Unit\Library;
 
@@ -11,9 +18,11 @@ use Library\Support\TenantContext;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Plugin\Project\Model\ProjectAccount;
-use ReflectionClass;
 use System\Model\SystemUser;
 
+/**
+ * @internal
+ */
 #[CoversClass(LoginService::class)]
 final class LoginServiceTest extends TestCase
 {
@@ -25,7 +34,7 @@ final class LoginServiceTest extends TestCase
 
     public function testMismatchedUserModelDoesNotClearExistingTenantContext(): void
     {
-        $token = (new ReflectionClass(FakeLoginToken::class))->newInstanceWithoutConstructor();
+        $token = (new \ReflectionClass(FakeLoginToken::class))->newInstanceWithoutConstructor();
         $service = new LoginService($token);
 
         TenantContext::set(9);
@@ -37,9 +46,9 @@ final class LoginServiceTest extends TestCase
 
     public function testApplyTenantContextDoesNotWarmProjectRolesBeforeTenantReady(): void
     {
-        $token = (new ReflectionClass(FakeLoginToken::class))->newInstanceWithoutConstructor();
+        $token = (new \ReflectionClass(FakeLoginToken::class))->newInstanceWithoutConstructor();
         $service = new LoginService($token);
-        $method = (new ReflectionClass(LoginService::class))->getMethod('applyTenantContext');
+        $method = (new \ReflectionClass(LoginService::class))->getMethod('applyTenantContext');
         $method->setAccessible(true);
         $account = new ProjectAccount([
             'id' => 88,

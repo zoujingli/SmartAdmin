@@ -6,16 +6,17 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Service;
 
+use Hyperf\Database\Model\Builder;
 use Hyperf\HttpMessage\Upload\UploadedFile;
+use Library\Events\Processor\ScopeProcessor;
 use Library\Exception\ErrorResponseException;
 use Library\Exception\NotAllowResponseException;
 use Library\Exception\UnauthorizedResponseException;
-use Library\Events\Processor\ScopeProcessor;
 use Library\Helper\CoderHelper;
 use System\Contract\MultipartUploadStorageInterface;
 use System\Model\SystemFile;
@@ -35,10 +36,10 @@ final class FileUploadService
      * @param UploadSessionStore $sessions 上传会话存储
      */
     public function __construct(
-        protected UploadConfigService $config,
-        protected FileService $files,
-        protected StorageManager $storageManager,
-        protected UploadSessionStore $sessions,
+        private UploadConfigService $config,
+        private FileService $files,
+        private StorageManager $storageManager,
+        private UploadSessionStore $sessions,
     ) {}
 
     /**
@@ -398,7 +399,7 @@ final class FileUploadService
             throw new ErrorResponseException('哈希命名模式要求传入合法的 MD5 值');
         }
 
-        /** @var \Hyperf\Database\Model\Builder $query */
+        /** @var Builder $query */
         $query = SystemFile::withTrashed()
             ->where('driver', $driver)
             ->where('hash', $hash)

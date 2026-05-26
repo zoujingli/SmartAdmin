@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Service;
@@ -31,11 +31,11 @@ use System\Model\SystemUser;
 final class SystemUserSessionService
 {
     public function __construct(
-        protected Token $token,
-        protected LoginService $authService,
-        protected OnlineUserService $onlineUsers,
-        protected TenantService $tenants,
-        protected UserListSnapshotService $listSnapshots,
+        private Token $token,
+        private LoginService $authService,
+        private OnlineUserService $onlineUsers,
+        private TenantService $tenants,
+        private UserListSnapshotService $listSnapshots,
     ) {}
 
     /**
@@ -160,13 +160,11 @@ final class SystemUserSessionService
      */
     private function loadSystemUser(int $userId): ?UserModelInterface
     {
-        /** @var null|UserModelInterface $user */
-        $user = SystemUser::query()
+        /* @var null|UserModelInterface $user */
+        return SystemUser::query()
             ->withoutGlobalScope(DataField::TENANT)
             ->with(['roles', 'depts', 'posts'])
             ->find($userId);
-
-        return $user;
     }
 
     /**

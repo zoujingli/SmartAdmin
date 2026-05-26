@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Plugin\WechatService\Mapper;
 
@@ -21,10 +28,8 @@ final class WechatServiceGatewayMapper extends CoreMapper
 
     public function findByClientKey(string $clientKey): ?WechatServiceGateway
     {
-        /** @var null|WechatServiceGateway $credential */
-        $credential = $this->model::query()->where('client_key', $clientKey)->first();
-
-        return $credential;
+        /* @var null|WechatServiceGateway $credential */
+        return $this->model::query()->where('client_key', $clientKey)->first();
     }
 
     /**

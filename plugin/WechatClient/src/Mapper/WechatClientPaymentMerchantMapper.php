@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Plugin\WechatClient\Mapper;
 
@@ -33,13 +40,11 @@ final class WechatClientPaymentMerchantMapper extends CoreMapper
      */
     public function findForCallback(int $id): ?WechatClientPaymentMerchant
     {
-        /** @var null|WechatClientPaymentMerchant $merchant */
-        $merchant = $this->model::query()
+        /* @var null|WechatClientPaymentMerchant $merchant */
+        return $this->model::query()
             ->withoutGlobalScope(DataField::TENANT)
             ->where('id', $id)
             ->first();
-
-        return $merchant;
     }
 
     /**

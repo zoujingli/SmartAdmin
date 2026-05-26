@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Model;
@@ -21,7 +21,7 @@ use Library\CoreModel;
  * @property string $node 权限节点编码
  * @property string $name 节点名称
  * @property string $type 节点类型(check授权校验,login登录校验)
- * @property string $source 注册来源(annotation注解,menu菜单,system系统)
+ * @property string $source 注册来源(annotation注解,menu菜单,legacy兼容)
  * @property string $ref 来源引用
  * @property int $status 状态(1启用,0禁用)
  * @property string $meta 元数据(JSON)
@@ -29,7 +29,7 @@ use Library\CoreModel;
  * @property int $updated_by 更新者
  * @property Carbon $created_at 创建时间
  * @property Carbon $updated_at 更新时间
- * @property-read null|Collection|SystemRole[] $roles 
+ * @property null|Collection|SystemRole[] $roles
  */
 final class SystemNode extends CoreModel
 {

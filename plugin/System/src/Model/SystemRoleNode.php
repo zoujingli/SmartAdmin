@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Model;
@@ -22,8 +22,8 @@ use Library\CoreModel;
  * @property int $tenant_id 租户ID
  * @property Carbon $created_at 创建时间
  * @property Carbon $updated_at 更新时间
- * @property-read null|SystemRole $role 
- * @property-read null|SystemNode $node 
+ * @property null|SystemRole $role
+ * @property null|SystemNode $node
  */
 final class SystemRoleNode extends CoreModel
 {

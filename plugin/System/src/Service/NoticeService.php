@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Service;
@@ -42,7 +42,7 @@ final class NoticeService extends CoreService
         [$payload, $recipientIds] = $this->extractPayload($data);
         $recipientIds = $this->ensureScopedRecipientIds($recipientIds ?? []);
 
-        /** @var SystemNotice|null $notice */
+        /** @var null|SystemNotice $notice */
         $notice = parent::create($payload);
         if (!$notice) {
             return null;

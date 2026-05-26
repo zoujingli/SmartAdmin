@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Tests\Unit\Library\Auth;
 
@@ -14,6 +21,9 @@ use PHPUnit\Framework\Attributes\UsesClass;
 use PHPUnit\Framework\TestCase;
 use Psr\SimpleCache\CacheInterface;
 
+/**
+ * @internal
+ */
 #[CoversClass(Token::class)]
 #[UsesClass(JwtAbstract::class)]
 #[UsesClass(JwtConstant::class)]
@@ -31,7 +41,7 @@ final class TokenTest extends TestCase
 
         $jwt = $token->create([
             'uid' => 1,
-            'class' => 'System\\Model\\SystemUser',
+            'class' => 'System\Model\SystemUser',
         ], false)->toString();
 
         $this->assertStringContainsString('-', explode('.', $jwt)[1]);
@@ -51,7 +61,7 @@ final class TokenTest extends TestCase
 
     private function makeTokenService(string $scene = 'default'): Token
     {
-        $config = new class ($scene) implements ConfigInterface {
+        $config = new class($scene) implements ConfigInterface {
             /**
              * @var array<string, mixed>
              */
@@ -64,7 +74,7 @@ final class TokenTest extends TestCase
                         'alg' => 'HS256',
                         'secret' => base64_encode(str_repeat('a', 32)),
                         'supported_algs' => [
-                            'HS256' => 'Lcobucci\\JWT\\Signer\\Hmac\\Sha256',
+                            'HS256' => 'Lcobucci\JWT\Signer\Hmac\Sha256',
                         ],
                         'symmetry_algs' => ['HS256'],
                         'asymmetric_algs' => [],

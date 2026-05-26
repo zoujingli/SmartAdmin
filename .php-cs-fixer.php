@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://doc.hyperf.thinkadmin.top
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 use PhpCsFixer\Config;
 use PhpCsFixer\Finder;
@@ -17,7 +17,7 @@ This file is part of SmartAdmin.
 
 @contact Anyon <zoujingli@qq.com>
 @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
-@document https://doc.hyperf.thinkadmin.top
+@document https://zoujingli.github.io/SmartAdmin
 EOF;
 
 $config = new Config();

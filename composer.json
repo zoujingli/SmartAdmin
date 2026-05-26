@@ -32,16 +32,11 @@
     "ext-xmlwriter": "*",
     "ext-zip": "*",
     "ext-zlib": "*",
-    "hyperf/database-sqlite": "^3.2",
-    "hyperf/filesystem": "^3.2",
-    "hyperf/flysystem-oss": "^1.4",
-    "overtrue/flysystem-cos": "^5.2",
     "zoujingli/smart-admin-builder": "^1.0",
     "zoujingli/smart-admin-library": "^1.0",
     "zoujingli/smart-plugin-system": "^1.0",
     "zoujingli/smart-plugin-wechat-client": "^1.0",
-    "zoujingli/smart-plugin-wechat-service": "^1.0",
-    "zoujingli/wechat-developer": "^2.0@dev"
+    "zoujingli/smart-plugin-wechat-service": "^1.0"
   },
   "repositories": [
     {
@@ -86,70 +81,67 @@
     "sort-packages": true
   },
   "scripts": {
-    "analyse": "sh bin/swoole-cli vendor/bin/phpstan analyse plugin config tests --level=0 --memory-limit=1G",
-    "test": "sh bin/swoole-cli vendor/bin/phpunit",
+    "analyse": "./bin/smart runtime vendor/bin/phpstan analyse plugin config tests --level=0 --memory-limit=1G",
+    "test": "./bin/smart runtime vendor/bin/phpunit",
     "web:build": "cd web && pnpm -F @vben/web-antd run typecheck && pnpm -F @vben/web-antd run build",
     "docs:serve": "@php -S 127.0.0.1:18100 -t docs",
-    "docs:check": "sh bin/start-swoole xadmin:docs:check",
-    "release:backup": "sh bin/start-swoole xadmin:release:backup",
-    "release:upgrade:dry-run": "sh bin/start-swoole xadmin:release:upgrade --dry-run --json",
+    "docs:check": "./bin/smart xadmin:docs:check",
+    "release:backup": "./bin/smart xadmin:release:backup --install",
+    "release:restore:dry-run": "./bin/smart xadmin:release:restore --install --dry-run --json",
     "release:snapshot": [
       "@composer release:backup",
-      "@composer release:upgrade:dry-run"
+      "@composer release:restore:dry-run"
     ],
     "release:check": [
       "@composer analyse",
       "@composer test",
       "@composer web:build",
       "@composer release:snapshot",
-      "sh bin/start-swoole xadmin:menu:sync --dry-run --json",
-      "sh bin/start-swoole xadmin:node:sync --dry-run --json"
+      "./bin/smart xadmin:menu:sync --dry-run --json",
+      "./bin/smart xadmin:node:sync --dry-run --json"
     ],
     "post-autoload-dump": [
       "rm -rf runtime/container",
       "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
     ],
     "sync": [
-      "sh bin/start-swoole xadmin:build:model",
-      "sh bin/start-swoole xadmin:build:struct",
-      "sh bin/swoole-cli vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.php",
-      "sh bin/swoole-cli vendor/bin/phpstan analyse plugin config tests --level=0 --memory-limit=1G"
+      "./bin/smart xadmin:build:model",
+      "./bin/smart xadmin:build:struct",
+      "./bin/smart runtime vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.php",
+      "./bin/smart runtime vendor/bin/phpstan analyse plugin config tests --level=0 --memory-limit=1G"
     ],
     "build:web": "@composer web:build",
     "build:sync": [
-      "sh bin/start-swoole xadmin:menu:sync --details",
-      "sh bin/start-swoole xadmin:node:sync --details",
-      "export COMPOSER_ALLOW_SUPERUSER=1 && sh bin/runtime-composer sync"
+      "./bin/smart xadmin:menu:sync --details",
+      "./bin/smart xadmin:node:sync --details",
+      "export COMPOSER_ALLOW_SUPERUSER=1 && ./bin/smart composer sync"
     ],
-    "build:clean": "rm -rf system.bin build runtime/container",
-    "build:install-prod": "export COMPOSER_ALLOW_SUPERUSER=1 && sh bin/runtime-composer install --no-dev --optimize-autoloader --classmap-authoritative --no-interaction --prefer-dist --no-progress",
-    "build:snapshot": [
-      "@composer release:backup",
-      "mkdir -p build/runtime/release && cp runtime/release/database.schema.gz runtime/release/database.data.gz build/runtime/release/"
-    ],
+    "build:clean": "rm -rf system.bin build runtime/container storage/extra/release",
+    "build:install-prod": "export COMPOSER_ALLOW_SUPERUSER=1 && ./bin/smart composer install --no-dev --optimize-autoloader --classmap-authoritative --no-interaction --prefer-dist --no-progress",
+    "build:snapshot": "./bin/smart xadmin:release:backup --install",
     "build:precompile": "@php .php-sfx-packer.php precompile .",
     "build:phar": [
       "rm -f system.bin",
-      "APP_ENV=prod SCAN_CACHEABLE=true sh bin/swoole-cli -d phar.readonly=Off -d opcache.enable=0 ./bin/hyperf.php xadmin:build:phar --mount=.env --name=system.bin --phar-version=2.0.0",
+      "APP_ENV=prod SCAN_CACHEABLE=true ./bin/smart runtime -d phar.readonly=Off -d opcache.enable=0 ./bin/hyperf.php xadmin:build:phar --mount=.env --name=system.bin --phar-version=2.0.0",
       "@php .php-sfx-packer.php pack system.bin build/system"
     ],
     "build:audit": "@php .php-sfx-packer.php audit build/system",
     "build:cleanup": "rm -f system.bin",
-    "build:restore-dev": "export COMPOSER_ALLOW_SUPERUSER=1 && sh bin/runtime-composer install --optimize-autoloader --no-interaction --prefer-dist --no-progress",
+    "build:restore-dev": "export COMPOSER_ALLOW_SUPERUSER=1 && ./bin/smart composer install --optimize-autoloader --no-interaction --prefer-dist --no-progress",
     "build": "@php .php-sfx-packer.php build",
     "setup": [
-      "sh bin/prepare-sqlite",
-      "sh bin/start-swoole migrate",
-      "sh bin/start-swoole xadmin:menu:sync --details",
-      "sh bin/start-swoole xadmin:node:sync --details"
+      "./bin/smart sqlite",
+      "./bin/smart migrate",
+      "./bin/smart xadmin:menu:sync --details",
+      "./bin/smart xadmin:node:sync --details"
     ],
     "watch": [
       "Composer\\Config::disableProcessTimeout",
-      "sh bin/swoole-cli bin/start-watch"
+      "./bin/smart watch"
     ],
     "start": [
       "Composer\\Config::disableProcessTimeout",
-      "sh bin/start-swoole"
+      "./bin/smart"
     ]
   },
   "autoload-dev": {

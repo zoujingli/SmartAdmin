@@ -6,18 +6,19 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Service;
 
 use Hyperf\Contract\ConfigInterface;
+use Hyperf\Database\Model\Collection;
 use Library\Constants\DataField;
 use Library\CoreService;
 use Library\Exception\ErrorResponseException;
 use Library\Helper\RequestHelper;
-use System\Model\SystemFile;
 use System\Mapper\FileMapper;
+use System\Model\SystemFile;
 use System\Support\UploadDriver;
 
 final class FileService extends CoreService
@@ -57,7 +58,7 @@ final class FileService extends CoreService
     public function getDownloadTarget(int $id, ?string $attname = null): array
     {
         $file = $this->findFileOrFail($id);
-        /** @var SystemFile $file */
+        /* @var SystemFile $file */
 
         return $this->buildDownloadTarget($file, $attname);
     }
@@ -104,43 +105,6 @@ final class FileService extends CoreService
         }
 
         return $this->buildDownloadTarget($this->findSignedFileOrFail($id), $attname);
-    }
-
-    /**
-     * @return array{type:'local',path:string,name:string}|array{type:'redirect',url:string,name:string}
-     */
-    private function buildDownloadTarget(SystemFile $file, ?string $attname = null): array
-    {
-        $driver = $this->resolveDriver($file);
-        $key = $this->objectKey((string)$file->storage_path, (string)$file->object_name);
-        if ($key === '') {
-            throw new ErrorResponseException('文件不存在');
-        }
-
-        $downloadName = $this->normalizeDownloadName(
-            $attname,
-            (string)$file->origin_name,
-            (string)$file->object_name
-        );
-
-        if ($driver === UploadDriver::DRIVER_LOCAL) {
-            $path = rtrim($this->uploadConfig->getLocalStorageRoot(), '/') . '/' . $key;
-            if (!is_file($path)) {
-                throw new ErrorResponseException('文件不存在');
-            }
-
-            return [
-                'type' => 'local',
-                'path' => $path,
-                'name' => $downloadName,
-            ];
-        }
-
-        return [
-            'type' => 'redirect',
-            'url' => $this->storageManager->downloadUrl($driver, $key, $downloadName),
-            'name' => $downloadName,
-        ];
     }
 
     /**
@@ -203,7 +167,7 @@ final class FileService extends CoreService
             $query->where('driver', trim($driver));
         }
 
-        /** @var \Hyperf\Database\Model\Collection<int, SystemFile> $records */
+        /** @var Collection<int, SystemFile> $records */
         $records = $query->orderByDesc('id')->get();
         $accessibleIds = array_fill_keys(array_map(
             static fn (SystemFile $file): int => (int)$file->id,
@@ -401,6 +365,43 @@ final class FileService extends CoreService
         }
 
         return $data;
+    }
+
+    /**
+     * @return array{type:'local',path:string,name:string}|array{type:'redirect',url:string,name:string}
+     */
+    private function buildDownloadTarget(SystemFile $file, ?string $attname = null): array
+    {
+        $driver = $this->resolveDriver($file);
+        $key = $this->objectKey((string)$file->storage_path, (string)$file->object_name);
+        if ($key === '') {
+            throw new ErrorResponseException('文件不存在');
+        }
+
+        $downloadName = $this->normalizeDownloadName(
+            $attname,
+            (string)$file->origin_name,
+            (string)$file->object_name
+        );
+
+        if ($driver === UploadDriver::DRIVER_LOCAL) {
+            $path = rtrim($this->uploadConfig->getLocalStorageRoot(), '/') . '/' . $key;
+            if (!is_file($path)) {
+                throw new ErrorResponseException('文件不存在');
+            }
+
+            return [
+                'type' => 'local',
+                'path' => $path,
+                'name' => $downloadName,
+            ];
+        }
+
+        return [
+            'type' => 'redirect',
+            'url' => $this->storageManager->downloadUrl($driver, $key, $downloadName),
+            'name' => $downloadName,
+        ];
     }
 
     /**

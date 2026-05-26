@@ -68,8 +68,8 @@ composer analyse
 composer test
 composer web:build
 composer release:check
-sh bin/start-swoole xadmin:menu:sync --dry-run --json
-sh bin/start-swoole xadmin:node:sync --dry-run --json
+./bin/smart xadmin:menu:sync --dry-run --json
+./bin/smart xadmin:node:sync --dry-run --json
 ```
 
 ## 不要这样做

@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Tests\Unit\Library\Exception;
 
@@ -29,6 +36,9 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Log\AbstractLogger;
 use Psr\Log\LoggerInterface;
 
+/**
+ * @internal
+ */
 #[CoversClass(BaseResponseException::class)]
 #[CoversClass(UnauthorizedResponseException::class)]
 #[CoversClass(NotAllowResponseException::class)]
@@ -170,13 +180,13 @@ final class ResponseExceptionStatusTest extends TestCase
              */
             public array $messages = [];
 
-            public function log($level, \Stringable|string $message, array $context = []): void
+            public function log($level, string|\Stringable $message, array $context = []): void
             {
                 $this->messages[] = (string)$message;
             }
         };
 
-        ApplicationContext::setContainer(new class ($originalContainer, $traceLogger) implements ContainerInterface {
+        ApplicationContext::setContainer(new class($originalContainer, $traceLogger) implements ContainerInterface {
             public function __construct(
                 private readonly ContainerInterface $fallback,
                 private readonly LoggerInterface $traceLogger,
@@ -211,7 +221,7 @@ final class ResponseExceptionStatusTest extends TestCase
              */
             public array $messages = [];
 
-            public function log($level, \Stringable|string $message, array $context = []): void
+            public function log($level, string|\Stringable $message, array $context = []): void
             {
                 $this->messages[] = (string)$message;
             }
@@ -220,10 +230,10 @@ final class ResponseExceptionStatusTest extends TestCase
         $factory->method('get')->with('log')->willReturn($logger);
         $requestLogRecorder = new RequestLogRecorder($factory, $this->createStub(Token::class));
         $traceLogger = new class extends AbstractLogger {
-            public function log($level, \Stringable|string $message, array $context = []): void {}
+            public function log($level, string|\Stringable $message, array $context = []): void {}
         };
 
-        ApplicationContext::setContainer(new class ($originalContainer, $requestLogRecorder, $traceLogger) implements ContainerInterface {
+        ApplicationContext::setContainer(new class($originalContainer, $requestLogRecorder, $traceLogger) implements ContainerInterface {
             public function __construct(
                 private readonly ContainerInterface $fallback,
                 private readonly RequestLogRecorder $requestLogRecorder,
@@ -274,7 +284,7 @@ final class ResponseExceptionStatusTest extends TestCase
              */
             public array $messages = [];
 
-            public function log($level, \Stringable|string $message, array $context = []): void
+            public function log($level, string|\Stringable $message, array $context = []): void
             {
                 $this->messages[] = (string)$message;
             }
@@ -283,10 +293,10 @@ final class ResponseExceptionStatusTest extends TestCase
         $factory->method('get')->with('log')->willReturn($logger);
         $requestLogRecorder = new RequestLogRecorder($factory, $this->createStub(Token::class));
         $traceLogger = new class extends AbstractLogger {
-            public function log($level, \Stringable|string $message, array $context = []): void {}
+            public function log($level, string|\Stringable $message, array $context = []): void {}
         };
 
-        ApplicationContext::setContainer(new class ($originalContainer, $requestLogRecorder, $traceLogger) implements ContainerInterface {
+        ApplicationContext::setContainer(new class($originalContainer, $requestLogRecorder, $traceLogger) implements ContainerInterface {
             public function __construct(
                 private readonly ContainerInterface $fallback,
                 private readonly RequestLogRecorder $requestLogRecorder,

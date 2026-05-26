@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Plugin\WechatClient\Service;
 
@@ -42,8 +49,7 @@ final class WechatClientPaymentMerchantService extends CoreService
         array $params = [],
         string $httpMethod = 'POST',
         array $options = [],
-    ): array
-    {
+    ): array {
         $merchant = $this->requireMerchant($merchant);
         $config = new WechatPaymentConfig(
             (string)$merchant->appid,

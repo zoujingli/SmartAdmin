@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Plugin\WechatClient\Controller;
 
@@ -11,8 +18,8 @@ use Hyperf\HttpServer\Contract\RequestInterface;
 use Library\Constants\System;
 use Library\CoreController;
 use Plugin\WechatClient\Service\WechatClientAccountService;
-use Plugin\WechatClient\Service\WechatClientUserService;
 use Plugin\WechatClient\Service\WechatClientReplyRuleService;
+use Plugin\WechatClient\Service\WechatClientUserService;
 use Psr\Http\Message\ResponseInterface;
 use We\Support\Xml;
 

@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://doc.hyperf.thinkadmin.top
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace Tests\Unit\Builder;
@@ -43,6 +43,10 @@ final class BuildHardeningSourceTest extends TestCase
         self::assertStringContainsString('getObfuscationRuntimeCode', $builder);
         self::assertStringContainsString('storage/extra/web-dist.zip', $builder);
         self::assertStringContainsString('createFrontendArchive', $builder);
+        self::assertStringContainsString('storage/extra/release', $builder);
+        self::assertStringContainsString('addReleaseInstallPackage', $builder);
+        self::assertStringContainsString('kind=install', $builder);
+        self::assertStringContainsString('with_data=false', $builder);
         self::assertStringNotContainsString('Adding web/dist static bundle', $builder);
         self::assertStringNotContainsString('compressFiles(\Phar::GZ)', $builder);
         $runtimeRequirePosition = strpos($builder, 'xadmin_obfuscate.php');
@@ -246,22 +250,31 @@ PHP_CODE;
         self::assertStringContainsString('assertBundledSwooleRuntime', $packer);
         self::assertStringContainsString('requiredRuntimeExtensions', $packer);
         self::assertStringContainsString('storage/extra/web-dist.zip', $packer);
+        self::assertStringContainsString('storage/extra/release/database.meta.json', $packer);
+        self::assertStringContainsString('auditReleaseInstallPackage', $packer);
+        self::assertStringContainsString("xadmin:release:backup', '--install", $packer);
+        self::assertStringContainsString("xadmin:release:restore', '--install', '--dry-run", $packer);
         self::assertStringContainsString('stream_copy_to_stream', $packer);
         self::assertStringContainsString("removePath('build')", $packer);
+        self::assertStringContainsString("removePath('storage/extra/release')", $packer);
+        self::assertStringNotContainsString('xadmin:release:upgrade', $packer);
         self::assertStringNotContainsString('tools/phpsfx', $packer);
         self::assertFileDoesNotExist($root . '/bin/build-precompile');
         self::assertSame('@php .php-sfx-packer.php build', $composer['scripts']['build']);
-        self::assertSame('rm -rf system.bin build runtime/container', $composer['scripts']['build:clean']);
+        self::assertSame('rm -rf system.bin build runtime/container storage/extra/release', $composer['scripts']['build:clean']);
+        self::assertSame('./bin/smart xadmin:release:backup --install', $composer['scripts']['release:backup']);
+        self::assertSame('./bin/smart xadmin:release:restore --install --dry-run --json', $composer['scripts']['release:restore:dry-run']);
+        self::assertArrayNotHasKey('release:upgrade:dry-run', $composer['scripts']);
     }
 
     public function testPharBootstrapAutoPublishesFrontendOnlyOnStart(): void
     {
         $root = dirname(__DIR__, 3);
         $bootstrap = file_get_contents($root . '/bin/hyperf.php');
-        $publishPath = $root . '/plugin' . '/Library/Command/SitePublish.php';
-        if (! is_file($publishPath)) {
+        $publishPath = $root . '/plugin/Library/Command/WebsitePublish.php';
+        if (!is_file($publishPath)) {
             // SmartAdmin 开源仓不携带 Library 源目录，导出测试需回退到 Composer 包路径。
-            $publishPath = $root . '/vendor/zoujingli/smart-admin-library/Command/SitePublish.php';
+            $publishPath = $root . '/vendor/zoujingli/smart-admin-library/Command/WebsitePublish.php';
         }
         $publish = file_get_contents($publishPath);
 
@@ -272,8 +285,45 @@ PHP_CODE;
         self::assertStringContainsString('FrontendPublisher::publish', $bootstrap);
         self::assertStringContainsString('$isPharRuntime ? \'512M\' : \'2G\'', $bootstrap);
         self::assertStringContainsString('opcache_reset', $bootstrap);
+        self::assertStringContainsString('xadmin:website:publish', $publish);
         self::assertStringContainsString('FrontendPublisher::clean', $publish);
         self::assertStringContainsString('FrontendPublisher::publish', $publish);
+    }
+
+    public function testPublishedRuntimeUsesReleaseInstallInsteadOfMigrate(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $commands = file_get_contents($root . '/config/autoload/commands.php');
+        $libraryRoot = is_dir($root . '/plugin/Library')
+            ? $root . '/plugin/Library'
+            : $root . '/vendor/zoujingli/smart-admin-library';
+        $install = file_get_contents($libraryRoot . '/Command/ReleaseInstall.php');
+        $backup = file_get_contents($libraryRoot . '/Command/ReleaseBackup.php');
+        $restore = file_get_contents($libraryRoot . '/Command/ReleaseRestore.php');
+
+        self::assertIsString($commands);
+        self::assertIsString($install);
+        self::assertIsString($backup);
+        self::assertIsString($restore);
+        self::assertStringContainsString('Phar/SFX 发布包不暴露 migrate 体系', $commands);
+        self::assertStringContainsString('return []', $commands);
+        self::assertStringNotContainsString('MigrateCommand::class', $commands);
+        self::assertStringNotContainsString('StatusCommand::class', $commands);
+        self::assertStringContainsString('xadmin:release:install', $install);
+        self::assertStringContainsString('restore(true, false', $install);
+        self::assertStringContainsString('FrontendPublisher::publish', $install);
+        self::assertStringContainsString('xadmin:release:backup', $backup);
+        self::assertStringContainsString("addOption('install'", $backup);
+        self::assertStringContainsString("addOption('with-data'", $backup);
+        self::assertStringNotContainsString('SourceOnlyCommand', $backup);
+        self::assertStringContainsString('xadmin:release:restore', $restore);
+        self::assertStringContainsString("addOption('install'", $restore);
+        self::assertStringContainsString("addOption('with-data'", $restore);
+        self::assertStringNotContainsString("addOption('backup'", $restore);
+        self::assertStringNotContainsString('Missing required --backup option.', $restore);
+        self::assertFileDoesNotExist($root . '/plugin/Project/src/Command/DemoDataCommand.php');
+        self::assertStringNotContainsString('xadmin:release:upgrade', (string)file_get_contents($root . '/composer.json'));
+        self::assertFileDoesNotExist($libraryRoot . '/Command/ReleaseUpgrade.php');
     }
 
     private function builderRoot(string $root): string

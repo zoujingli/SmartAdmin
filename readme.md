@@ -73,11 +73,12 @@ composer create-project zoujingli/smartadmin SmartAdmin
 
 ```text
 .
-├── bin/                          # 启动脚本与 Swoole 运行时
-│   ├── hyperf.php                # 应用入口
-│   ├── swoole-cli                # 跨平台 PHP/Swoole CLI：优先 bundled Swoole 6.2，否则回退 php
-│   ├── start-swoole              # 跨平台启动：优先 bundled Swoole CLI，否则回退 php
-│   └── start-watch               # 开发监听：变更 .env/.php 后自动重启 Worker
+├── bin/                          # 应用入口、统一开发脚本与 Swoole 运行时
+│   ├── hyperf.php                # Hyperf 应用入口
+│   ├── smart                     # 统一脚本：启动、热重载、Composer、SQLite 准备与 runtime 透传
+│   ├── swoole-linux-x64          # Linux x86_64 Swoole CLI 运行时
+│   ├── swoole-linux-a64          # Linux ARM64 Swoole CLI 运行时
+│   └── swoole-macos-a64          # macOS ARM64 Swoole CLI 运行时
 ├── config/                       # Hyperf 配置
 │   ├── autoload/                 # 自动加载配置（server、db、cache、jwt、release 等）
 │   ├── routes.php                # 路由注册
@@ -110,7 +111,7 @@ composer create-project zoujingli/smartadmin SmartAdmin
 | Node.js | >= 20 | 前端构建 |
 | pnpm | >= 10 | 前端包管理 |
 
-Composer 脚本默认通过 `bin/swoole-cli` 选择仓库内置 Swoole 6.2 运行时；本机没有对应架构的内置运行时时，才回退到 `php`。
+Composer 脚本默认通过 `bin/smart runtime` 选择仓库内置 Swoole 6.2 运行时；本机没有对应架构的内置运行时时，才回退到 `php`。
 
 ### 后端安装
 
@@ -142,10 +143,10 @@ cp .env.example .env
 composer setup
 
 # 启动服务
-sh bin/start-swoole start
+./bin/smart start
 
 # 开发热重载（监听源码变更并重启，依赖 Swoole 扩展；建议在 WSL/Linux 下执行）
-sh bin/swoole-cli bin/start-watch
+./bin/smart watch
 ```
 
 ### 前端安装
@@ -347,7 +348,7 @@ runtime/container/*.cache + build.manifest.json
 | 基线同步 | 执行 `xadmin:menu:sync` 与 `xadmin:node:sync` |
 | 清理环境 | 安全移除旧 `build/` 产物、临时 Phar 与 `runtime/container` 预编译缓存 |
 | 安装生产依赖 | `composer install --no-dev`，仅运行时依赖 |
-| 发布快照 | 执行 `xadmin:release:backup`，生成运行目录下的 DBAL 结构快照与基线数据快照 |
+| 发布安装包 | 执行 `xadmin:release:backup --install`，生成 `storage/extra/release` 数据库安装包并打入 Phar |
 | 预编译缓存 | 预生成 `scan.cache`、`classes.cache`、`aspects.cache` 与构建清单，降低二进制首次启动扫描成本 |
 | Phar 打包 | 源码 + 依赖 + 前端资源打入归档，自动过滤测试/文档 |
 | SFX 合并 | Phar 与 Swoole 运行时拼接为可执行二进制 |
@@ -357,15 +358,15 @@ runtime/container/*.cache + build.manifest.json
 
 | 命令 | 用途 |
 |------|------|
-| `composer release:check` | 发布前完整检查：静态分析、单测、前端构建、数据库快照与升级预览 |
-| `composer release:backup` | 生成 `runtime/release` 数据库结构与数据快照 |
-| `composer release:upgrade:dry-run` | 基于当前快照预览 DBAL 升级 SQL 和数据替换计划 |
-| `composer release:snapshot` | 连续执行 `release:backup` 与 `release:upgrade:dry-run` |
+| `composer release:check` | 发布前完整检查：静态分析、单测、前端构建、安装包生成与恢复 dry-run |
+| `composer release:backup` | 生成 `storage/extra/release` 数据库安装包（结构 + 必要数据） |
+| `composer release:restore:dry-run` | 基于安装包预览 `restore --install` SQL 与必要数据恢复计划 |
+| `composer release:snapshot` | 连续执行安装包生成与 `restore --install --dry-run` |
 | `composer build:web` | 仅构建前端产物 |
 | `composer build:sync` | 同步菜单、权限、模型和结构索引 |
 | `composer build:clean` | 清理旧发布产物和容器预编译缓存 |
 | `composer build:install-prod` | 安装生产依赖 |
-| `composer build:snapshot` | 生成发布数据库快照并复制到 `build/runtime/release` |
+| `composer build:snapshot` | 生成 `storage/extra/release` 发布安装包 |
 | `composer build:precompile` | 预编译 Hyperf 容器缓存并生成构建指纹 |
 | `composer build:phar` | 构建 Phar 并合并 Swoole 运行时 |
 | `composer build:audit` | 审计 SFX/Phar 产物、预编译缓存和前端资源包 |
@@ -381,7 +382,7 @@ runtime/container/*.cache + build.manifest.json
 
 ### 最小化部署
 
-最小启动只需两个文件即可运行；如果还要在目标环境执行发布升级或回滚，再一并保留 `runtime/release`：
+最小启动只需两个文件即可运行；数据库安装包已经打入 Phar，运行备份默认写入二进制同级 `runtime/backup`：
 
 ```text
 /opt/hyadmin/
@@ -391,6 +392,7 @@ runtime/container/*.cache + build.manifest.json
 
 ```bash
 chmod +x system-linux-x64
+./system-linux-x64 --self xadmin:release:install
 ./system-linux-x64 --self start
 ```
 
@@ -435,17 +437,17 @@ REDIS_HOST=127.0.0.1
 
 ### 静态资源加速
 
-Phar 内部只携带 `storage/extra/web-dist.zip`，不会再打入 raw `web/dist` 目录。Phar 首次 `start` 且 `public/index.html` 缺失时会自动发布；也可以手动发布到 `public/` 目录，由 Swoole 原生处理器直接服务：
+Phar 内部携带 `storage/extra/web-dist.zip` 和 `storage/extra/release/*`，不会再打入 raw `web/dist` 目录，也不依赖外置数据库安装包目录。Phar 首次 `start` 且 `public/index.html` 缺失时会自动发布；也可以手动发布到 `public/` 目录，由 Swoole 原生处理器直接服务：
 
 ```bash
 # 预览
-./system-linux-x64 --self xadmin:site:publish --dry-run
+./system-linux-x64 --self xadmin:website:publish --dry-run
 
 # 发布（自动跳过 _app.config.js，保留动态配置）
-./system-linux-x64 --self xadmin:site:publish
+./system-linux-x64 --self xadmin:website:publish
 
 # 回退
-./system-linux-x64 --self xadmin:site:publish --clean
+./system-linux-x64 --self xadmin:website:publish --clean
 ```
 
 ### 路径系统
@@ -472,14 +474,14 @@ Phar 内部只携带 `storage/extra/web-dist.zip`，不会再打入 raw `web/dis
 
 ### 源码插件管理命令
 
-`xadmin:plugin:*` 命令由 SmartAdminLibrary 提供，仅源码/CI 模式出现；发布 Phar/SFX 二进制不会注册这些命令。普通插件包 ZIP 顶层包含 `composer.json`、`plugin.json`、`src/`、`stc/` 等；备份包默认包含插件代码和 `_xadmin/plugin-backup.json`，只有指定 `--with-data` 或执行 remove 自动备份时才额外包含数据库结构与数据快照。插件自有表通过 `plugin.tables`、`plugin.table_prefixes` 或 `plugin.code` 下划线前缀识别。
+`xadmin:plugin:*` 命令由 SmartAdminLibrary 提供，仅源码/CI 模式出现；发布 Phar/SFX 二进制不会注册这些命令。普通插件包文件名固定为 `plugin-插件code-插件版本.zip`（如 `plugin-demo-1.0.0.zip`），ZIP 顶层包含 `composer.json`、`plugin.json`、`src/`、`stc/` 等；备份包默认包含插件代码和 `_xadmin/plugin-backup.json`，只有指定 `--with-data` 或执行 remove 自动备份时才额外包含数据库结构与数据快照。插件自有表通过 `plugin.tables`、`plugin.table_prefixes` 或 `plugin.code` 下划线前缀识别。
 
 ```bash
-php bin/hyperf.php xadmin:plugin:package <PluginCode> -o runtime/plugin/packages -p <zip密码>
-php bin/hyperf.php xadmin:plugin:install runtime/plugin/packages/<plugin-code>-v1.0.0.zip -p <zip密码>
-php bin/hyperf.php xadmin:plugin:backup <PluginCode> --with-data -p <zip密码>
-php bin/hyperf.php xadmin:plugin:remove <PluginCode> -p <备份zip密码>
-php bin/hyperf.php xadmin:plugin:restore <plugin-code>-v1.0.0-backup-20260522-123000 -p <zip密码> --force
+./bin/smart xadmin:plugin:package <PluginCode> -o runtime/plugin/packages -p <zip密码>
+./bin/smart xadmin:plugin:install runtime/plugin/packages/plugin-<plugin-code>-1.0.0.zip -p <zip密码>
+./bin/smart xadmin:plugin:backup <PluginCode> --with-data -p <zip密码>
+./bin/smart xadmin:plugin:remove <PluginCode> -p <备份zip密码>
+./bin/smart xadmin:plugin:restore <plugin-code>-1.0.0-backup-20260522-123000 -p <zip密码> --force
 ```
 
 备份默认写入 `runtime/plugin/backups`，文件名为 `插件code-版本号-backup-YYYYMMDD-HHMMSS.zip`；恢复仅传文件名时从该目录读取，且 `.zip` 可省略，传绝对路径或带目录的相对路径时按指定路径读取。带数据备份恢复时默认恢复数据，可用 `--no-data` 只恢复代码。安装/恢复会维护根 `composer.json` 的 path repository 与 require，并执行 Composer 更新；若插件包含 `plugin.view_root`，仍需执行 `composer web:build` 重新生成前端产物。`SmartAdminLibrary` 属于基础库、`System` 属于基础插件，`SmartAdminBuilder` 属于基础构建包，不允许通过插件管理命令移除或覆盖。
@@ -488,34 +490,42 @@ php bin/hyperf.php xadmin:plugin:restore <plugin-code>-v1.0.0-backup-20260522-12
 
 ```bash
 # 启动服务
-sh bin/start-swoole start
+./bin/smart start
 
 # 开发热重载（监听 .env / PHP 变更）
-sh bin/swoole-cli bin/start-watch
+./bin/smart watch
 
 # 数据库迁移
-php bin/hyperf.php migrate
+./bin/smart migrate
 
 # 全量重建基线
-php bin/hyperf.php migrate:fresh
+./bin/smart migrate:fresh
 
 # 菜单与权限节点同步
-php bin/hyperf.php xadmin:menu:sync --details
-php bin/hyperf.php xadmin:node:sync --details
+./bin/smart xadmin:menu:sync --details
+./bin/smart xadmin:node:sync --details
 
-# 生成发布数据库快照（结构 + 配置数据）
-php bin/hyperf.php xadmin:release:backup
+# 生成发布运行备份（结构 + 必要数据）
+./bin/smart xadmin:release:backup
 
-# 发布升级预览 / 执行
-php bin/hyperf.php xadmin:release:upgrade --dry-run
-php bin/hyperf.php xadmin:release:upgrade
-php bin/hyperf.php xadmin:release:upgrade --force
+# 生成待打包安装包（结构 + 必要数据，composer build 默认执行）
+./bin/smart xadmin:release:backup --install
 
-# 恢复升级前备份的数据记录
-php bin/hyperf.php xadmin:release:restore --backup=20260424123000
+# 发布包首次安装（正式二进制使用）
+./system-linux-x64 --self xadmin:release:install --dry-run
+./system-linux-x64 --self xadmin:release:install
+
+# 发布升级预览 / 执行（正式二进制使用）
+./system-linux-x64 --self xadmin:release:restore --install --dry-run --json
+./system-linux-x64 --self xadmin:release:restore --install
+
+# 运行全量备份与恢复
+./system-linux-x64 --self xadmin:release:backup --with-data
+./system-linux-x64 --self xadmin:release:restore --with-data --dry-run --json
+./system-linux-x64 --self xadmin:release:restore --with-data
 
 # 模型生成
-php bin/hyperf.php xadmin:build:model
+./bin/smart xadmin:build:model
 
 # 代码格式化 + 静态分析
 composer sync
@@ -541,7 +551,7 @@ composer build
 | 开发指南 | [接口规范](docs/开发指南/接口规范.md) | RESTful 与统一响应规范 |
 | 开发指南 | [编码规范](docs/开发指南/编码规范.md) | 分层开发与注解约束 |
 | 部署运维 | [生产部署](docs/部署运维/生产部署.md) | 生产环境部署建议 |
-| 部署运维 | [发布升级](docs/部署运维/发布升级.md) | 发布快照、升级、回滚和 Phar 构建 |
+| 部署运维 | [发布升级](docs/部署运维/发布升级.md) | release 安装包、运行备份、升级恢复和 Phar 构建 |
 | 部署运维 | [Docs 静态站](docs/部署运维/Docs静态站.md) | 独立文档站部署与检查 |
 | 文档维护 | [文档维护](docs/文档维护/README.md) | 文档维护、检查和更新规则 |
 | 模块文档 | [模块文档](docs/模块文档/README.md) | 模块能力、权限清单和前后端对接要点 |

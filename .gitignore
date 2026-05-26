@@ -24,6 +24,7 @@
 /vendor
 /public
 /runtime
+/storage/extra/release/
 /package.xml
 
 # === 前端（web/）===

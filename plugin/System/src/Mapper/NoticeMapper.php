@@ -6,15 +6,15 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Mapper;
 
 use Hyperf\Database\Model\Builder;
 use Library\Constants\DataField;
-use Library\Constants\System;
 use Library\Constants\Status;
+use Library\Constants\System;
 use Library\CoreMapper;
 use System\Model\SystemNotice;
 use System\Model\SystemNoticeUser;
@@ -223,6 +223,25 @@ final class NoticeMapper extends CoreMapper
     }
 
     /**
+     * @param array<int, int> $userIds
+     * @return array<int, string>
+     */
+    public function getRecipientNames(array $userIds): array
+    {
+        $userIds = array_values(array_unique(array_filter($userIds, static fn (int $id): bool => $id > 0)));
+        if ($userIds === []) {
+            return [];
+        }
+
+        return SystemUser::query()
+            ->whereIn('id', $userIds)
+            ->orderBy('id', 'asc')
+            ->pluck('username')
+            ->map(static fn (mixed $username): string => (string)$username)
+            ->toArray();
+    }
+
+    /**
      * 通知列表查询条件。
      */
     protected function handleSearch(Builder $query, array $params): Builder
@@ -303,24 +322,5 @@ final class NoticeMapper extends CoreMapper
         }
 
         return is_string($value) && $value !== '' ? $value : null;
-    }
-
-    /**
-     * @param array<int, int> $userIds
-     * @return array<int, string>
-     */
-    public function getRecipientNames(array $userIds): array
-    {
-        $userIds = array_values(array_unique(array_filter($userIds, static fn (int $id): bool => $id > 0)));
-        if ($userIds === []) {
-            return [];
-        }
-
-        return SystemUser::query()
-            ->whereIn('id', $userIds)
-            ->orderBy('id', 'asc')
-            ->pluck('username')
-            ->map(static fn (mixed $username): string => (string)$username)
-            ->toArray();
     }
 }

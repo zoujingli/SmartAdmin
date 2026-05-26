@@ -14,8 +14,9 @@
     "php": ">=8.4",
     "ext-json": "*",
     "ext-openssl": "*",
-    "zoujingli/wechat-developer": "^2.0@dev",
-    "zoujingli/smart-admin-library": "^1.0"
+    "guzzlehttp/guzzle": "^7.0",
+    "zoujingli/smart-admin-library": "^1.0",
+    "zoujingli/wechat-developer": "^2.0@dev"
   },
   "autoload": {
     "psr-4": {

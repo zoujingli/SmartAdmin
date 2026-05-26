@@ -25,16 +25,16 @@ jobs:
         run: composer install --no-interaction --prefer-dist --optimize-autoloader --ignore-platform-req=ext-opcache
 
       - name: Enable bundled Swoole runtime
-        run: chmod +x bin/swoole-linux-x64
+        run: chmod +x bin/smart bin/swoole-linux-x64
 
       - name: Run PHPUnit
-        run: ./bin/swoole-linux-x64 vendor/bin/phpunit
+        run: ./bin/smart runtime vendor/bin/phpunit
 
       - name: Run PHPStan
-        run: ./bin/swoole-linux-x64 vendor/bin/phpstan analyse plugin config tests --level=0 --memory-limit=1G
+        run: ./bin/smart runtime vendor/bin/phpstan analyse plugin config tests --level=0 --memory-limit=1G
 
       - name: Hyperf command smoke test
-        run: ./bin/swoole-linux-x64 bin/hyperf.php list
+        run: ./bin/smart list
 
   frontend:
     name: Frontend / Typecheck / Build
@@ -44,17 +44,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.28.2
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Enable pnpm
+        run: |
+          npm install -g pnpm@10.28.2
+          pnpm --version
 
       - name: Install frontend dependencies
         working-directory: web

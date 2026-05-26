@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Tests\Unit\Library\Helper;
 
@@ -12,6 +19,9 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ServerRequestInterface;
 
+/**
+ * @internal
+ */
 #[CoversClass(RequestHelper::class)]
 final class RequestHelperContextTest extends TestCase
 {
@@ -180,7 +190,7 @@ final class RequestHelperContextTest extends TestCase
 
     public function testIpLocationUsesSingleDisplayField(): void
     {
-        $this->setIp2Region(new class() extends \Ip2Region {
+        $this->setIp2Region(new class extends \Ip2Region {
             public function simple(string $ip): ?string
             {
                 return '中国辽宁省沈阳市联通【CN】';
@@ -193,7 +203,7 @@ final class RequestHelperContextTest extends TestCase
 
     public function testIpLocationFallsBackWhenRegionIsEmpty(): void
     {
-        $this->setIp2Region(new class() extends \Ip2Region {
+        $this->setIp2Region(new class extends \Ip2Region {
             public function simple(string $ip): ?string
             {
                 return '';

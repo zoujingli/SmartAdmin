@@ -1,14 +1,23 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Tests\Unit\WechatService;
 
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Plugin\WechatService\Service\WechatServiceAuthService;
-use ReflectionClass;
 
+/**
+ * @internal
+ */
 #[CoversClass(WechatServiceAuthService::class)]
 final class AuthServiceTest extends TestCase
 {
@@ -33,7 +42,7 @@ final class AuthServiceTest extends TestCase
      */
     private function resolveAccountType(array $authorizerInfo, int $serviceType): string
     {
-        $reflection = new ReflectionClass(WechatServiceAuthService::class);
+        $reflection = new \ReflectionClass(WechatServiceAuthService::class);
         $service = $reflection->newInstanceWithoutConstructor();
         $method = $reflection->getMethod('resolveAccountType');
         $method->setAccessible(true);

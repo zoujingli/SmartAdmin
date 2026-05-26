@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Command;
@@ -14,6 +14,7 @@ namespace System\Command;
 use Hyperf\Command\Annotation\Command;
 use Hyperf\Command\Command as HyperfCommand;
 use Hyperf\Di\Annotation\Inject;
+use Library\Constants\System;
 use Symfony\Component\Console\Input\InputOption;
 use System\Service\MenuSeedSyncService;
 
@@ -42,8 +43,8 @@ final class SyncMenuSeeds extends HyperfCommand
             ->addOption('json', null, InputOption::VALUE_NONE, 'Emit the full report as JSON for CI or scripts')
             ->addOption('exit-code', null, InputOption::VALUE_NONE, 'Return a bitmask exit code: added=1, updated=2');
 
-        if (\Phar::running(false) !== '') {
-            // 发布包中的菜单同步仅作为极端修复入口保留，正常升级依赖 release 快照和构建期同步结果。
+        if (System::isPharMode()) {
+            // 发布包中的菜单同步仅作为极端修复入口保留，正常升级依赖 release 安装包和构建期同步结果。
             $this->setHidden(true);
         }
     }

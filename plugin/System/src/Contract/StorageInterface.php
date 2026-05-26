@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace System\Contract;
 
@@ -49,11 +56,11 @@ interface StorageInterface
 
     /**
      * @param array<string, mixed> $context
-     * 支持的上下文字段：
-     * - name: 对象键
-     * - mime_type: 文件 MIME
-     * - expires: 签名有效期
-     * - download_name: 默认下载文件名
+     *                                      支持的上下文字段：
+     *                                      - name: 对象键
+     *                                      - mime_type: 文件 MIME
+     *                                      - expires: 签名有效期
+     *                                      - download_name: 默认下载文件名
      * @return array<string, mixed>
      */
     public function upload(array $context = []): array;

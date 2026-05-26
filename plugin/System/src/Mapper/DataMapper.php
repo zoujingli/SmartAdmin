@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Mapper;
@@ -17,13 +17,13 @@ use Library\CoreMapper;
 use System\Model\SystemData;
 use System\Model\SystemDept;
 use System\Model\SystemFile;
+use System\Model\SystemLogsAction;
 use System\Model\SystemMenu;
 use System\Model\SystemNode;
-use System\Model\SystemLogsAction;
 use System\Model\SystemPost;
 use System\Model\SystemRole;
-use System\Model\SystemUser;
 use System\Model\SystemTenant;
+use System\Model\SystemUser;
 
 /**
  * 系统数据数据访问层

@@ -1,0 +1,138 @@
+#!/bin/sh
+
+set -eu
+
+BASE_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+SCRIPT="$BASE_DIR/bin/smart.php"
+TRIED=""
+
+record_tried() {
+  if [ -z "$TRIED" ]; then
+    TRIED="$1"
+  else
+    TRIED="$TRIED, $1"
+  fi
+}
+
+normalize_arch() {
+  case "$1" in
+    arm64|aarch64)
+      printf '%s\n' "a64"
+      ;;
+    x86_64|amd64)
+      printf '%s\n' "x64"
+      ;;
+    *)
+      printf '%s\n' "$1"
+      ;;
+  esac
+}
+
+resolve_runner() {
+  case "$1" in
+    */*)
+      [ -f "$1" ] || return 1
+      printf '%s\n' "$1"
+      ;;
+    *)
+      command -v "$1" 2>/dev/null || return 1
+      ;;
+  esac
+}
+
+absolute_path() {
+  case "$1" in
+    /*)
+      printf '%s\n' "$1"
+      ;;
+    */*)
+      PATH_DIR=$(CDPATH= cd -- "$(dirname -- "$1")" 2>/dev/null && pwd) || return 1
+      printf '%s/%s\n' "$PATH_DIR" "$(basename -- "$1")"
+      ;;
+    *)
+      printf '%s\n' "$1"
+      ;;
+  esac
+}
+
+try_runner() {
+  CANDIDATE="$1"
+  [ -n "$CANDIDATE" ] || return 1
+  record_tried "$CANDIDATE"
+
+  RESOLVED=$(resolve_runner "$CANDIDATE") || return 1
+  RESOLVED=$(absolute_path "$RESOLVED") || return 1
+
+  if [ -f "$RESOLVED" ] && [ ! -x "$RESOLVED" ]; then
+    chmod +x "$RESOLVED" 2>/dev/null || true
+  fi
+
+  [ -x "$RESOLVED" ] || return 1
+  "$RESOLVED" -r 'exit(PHP_VERSION_ID >= 80400 ? 0 : 1);' >/dev/null 2>&1 || return 1
+
+  printf '%s\n' "$RESOLVED"
+  return 0
+}
+
+if [ ! -f "$SCRIPT" ]; then
+  echo "SmartAdmin PHP entrypoint not found: $SCRIPT" >&2
+  exit 127
+fi
+
+OS_NAME=$(uname -s 2>/dev/null || printf '%s\n' "unknown")
+ARCH_NAME=$(normalize_arch "$(uname -m 2>/dev/null || printf '%s\n' "unknown")")
+RUNNER=""
+
+# 兼容入口只负责找到能运行 smart.php 的 PHP 8.4+ 解释器；真正业务命令仍由 smart.php 选择 Swoole 运行时。
+if [ -n "${SMART_ENTRY_PHP:-}" ]; then
+  RUNNER=$(try_runner "$SMART_ENTRY_PHP" || true)
+fi
+
+if [ -z "$RUNNER" ] && command -v php >/dev/null 2>&1; then
+  RUNNER=$(try_runner php || true)
+fi
+
+if [ -z "$RUNNER" ] && [ -n "${SWOOLE_CLI_BIN:-}" ]; then
+  RUNNER=$(try_runner "$SWOOLE_CLI_BIN" || true)
+fi
+
+if [ -z "$RUNNER" ] && [ -n "${SWOOLE_CLI:-}" ]; then
+  RUNNER=$(try_runner "$SWOOLE_CLI" || true)
+fi
+
+if [ -z "$RUNNER" ]; then
+  case "$OS_NAME:$ARCH_NAME" in
+    Darwin:a64)
+      RUNNER=$(try_runner "$BASE_DIR/bin/swoole-macos-a64" || true)
+      ;;
+    Darwin:x64)
+      RUNNER=$(try_runner "$BASE_DIR/bin/swoole-macos-x64" || true)
+      ;;
+    Linux:a64)
+      RUNNER=$(try_runner "$BASE_DIR/bin/swoole-linux-a64" || true)
+      ;;
+    Linux:x64)
+      RUNNER=$(try_runner "$BASE_DIR/bin/swoole-linux-x64" || true)
+      ;;
+  esac
+fi
+
+if [ -z "$RUNNER" ]; then
+  RUNNER=$(try_runner swoole-cli || true)
+fi
+
+if [ -z "$RUNNER" ]; then
+  RUNNER=$(try_runner swoole || true)
+fi
+
+if [ -z "$RUNNER" ]; then
+  {
+    echo "No compatible PHP 8.4+ runtime found for SmartAdmin entrypoint."
+    echo "Detected platform: $OS_NAME/$ARCH_NAME"
+    echo "Tried: ${TRIED:-none}"
+    echo "Set SMART_ENTRY_PHP=/path/to/php84 or add a matching bin/swoole-* runtime."
+  } >&2
+  exit 127
+fi
+
+exec "$RUNNER" "$SCRIPT" "$@"

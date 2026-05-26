@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Tests\Unit\WechatClient;
 
@@ -16,8 +23,10 @@ use Plugin\WechatClient\Service\WechatClientAccountService;
 use Plugin\WechatClient\Service\WechatClientPaymentMerchantService;
 use Plugin\WechatClient\Service\WechatClientPaymentOrderService;
 use Plugin\WechatClient\Service\WechatClientPaymentRefundService;
-use ReflectionClass;
 
+/**
+ * @internal
+ */
 #[CoversClass(WechatClientAccountService::class)]
 #[CoversClass(WechatClientPaymentMerchantService::class)]
 #[CoversClass(WechatClientPaymentOrderService::class)]
@@ -178,7 +187,7 @@ final class PaymentSafetyTest extends TestCase
      */
     private function service(string $class): object
     {
-        return (new ReflectionClass($class))->newInstanceWithoutConstructor();
+        return (new \ReflectionClass($class))->newInstanceWithoutConstructor();
     }
 
     /**
@@ -186,7 +195,7 @@ final class PaymentSafetyTest extends TestCase
      */
     private function invokePrivate(string $class, string $method, mixed ...$args): mixed
     {
-        $reflection = new ReflectionClass($class);
+        $reflection = new \ReflectionClass($class);
         $service = $reflection->newInstanceWithoutConstructor();
         $methodReflection = $reflection->getMethod($method);
         $methodReflection->setAccessible(true);

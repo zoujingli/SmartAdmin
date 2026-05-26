@@ -40,7 +40,7 @@
 | 微信支付回调 | 只保留订单与退款标准回调：`/wechat-client/api/payment/notify/order/{merchantId}`、`/wechat-client/api/payment/notify/refund/{merchantId}`。 |
 | 微信开放平台回调 | 授权账号消息与事件必须使用 `/wechat-service/api/callback/notify/{appid}`，由标准 URL 中的 AppID 确认消息归属。 |
 | 前端菜单 | 后台动态路由读取 `/system/menu/user`，按钮权限读取 `/system/menu/permissions`；不再使用额外兼容菜单入口。 |
-| 发布升级 | 生产升级使用 release 快照机制，`xadmin:release:upgrade --dry-run` 先输出 SQL、替换表和备份路径。 |
+| 发布升级 | 生产安装/升级使用 release 安装包，`xadmin:release:restore --install --dry-run` 先输出 SQL 和必要数据恢复计划。 |
 
 ## 🧩 章节索引
 
@@ -69,7 +69,7 @@
 | 操作日志、请求日志、变更审计 | `SmartAdminLibrary` Events、`plugin/System/src/Controller/Logs*Controller.php` | [日志审计与公告](系统功能/日志审计与公告.md) |
 | 多租户管理和租户上下文 | `plugin/System`、`TenantContext` | [租户与发布构建](系统功能/租户与发布构建.md) |
 | 微信客户端与开放平台 | `plugin/WechatClient`、`plugin/WechatService` | [微信客户端接口](接口参考/微信客户端接口.md)、[微信开放平台接口](接口参考/微信开放平台接口.md) |
-| 数据库发布快照和 Phar 打包 | `SmartAdminLibrary` Command、`zoujingli/smart-admin-builder` | [发布升级](部署运维/发布升级.md) |
+| 数据库 release 安装包、运行备份和 Phar 打包 | `SmartAdminLibrary` Command、`zoujingli/smart-admin-builder` | [发布升级](部署运维/发布升级.md) |
 | Vue 3 管理端 | `web/apps/web-antd` 通用壳、`plugin/*/stc/view` 插件页面 | [前端接入](开发指南/前端接入.md) |
 
 ## 🚀 5 分钟启动
@@ -79,7 +79,7 @@ composer create-project zoujingli/smartadmin SmartAdmin
 cd SmartAdmin
 cp .env.example .env
 composer setup
-sh bin/start-swoole start
+./bin/smart start
 cd web && pnpm install && pnpm dev:antd
 ```
 

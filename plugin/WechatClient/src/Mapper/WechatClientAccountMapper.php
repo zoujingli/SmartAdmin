@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Plugin\WechatClient\Mapper;
 
@@ -33,13 +40,11 @@ final class WechatClientAccountMapper extends CoreMapper
      */
     public function findByAppid(string $appid): ?WechatClientAccount
     {
-        /** @var null|WechatClientAccount $account */
-        $account = $this->model::query()
+        /* @var null|WechatClientAccount $account */
+        return $this->model::query()
             ->withoutGlobalScope(DataField::TENANT)
             ->where('appid', $appid)
             ->first();
-
-        return $account;
     }
 
     /**

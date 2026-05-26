@@ -8,6 +8,7 @@
 - 目标是低成本接入新模块，同时保证权限、数据范围、租户隔离、发布升级和性能默认安全。
 - 后端代码主要位于 `plugin/*/src`，业务插件前端、语言包、迁移等资源位于 `plugin/*/stc`，主前端 `web/apps/web-antd` 只作为通用壳、公共页面、共享组件和编译期插件宿主。
 - 插件通过本地 Composer path 包、Provider、`plugin.json`、菜单/节点同步和 Web 编译期扫描接入；源码/CI 模式下由 Library 内置 `xadmin:plugin:package/install/remove/backup/restore` 辅助打包、安装、移除和备份恢复，backup 默认只备份代码，显式 `--with-data` 才备份插件自有表，remove 自动备份必须带数据。命令必须使用 `SourceOnlyCommand`，发布 Phar/SFX 内不出现这些命令，也不是运行时远程插件加载。插件前端变更后需要重新生成前端产物。
+- 业务插件命令必须明确源码期还是运行期：构建、调试和高风险清理命令必须使用 `SourceOnlyCommand`；确需在生产定时或手动执行的业务运行命令可以保留，但文档要说明边界和风险。
 - 仓库与发布链仅使用 GitHub：`SmartAdminDeveloper` 为私有全量开发源，也是唯一生态维护入口；TAG Actions 自动同步 `SmartAdminLibrary`、`SmartAdminBuilder` 与 `SmartAdmin`；不得再配置其它代码托管地址或发布说明。普通用户只使用公开 `SmartAdmin` / `zoujingli/smartadmin` 运行和二次开发。
 - Composer 包名统一使用横线规则：主包为 `zoujingli/smartadmin`，基础库为 `zoujingli/smart-admin-library`，构建器为 `zoujingli/smart-admin-builder`，插件为 `zoujingli/smart-plugin-xxx`；私有/商用插件不发布 Composer 远程包，只通过 `xadmin:plugin:*` ZIP 分发，ZIP 内 `composer.json` 仅服务本地 path autoload。
 - AI 修改时优先复用现有基类和注册机制，不新增重复框架层。
@@ -100,18 +101,17 @@
 
 - `migrations` 主要用于开发期建表和 fresh 初始化。
 - 打包发布升级使用 DBAL 快照机制，不依赖迁移文件执行生产升级。
+- 正式 Phar/SFX 二进制不注册 `migrate`；首次安装和发布升级统一使用 `xadmin:release:install` 或 `xadmin:release:restore --install` 从包内安装包恢复。
 - 发布配置只允许使用 `config/autoload/release.php` 中的 `backup_tables` 和 `ignore_tables`。
-- `backup_tables` 是发布包强制接管的数据表，升级前备份旧数据，升级时清空并用快照数据直接替换。
-- `ignore_tables` 是发布系统完全不维护的表，不进入结构 diff、不备份、不恢复、不删除。
-- `ignore_tables` 优先级高于 `backup_tables`。
-- 发布快照固定为 `runtime/release/database.schema.gz` 和 `runtime/release/database.data.gz`。
-- Phar 模式下发布快照位于二进制同级运行目录，不打入 Phar 包内。
-- `xadmin:release:backup` 生成结构和数据快照。
-- `xadmin:release:upgrade` 默认只执行非破坏性结构同步。
-- `xadmin:release:upgrade --force` 允许执行破坏性结构同步，但仍必须跳过 `ignore_tables`。
-- `xadmin:release:upgrade --dry-run` 只输出 SQL、忽略表、替换表和备份路径，不修改数据库。
-- `xadmin:release:restore --backup=<id>` 只恢复备份文件包含的表，恢复前先 truncate。
-- `composer release:check` 必须覆盖 release backup 和 upgrade dry-run。
+- `backup_tables` 是发布包必要数据表；不加 `--with-data` 时只备份和恢复这些必要数据。
+- `ignore_tables` 不进入必要数据；`ignore_tables` 优先级高于 `backup_tables`。结构快照仍包含当前数据库全部表结构，正式恢复不再依赖迁移文件。
+- 安装包固定为 `storage/extra/release/database.schema.gz`、`database.data.gz`、`database.meta.json`，由 `xadmin:release:backup --install` 生成并打入 Phar。
+- 运行备份默认写入 `runtime/backup/<timestamp>/`，并维护 `runtime/backup/latest` 指向最新备份。
+- `xadmin:release:backup` 默认生成运行备份（结构 + 必要数据）；`--with-data` 生成结构 + 全量数据；`--install` 生成待打包安装包；`--install --with-data` 禁止。
+- `xadmin:release:restore` 默认从最新运行备份恢复结构 + 必要数据；`--with-data` 从全量运行备份恢复结构 + 全量数据；`--install` 从包内安装包恢复；`--install --with-data` 禁止。
+- `xadmin:release:install` 用于正式发布包一键安装，包含 `restore --install` 和前端 publish。
+- 历史发布升级专用命令已删除，发布升级统一使用 `xadmin:release:restore --install`。
+- `composer release:check` 必须覆盖 release install package backup 和 restore install dry-run。
 - 发布构建入口使用 `composer build`；分阶段命令使用 `composer build:web`、`build:sync`、`build:clean`、`build:install-prod`、`build:snapshot`、`build:phar`、`build:cleanup`、`build:restore-dev`。
 
 ## 前端对应规则

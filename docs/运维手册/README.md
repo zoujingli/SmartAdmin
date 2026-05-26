@@ -14,7 +14,7 @@
 ## 运维建议
 
 - 发布前优先执行 `composer release:check`
-- 结构变更先执行升级 dry-run 再正式升级
+- 结构变更先执行 `restore --install` dry-run 再正式升级
 - 严格遵循日志脱敏规范，防止敏感信息泄露
 
 ## 下一步阅读

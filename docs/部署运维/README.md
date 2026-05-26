@@ -9,8 +9,8 @@ SmartAdmin 运维关注五件事：
 1. 开发环境能快速启动和调试。
 2. 生产环境服务稳定、配置安全、日志可追踪。
 3. docs 独立静态站可部署、可缓存、可搜索。
-4. 发布升级可 dry-run、可备份、可回滚。
-5. 缓存、日志、上传和发布快照纳入日常维护。
+4. 发布安装/升级可 dry-run、可运行备份、可恢复。
+5. 缓存、日志、上传、release 安装包和运行备份纳入日常维护。
 
 ## 运维入口
 
@@ -25,7 +25,7 @@ SmartAdmin 运维关注五件事：
 | 环境 | 目标 | 推荐动作 |
 |------|------|----------|
 | 本地开发 | 快速调试后端、前端、docs | 使用 `composer setup`、`composer docs:serve`、前端 dev server |
-| 预发环境 | 模拟生产发布和升级 | 执行 `release:check`、升级 dry-run、回归验证 |
+| 预发环境 | 模拟生产发布和升级 | 执行 `release:check`、`restore --install` dry-run、回归验证 |
 | 生产环境 | 稳定运行和可回滚 | 使用进程管理、反向代理、备份、日志归档 |
 | docs 静态站 | 对外文档访问 | Nginx/Pages/对象存储静态托管 |
 
@@ -40,7 +40,8 @@ flowchart LR
   API --> Redis["Redis"]
   API --> Storage["上传存储"]
   API --> Logs["runtime/logger"]
-  Release["release 快照"] --> DB
+  Release["release 安装包"] --> DB
+  Backup["runtime/backup"] --> DB
   Docs["docs 静态站"] --> User
 ```
 
@@ -62,7 +63,7 @@ composer docs:check
 
 | 周期 | 检查项 |
 |------|--------|
-| 每次发布前 | `release:check`、docs 检查、升级 dry-run、备份可用性 |
+| 每次发布前 | `release:check`、docs 检查、安装包恢复 dry-run、运行备份可用性 |
 | 每天 | 服务存活、错误日志、磁盘容量、数据库连接、Redis 连接 |
 | 每周 | 上传目录或对象存储容量、日志增长、慢接口、失败登录 |
 | 每月 | 备份恢复演练、依赖升级评估、权限审计、发布流程复盘 |
@@ -71,8 +72,8 @@ composer docs:check
 
 以下操作需要额外确认和备份：
 
-- `xadmin:release:upgrade --force`
-- `xadmin:release:restore --backup=<id>`
+- `xadmin:release:restore --install --force`
+- `xadmin:release:restore --with-data`
 - 清空日志、彻底删除数据。
 - 修改上传通道密钥或默认驱动。
 - 修改租户状态或彻底删除租户。

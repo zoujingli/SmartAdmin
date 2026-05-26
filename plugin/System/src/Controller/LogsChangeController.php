@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Controller;
@@ -25,7 +25,7 @@ final class LogsChangeController extends CoreController
 {
     /**
      * @param LogsChangeService $service 变更日志服务
-     * @param LogsActionService $actionService 操作日志服务，负责校验 action 可访问性并读取关联变更。
+     * @param LogsActionService $actionService 操作日志服务，负责校验 action 可访问性并读取关联变更
      */
     public function __construct(
         protected LogsChangeService $service,

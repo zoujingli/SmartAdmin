@@ -6,12 +6,13 @@ declare(strict_types=1);
  *
  * @contact Anyon <zoujingli@qq.com>
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
- * @document https://github.com/zoujingli/SmartAdmin/blob/master/readme.md
+ * @document https://zoujingli.github.io/SmartAdmin
  */
 
 namespace System\Mapper;
 
 use Hyperf\Database\Model\Builder;
+use Hyperf\Database\Model\Model;
 use Library\CoreMapper;
 use System\Model\SystemFile;
 
@@ -23,36 +24,6 @@ final class FileMapper extends CoreMapper
     public function __construct(
         protected string $model = SystemFile::class
     ) {}
-
-    /**
-     * 过滤查询条件.
-     */
-    protected function handleSearch(Builder $query, array $params): Builder
-    {
-        return _query($query, $params)
-            ->like('origin_name,hash,storage_path,object_name,mime_type,remark')
-            ->equal('scene,driver,storage_mode,suffix')
-            ->dateBetween('created_at')
-            ->getQuery();
-    }
-
-    /**
-     * @param array<int, \Hyperf\Database\Model\Model|array<string, mixed>> $items
-     * @return array<int, array<string, mixed>>
-     */
-    protected function handleListItems(array $items, array $params = []): array
-    {
-        return array_map(static function ($item): array {
-            $row = is_array($item) ? $item : $item->toArray();
-            if ($item instanceof SystemFile) {
-                $deletedAt = $item->deleted_at;
-                $row['deleted_at'] = $deletedAt instanceof \DateTimeInterface ? $deletedAt->format('Y-m-d H:i:s') : null;
-            } else {
-                $row['deleted_at'] = $row['deleted_at'] ?? null;
-            }
-            return $row;
-        }, $items);
-    }
 
     /**
      * @return array<string, mixed>
@@ -69,5 +40,35 @@ final class FileMapper extends CoreMapper
             'by_driver' => $this->pluckGroupedCounts($query, 'driver'),
             'by_storage_mode' => $this->pluckGroupedCounts($query, 'storage_mode'),
         ];
+    }
+
+    /**
+     * 过滤查询条件.
+     */
+    protected function handleSearch(Builder $query, array $params): Builder
+    {
+        return _query($query, $params)
+            ->like('origin_name,hash,storage_path,object_name,mime_type,remark')
+            ->equal('scene,driver,storage_mode,suffix')
+            ->dateBetween('created_at')
+            ->getQuery();
+    }
+
+    /**
+     * @param array<int, array<string, mixed>|Model> $items
+     * @return array<int, array<string, mixed>>
+     */
+    protected function handleListItems(array $items, array $params = []): array
+    {
+        return array_map(static function ($item): array {
+            $row = is_array($item) ? $item : $item->toArray();
+            if ($item instanceof SystemFile) {
+                $deletedAt = $item->deleted_at;
+                $row['deleted_at'] = $deletedAt instanceof \DateTimeInterface ? $deletedAt->format('Y-m-d H:i:s') : null;
+            } else {
+                $row['deleted_at'] = $row['deleted_at'] ?? null;
+            }
+            return $row;
+        }, $items);
     }
 }

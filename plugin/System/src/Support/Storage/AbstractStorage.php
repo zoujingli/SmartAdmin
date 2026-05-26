@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace System\Support\Storage;
 
@@ -96,7 +103,7 @@ abstract class AbstractStorage implements StorageInterface
     }
 
     /**
-     * @param array<string, scalar|null> $query
+     * @param array<string, null|scalar> $query
      */
     protected function appendQuery(string $url, array $query): string
     {
@@ -127,9 +134,8 @@ abstract class AbstractStorage implements StorageInterface
 
         return sprintf(
             'attachment; filename="%s"; filename*=UTF-8\'\'%s',
-            addcslashes($ascii, "\\\""),
+            addcslashes($ascii, '\"'),
             rawurlencode($name)
         );
     }
-
 }

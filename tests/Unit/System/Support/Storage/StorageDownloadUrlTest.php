@@ -1,6 +1,13 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Tests\Unit\System\Support\Storage;
 
@@ -15,6 +22,9 @@ use System\Support\Storage\OssStorage;
 use System\Support\Storage\QiniuStorage;
 use System\Support\UploadDriver;
 
+/**
+ * @internal
+ */
 #[CoversClass(LocalStorage::class)]
 #[CoversClass(OssStorage::class)]
 #[CoversClass(QiniuStorage::class)]
