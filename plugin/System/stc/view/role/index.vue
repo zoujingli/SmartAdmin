@@ -67,7 +67,7 @@
 
           <Card>
             <CrudTableHeader
-              title="角色台账"
+              title="角色列表"
               description="维护角色状态、数据权限和授权菜单，支持新增、编辑、授权与删除。"
               :count-text="`${pagination.total} 条记录`"
             />
@@ -154,7 +154,7 @@
     <Modal
       :open="detailOpen"
       title="角色详情"
-      width="min(860px, calc(100vw - 32px))"
+      :width="popupWidth.lg"
       ok-text="关闭"
       @cancel="detailOpen = false"
       @ok="detailOpen = false"
@@ -237,6 +237,7 @@ import {
   statusText,
 } from '#/utils/crud-excel';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
+import { popupWidth } from '#/utils/popup';
 import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 
@@ -275,7 +276,7 @@ const canRecoveryRoles = computed(() => hasAccessByCodes(['system.role.recovery'
 const canRealDeleteRoles = computed(() => hasAccessByCodes(['system.role.real-delete']));
 const summaryCards = computed(() => [
   {
-    desc: '当前角色台账中的有效角色数量。',
+    desc: '当前角色列表中的有效角色数量。',
     icon: 'i-lucide-shield',
     label: '总角色数',
     value: String(stats.value.totalRoles),

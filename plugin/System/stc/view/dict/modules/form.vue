@@ -3,7 +3,7 @@
     :open="visible"
     :title="formData.id ? '编辑字典' : '新增字典'"
     :body-style="{ padding: '20px 24px 8px' }"
-    width="min(760px, calc(100vw - 32px))"
+    :width="popupWidth.md"
     placement="right"
     @close="handleCancel"
   >
@@ -74,6 +74,7 @@ import { Button, Col, Drawer, Form, FormItem, Input, InputNumber, message, Radio
 import { dictApiService } from '#/api/system/dict';
 
 import type { DictFormData, DictInfo } from '../types';
+import { popupWidth } from '#/utils/popup';
 
 interface Props {
   visible: boolean;

@@ -51,7 +51,8 @@ interface ExportCrudXlsxOptions<T> {
 interface ImportCrudRowsOptions<TPayload> {
   columns: CrudExcelColumn[];
   moduleName: string;
-  submit: (payload: TPayload, row: Record<string, CellValue>, index: number) => Promise<unknown>;
+  submit?: (payload: TPayload, row: Record<string, CellValue>, index: number) => Promise<unknown>;
+  submitRows?: (payloads: TPayload[], rows: Array<Record<string, CellValue>>) => Promise<unknown>;
   afterDone?: () => Promise<void> | void;
   buildPayload?: (row: Record<string, CellValue>, index: number) => TPayload;
   rules?: string[];
@@ -167,6 +168,9 @@ export async function exportCrudXlsx<T extends Record<string, any>>(options: Exp
 // 标准导入统一走流程：上传层负责模板和文件选择，预览层承接确认、进度和结果明细。
 export async function openCrudImport<TPayload extends Record<string, any>>(options: ImportCrudRowsOptions<TPayload>) {
   const columns = options.columns.filter((column) => column.importable !== false);
+  if (!options.submit && !options.submitRows) {
+    throw new Error('导入提交参数不完整');
+  }
 
   await mountDialog(CrudImportDialog, {
     columns,
@@ -178,6 +182,11 @@ export async function openCrudImport<TPayload extends Record<string, any>>(optio
       rows: Array<Record<string, CellValue>>,
       onProgress: (progress: ImportProgress) => void,
     ) => {
+      if (options.submitRows) {
+        // 部分业务（如测试用例导入）必须一次提交全部行，避免逐条提交时中途触发状态闭环导致后续行被拒绝。
+        return await runBatchImport(options, columns, rows, onProgress);
+      }
+
       const results: ImportResultRow[] = [];
       let success = 0;
 
@@ -188,7 +197,7 @@ export async function openCrudImport<TPayload extends Record<string, any>>(optio
           const payload = options.buildPayload
             ? options.buildPayload(row, index)
             : buildPayloadFromColumns<TPayload>(columns, row);
-          await options.submit(payload, row, index);
+          await options.submit!(payload, row, index);
           results.push({ index: index + 1, message: '处理成功', status: 'success' });
           success += 1;
         } catch (error) {
@@ -207,6 +216,58 @@ export async function openCrudImport<TPayload extends Record<string, any>>(optio
       return { results, success, total: rows.length };
     },
   });
+}
+
+async function runBatchImport<TPayload extends Record<string, any>>(
+  options: ImportCrudRowsOptions<TPayload>,
+  columns: CrudExcelColumn[],
+  rows: Array<Record<string, CellValue>>,
+  onProgress: (progress: ImportProgress) => void,
+) {
+  const results: ImportResultRow[] = [];
+  const payloads: TPayload[] = [];
+  const validRows: Array<Record<string, CellValue>> = [];
+  const validIndexes: number[] = [];
+
+  for (const [index, row] of rows.entries()) {
+    try {
+      validateRequiredColumns(columns, row);
+      payloads.push(options.buildPayload ? options.buildPayload(row, index) : buildPayloadFromColumns<TPayload>(columns, row));
+      validRows.push(row);
+      validIndexes.push(index + 1);
+    } catch (error) {
+      results.push({ index: index + 1, message: resolveErrorMessage(error), status: 'failed' });
+    }
+    onProgress({
+      current: index + 1,
+      failed: results.length,
+      success: 0,
+      total: rows.length,
+    });
+  }
+
+  let success = 0;
+  if (payloads.length > 0) {
+    try {
+      await options.submitRows!(payloads, validRows);
+      validIndexes.forEach((index) => results.push({ index, message: '处理成功', status: 'success' }));
+      success = payloads.length;
+    } catch (error) {
+      const message = resolveErrorMessage(error);
+      validIndexes.forEach((index) => results.push({ index, message, status: 'failed' }));
+    }
+  }
+
+  results.sort((left, right) => left.index - right.index);
+  onProgress({
+    current: rows.length,
+    failed: rows.length - success,
+    success,
+    total: rows.length,
+  });
+  await options.afterDone?.();
+
+  return { results, success, total: rows.length };
 }
 
 // 状态枚举允许中文和常见布尔文本，导入模板不要求用户记住后端数字值。

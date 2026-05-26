@@ -60,7 +60,7 @@
 
           <Card>
             <CrudTableHeader
-              title="部门台账"
+              title="部门列表"
               description="维护部门层级、负责人和状态，支持新增子部门、查看部门成员与批量删除。"
               :count-text="`${stats.totalDepts} 个节点`"
             />
@@ -144,7 +144,7 @@
     <Modal
       :open="detailOpen"
       title="部门详情"
-      width="min(900px, calc(100vw - 32px))"
+      :width="popupWidth.xl"
       ok-text="关闭"
       @cancel="detailOpen = false"
       @ok="detailOpen = false"
@@ -226,6 +226,7 @@ import {
   statusText,
 } from '#/utils/crud-excel';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
+import { popupWidth } from '#/utils/popup';
 import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 

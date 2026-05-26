@@ -120,13 +120,13 @@
             </div>
             <CrudNoticeAlert
               v-else
-              message="当前账号没有上传权限，只能查看附件台账。"
+              message="当前账号没有上传权限，只能查看附件记录。"
             />
           </Card>
 
           <Card>
             <CrudTableHeader
-              title="文件台账"
+              title="文件记录"
               description="展示当前有效文件记录，可查看详情、编辑备注或执行批量去重与删除。"
               :count-text="`${filePagination.total} 条记录`"
             />
@@ -556,7 +556,7 @@
     <Modal
       :open="detailOpen"
       title="文件详情"
-      width="min(860px, calc(100vw - 32px))"
+      :width="popupWidth.lg"
       ok-text="关闭"
       @cancel="detailOpen = false"
       @ok="detailOpen = false"
@@ -651,7 +651,7 @@
       :open="editOpen"
       title="编辑文件"
       :body-style="{ padding: '20px 24px 8px' }"
-      width="min(560px, calc(100vw - 32px))"
+      :width="popupWidth.xs"
       placement="right"
       @close="editOpen = false"
     >
@@ -722,6 +722,7 @@ import {
 import { fileApiService, type FileApi } from '#/api';
 import { exportCrudXlsx } from '#/utils/crud-excel';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
+import { popupWidth } from '#/utils/popup';
 import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 
@@ -869,7 +870,7 @@ const totalSizeText = computed(() => formatBytes(stats.value.total_size_byte));
 const activeModeText = computed(() => configDriverLabel(uploadConfig.value.active_mode));
 const summaryCards = computed(() => [
   {
-    desc: '当前文件台账中的有效文件数量。',
+    desc: '当前文件记录中的有效文件数量。',
     icon: 'i-lucide-files',
     label: '文件总数',
     value: String(stats.value.total),
@@ -881,7 +882,7 @@ const summaryCards = computed(() => [
     value: String(stats.value.today_uploaded),
   },
   {
-    desc: '按文件台账累计计算的总存储体积。',
+    desc: '按文件记录累计计算的总存储体积。',
     icon: 'i-lucide-hard-drive',
     label: '总容量',
     value: totalSizeText.value,
@@ -1051,7 +1052,7 @@ async function handleExport() {
       pageSize,
     }),
     filename: `files_${new Date().toISOString().slice(0, 10)}.xlsx`,
-    sheetName: '文件台账',
+    sheetName: '文件记录',
     });
   } finally {
     exporting.value = false;

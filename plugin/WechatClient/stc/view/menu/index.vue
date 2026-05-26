@@ -37,7 +37,7 @@
       :open="modalOpen"
       :title="editingId ? '设计菜单方案' : '新增菜单方案'"
       :body-style="{ padding: '20px 24px 8px' }"
-      width="min(1180px, calc(100vw - 32px))"
+      :width="popupWidth.wide"
       placement="right"
       @close="modalOpen = false"
     >
@@ -248,6 +248,7 @@ import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 import { requestClient } from '#/api/request';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
+import { popupWidth } from '#/utils/popup';
 
 type PreviewMode = 'edit' | 'simulate';
 type SimulatedActionTone = 'article' | 'empty' | 'json' | 'media' | 'reply' | 'view';

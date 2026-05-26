@@ -5,3 +5,4 @@ export * from './fallback';
 export * from './profile';
 export * from './rich-text';
 export * from './upload';
+export * from './reference';

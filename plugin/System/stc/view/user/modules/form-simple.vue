@@ -22,6 +22,7 @@ import {
 } from 'ant-design-vue';
 
 import { deptApiService, postApiService, roleApiService, tenantApiService, userApiService } from '#/api';
+import { popupWidth } from '#/utils/popup';
 
 const emit = defineEmits(['success']);
 
@@ -237,7 +238,7 @@ watch(
     :open="visible"
     :title="getTitle"
     :body-style="{ padding: '20px 24px 8px' }"
-    width="min(760px, calc(100vw - 32px))"
+    :width="popupWidth.md"
     placement="right"
     @close="handleCancel"
   >

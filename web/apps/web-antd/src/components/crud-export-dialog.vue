@@ -5,7 +5,7 @@
     :keyboard="!exporting"
     :mask-closable="!exporting"
     :title="`${moduleName}数据导出`"
-    width="720px"
+    :width="popupWidth.sm"
     @cancel="handleClose"
   >
     <div class="space-y-4">
@@ -67,6 +67,7 @@ import {
   Progress,
   Space,
 } from 'ant-design-vue';
+import { popupWidth } from '#/utils/popup';
 
 type ExportStatus = 'confirm' | 'done' | 'exporting' | 'failed';
 

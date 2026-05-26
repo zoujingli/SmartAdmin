@@ -125,11 +125,9 @@ export const useAuthStore = defineStore('auth', () => {
   async function fetchUserInfo() {
     let userInfo: null | UserInfo = null;
 
-    // 添加重试机制，最多重试3次
-    let retryCount = 0;
     const maxRetries = 3;
 
-    while (retryCount < maxRetries) {
+    for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
       try {
         userInfo = await coreUserApiService.getUserInfo();
         if (userInfo) {
@@ -137,13 +135,26 @@ export const useAuthStore = defineStore('auth', () => {
           await applySavedUiPreferences(userInfo);
           return userInfo;
         }
-      } catch (error) {
-        console.warn(`获取用户信息失败，重试 ${retryCount + 1}/${maxRetries}:`, error);
-      }
 
-      retryCount++;
-      if (retryCount < maxRetries) {
-        // 等待 100ms 后重试
+        throw new Error('获取用户信息响应为空');
+      } catch (error: any) {
+        const responseData = error?.response?.data;
+        const status = Number(responseData?.code ?? error?.response?.status);
+        const hasBusinessResponse = responseData && typeof responseData === 'object' && 'code' in responseData;
+        const errorText = `${error?.code ?? ''} ${error?.message ?? ''} ${error?.toString?.() ?? ''}`;
+        const isTransientFailure = error?.code === 'ECONNABORTED'
+          || error?.code === 'ERR_NETWORK'
+          || errorText.includes('Network Error')
+          || errorText.includes('timeout');
+        // Token/权限失败和后端标准业务响应不会因为重试而恢复，立即交给路由守卫做登录态收敛；
+        // 只对网络抖动或超时保留短重试，避免 Project profile 401 连续弹出同一条错误。
+        const shouldRetry = status !== 401 && status !== 403 && !hasBusinessResponse && isTransientFailure;
+        if (!shouldRetry || attempt >= maxRetries) {
+          console.warn('获取用户信息失败，不再重试:', error);
+          throw error;
+        }
+
+        console.warn(`获取用户信息失败，重试 ${attempt}/${maxRetries}:`, error);
         await new Promise(resolve => setTimeout(resolve, 100));
       }
     }

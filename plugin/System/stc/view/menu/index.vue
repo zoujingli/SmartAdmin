@@ -49,7 +49,7 @@
 
           <Card>
             <CrudTableHeader
-              title="菜单台账"
+              title="菜单列表"
               description="维护目录、菜单与按钮的层级结构，支持新增子菜单、查看详情与批量展开收起。"
               :count-text="`共 ${visibleMenuCount} 个可见节点`"
             />
@@ -211,7 +211,7 @@
     <Modal
       v-model:open="detailOpen"
       title="菜单详情"
-      width="720px"
+      :width="popupWidth.sm"
       :footer="null"
       destroy-on-close
     >
@@ -293,6 +293,7 @@ import {
   statusText,
 } from '#/utils/crud-excel';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
+import { popupWidth } from '#/utils/popup';
 import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 

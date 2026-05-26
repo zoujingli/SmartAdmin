@@ -3,7 +3,7 @@
     <div class="admin-rich-text-editor__head">
       <div class="admin-rich-text-editor__copy">
         <div class="admin-rich-text-editor__title">{{ title }}</div>
-        <div v-if="description" class="admin-rich-text-editor__desc">{{ description }}</div>
+        <div v-if="resolvedDescription" class="admin-rich-text-editor__desc">{{ resolvedDescription }}</div>
       </div>
       <div class="admin-rich-text-editor__actions">
         <!-- 业务模块可把 AI 辅助等字段级操作放在模式切换同一区域，避免表单额外占行。 -->
@@ -20,10 +20,20 @@
     <div v-show="viewMode === 'visual'" class="admin-rich-text-editor__visual">
       <template v-if="editorMounted">
         <Toolbar
+          v-if="mediaToolbarKeys.length"
           class="admin-rich-text-editor__toolbar"
           :default-config="toolbarConfig"
           :editor="richEditorRef"
           :mode="wangEditorMode"
+        />
+        <input
+          ref="fileInputRef"
+          aria-hidden="true"
+          class="admin-rich-text-editor__file-input"
+          hidden
+          tabindex="-1"
+          type="file"
+          @change="handleFilePicked"
         />
         <Editor
           v-model="contentValue"
@@ -37,8 +47,8 @@
         />
       </template>
       <div v-else class="admin-rich-text-editor__loading" :style="editorBodyStyle">编辑器加载中...</div>
-      <div v-if="footerText || uploading" class="admin-rich-text-editor__foot">
-        <span>{{ footerText }}</span>
+      <div v-if="resolvedFooterText || uploading" class="admin-rich-text-editor__foot">
+        <span>{{ resolvedFooterText }}</span>
         <Tag v-if="uploading" color="processing">媒体上传中</Tag>
       </div>
     </div>
@@ -52,12 +62,13 @@
 </template>
 
 <script setup lang="ts">
-import type { IDomEditor, IEditorConfig, IToolbarConfig } from '@wangeditor/editor';
+import type { IButtonMenu, IDomEditor, IEditorConfig, IToolbarConfig } from '@wangeditor/editor';
 import type { CSSProperties } from 'vue';
 import type { UploadAsset } from '../upload/types';
 
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 
+import { Boot } from '@wangeditor/editor';
 import { Editor, Toolbar } from '@wangeditor/editor-for-vue';
 import { message, RadioButton, RadioGroup, Tag, Textarea } from 'ant-design-vue';
 import '@wangeditor/editor/dist/css/style.css';
@@ -67,8 +78,56 @@ import { uploadSceneFile } from '../upload/upload-client';
 type RichTextViewMode = 'preview' | 'source' | 'visual';
 type PasteResultSetter = (value: boolean) => void;
 
+const ATTACHMENT_MENU_KEY = 'uploadProjectAttachment';
+const ATTACHMENT_MENU_ICON = '<svg viewBox="0 0 1024 1024"><path d="M704 128a192 192 0 0 1 135.76 327.76L426.72 868.8a144 144 0 0 1-203.64-203.64l402.4-402.4a96 96 0 0 1 135.76 135.76l-393.04 393.04a32 32 0 1 1-45.28-45.28l393.04-393.04a32 32 0 0 0-45.28-45.28l-402.4 402.4a80 80 0 0 0 113.12 113.12l413.04-413.04A128 128 0 1 0 613.44 229.44L218.88 624a32 32 0 1 1-45.28-45.28l394.56-394.56A191.36 191.36 0 0 1 704 128z"/></svg>';
+const attachmentUploadHandlers = new WeakMap<IDomEditor, () => void>();
+
+class UploadAttachmentMenu implements IButtonMenu {
+  readonly iconSvg = ATTACHMENT_MENU_ICON;
+  readonly tag = 'button';
+  readonly title = '上传附件';
+
+  exec(editor: IDomEditor): void {
+    const handler = attachmentUploadHandlers.get(editor);
+    if (!handler) {
+      message.warning('编辑器尚未初始化，请稍后再试');
+      return;
+    }
+    handler();
+  }
+
+  getValue(): string {
+    return '';
+  }
+
+  isActive(): boolean {
+    return false;
+  }
+
+  isDisabled(): boolean {
+    return false;
+  }
+}
+
+function registerAttachmentMenu() {
+  const globalObject = globalThis as typeof globalThis & { __SMART_ADMIN_RICH_ATTACHMENT_MENU__?: boolean };
+  if (globalObject.__SMART_ADMIN_RICH_ATTACHMENT_MENU__) {
+    return;
+  }
+
+  // 附件上传作为 wangEditor 标准工具栏菜单注册，确保按钮位置跟随工具栏顺序而不是浮在编辑器头部。
+  Boot.registerMenu({
+    key: ATTACHMENT_MENU_KEY,
+    factory: () => new UploadAttachmentMenu(),
+  });
+  globalObject.__SMART_ADMIN_RICH_ATTACHMENT_MENU__ = true;
+}
+
+registerAttachmentMenu();
+
 const props = withDefaults(defineProps<{
   allowVideo?: boolean;
+  allowFile?: boolean;
   description?: string;
   footerText?: string;
   height?: number | string;
@@ -82,12 +141,13 @@ const props = withDefaults(defineProps<{
   wangEditorMode?: 'default' | 'simple';
 }>(), {
   allowVideo: false,
-  description: '支持标题、样式、链接、表格和代码块；图片仅支持本地上传或粘贴上传。',
-  footerText: '可通过工具栏上传或直接粘贴剪贴板图片；媒体文件统一进入系统文件上传台账。',
+  allowFile: false,
+  description: '',
+  footerText: '',
   height: 'min(520px, 58vh)',
   minHeight: 360,
   modelValue: '',
-  placeholder: '请输入富文本内容，可通过工具栏选择或粘贴图片。',
+  placeholder: '',
   sourceRows: 16,
   title: '富文本编辑器',
   uploadable: true,
@@ -104,6 +164,7 @@ const viewMode = ref<RichTextViewMode>('visual');
 const editorMounted = ref(false);
 const editorUploadingCount = ref(0);
 const richEditorRef = shallowRef<IDomEditor>();
+const fileInputRef = ref<HTMLInputElement>();
 const uploading = computed(() => editorUploadingCount.value > 0);
 const contentValue = computed({
   get: () => props.modelValue || '',
@@ -114,10 +175,18 @@ const resolvedModes = [
   { label: '预览', value: 'preview' },
   { label: '源码', value: 'source' },
 ] as const;
-
-const toolbarConfig = computed<Partial<IToolbarConfig>>(() => {
-  // 业务编辑场景只保留常用排版、列表、链接、图片、表格和撤销能力，避免默认工具栏过重影响表单维护效率。
-  const toolbarKeys = [
+const resolvedDescription = computed(() => props.description || (props.allowVideo
+  ? `支持常用排版、链接、列表、表格、代码块，以及图片、视频${props.allowFile ? '和普通附件' : ''}上传。`
+  : `支持常用排版、链接、列表、表格、代码块，以及图片${props.allowFile ? '和普通附件' : ''}上传。`));
+const resolvedFooterText = computed(() => props.footerText || (props.allowVideo
+  ? `图片和视频可通过工具栏上传，${props.allowFile ? '普通文件可通过“上传附件”插入下载链接，' : ''}也可直接从剪贴板粘贴；上传内容统一走系统文件流程。`
+  : `图片可通过工具栏上传，${props.allowFile ? '普通文件可通过“上传附件”插入下载链接，' : ''}也可直接从剪贴板粘贴；上传内容统一走系统文件流程。`));
+const resolvedPlaceholder = computed(() => props.placeholder || (props.allowVideo
+  ? `请输入正文内容，可通过工具栏上传或直接粘贴图片/视频${props.allowFile ? '，也可插入附件下载链接' : ''}。`
+  : `请输入正文内容，可通过工具栏上传或直接粘贴图片${props.allowFile ? '，也可插入附件下载链接' : ''}。`));
+const mediaToolbarKeys = computed<NonNullable<IToolbarConfig['toolbarKeys']>>(() => {
+  // 业务编辑场景保留常用排版能力，仅把图片/视频上传收口到系统文件流程。
+  return [
     'headerSelect',
     '|',
     'bold',
@@ -131,29 +200,33 @@ const toolbarConfig = computed<Partial<IToolbarConfig>>(() => {
     'todo',
     '|',
     'insertLink',
-    // 图片只允许走本地上传并进入 system_file 台账，不开放网络图片地址插入入口。
     ...(props.uploadable ? ['uploadImage'] : []),
-    ...(props.allowVideo ? ['insertVideo', ...(props.uploadable ? ['uploadVideo'] : [])] : []),
+    ...(props.allowVideo && props.uploadable ? ['uploadVideo'] : []),
+    ...(props.allowFile && props.uploadable ? [ATTACHMENT_MENU_KEY] : []),
     'insertTable',
     'codeBlock',
     '|',
     'undo',
     'redo',
   ] as NonNullable<IToolbarConfig['toolbarKeys']>;
+});
 
+const toolbarConfig = computed<Partial<IToolbarConfig>>(() => {
   return {
-    modalAppendToBody: true,
-    toolbarKeys,
+    // wangEditor 的修改弹层需要由编辑器根据选区自动计算位置；挂到 body 后库只会设置 left/right，
+    // 在抽屉/弹框页面里会跑到左侧或被遮住，所以保持挂载到编辑器内容区并配合外层 overflow 放开。
+    modalAppendToBody: false,
+    toolbarKeys: mediaToolbarKeys.value,
   };
 });
 
 const editorConfig = computed<Partial<IEditorConfig>>(() => ({
-  placeholder: props.placeholder,
+  placeholder: resolvedPlaceholder.value,
   MENU_CONF: {
     uploadImage: {
       allowedFileTypes: ['image/*'],
       maxNumberOfFiles: 10,
-      // 富文本图片必须复用后台统一上传入口，禁止插入 base64 或绕过 system_file 台账。
+      // 富文本图片必须复用后台统一上传入口，禁止插入 base64 或绕过 system_file 文件记录。
       customUpload(file: File, insertFn: (src: string, alt: string, href: string) => void) {
         void uploadEditorAsset('image', file)
           .then((asset) => {
@@ -176,11 +249,6 @@ const editorConfig = computed<Partial<IEditorConfig>>(() => ({
             insertFn(url, asset.preview_url || '');
           })
           .catch((error) => handleEditorUploadError(error));
-      },
-    },
-    insertVideo: {
-      checkVideo(src: string) {
-        return /^https?:\/\//i.test(src) || src.startsWith('/') ? true : '视频地址必须是 http(s) 或站内绝对路径';
       },
     },
   },
@@ -218,6 +286,7 @@ async function handleViewModeChange() {
 
 function handleEditorCreated(editor: IDomEditor) {
   richEditorRef.value = editor;
+  attachmentUploadHandlers.set(editor, openFilePicker);
   editor.setHtml(contentValue.value || '');
 }
 
@@ -243,12 +312,15 @@ function handleEditorPaste(editor: IDomEditor, event: ClipboardEvent, setResult:
   void uploadAndInsertPastedMedia(editor, files);
 }
 
-async function uploadEditorAsset(scene: 'image' | 'video', file: File) {
+async function uploadEditorAsset(scene: 'file' | 'image' | 'video', file: File) {
   if (!props.uploadable) {
     throw new Error('缺少系统文件上传权限');
   }
   if (scene === 'video' && !props.allowVideo) {
     throw new Error('当前编辑器未启用视频上传');
+  }
+  if (scene === 'file' && !props.allowFile) {
+    throw new Error('当前编辑器未启用附件上传');
   }
   if (scene === 'image' && !file.type.startsWith('image/')) {
     throw new Error('请选择图片文件');
@@ -266,7 +338,7 @@ async function uploadEditorAsset(scene: 'image' | 'video', file: File) {
 }
 
 function handleEditorUploadError(error: unknown) {
-  message.error(`媒体上传失败: ${error instanceof Error ? error.message : String(error)}`);
+  message.error(`文件上传失败: ${error instanceof Error ? error.message : String(error)}`);
 }
 
 function getAssetUrl(asset: UploadAsset) {
@@ -296,6 +368,31 @@ async function uploadAndInsertPastedMedia(editor: IDomEditor, files: File[]) {
   }
 }
 
+function openFilePicker() {
+  if (!props.uploadable) {
+    message.warning('缺少系统文件上传权限');
+    return;
+  }
+  fileInputRef.value?.click();
+}
+
+function handleFilePicked(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  if (!file) return;
+  void uploadEditorAsset('file', file)
+    .then((asset) => {
+      const editor = richEditorRef.value;
+      if (!editor) throw new Error('编辑器尚未初始化');
+      editor.restoreSelection();
+      editor.dangerouslyInsertHtml(buildFileHtml(asset, file));
+      contentValue.value = editor.getHtml();
+      message.success('附件已上传并插入正文');
+    })
+    .catch((error) => handleEditorUploadError(error));
+}
+
 function buildImageHtml(asset: UploadAsset, file: File) {
   const url = getAssetUrl(asset);
   if (!url) return '';
@@ -306,6 +403,13 @@ function buildVideoHtml(asset: UploadAsset, file: File) {
   const url = getAssetUrl(asset);
   if (!url) return '';
   return `<p><video src="${escapeHtml(url)}" controls preload="metadata" style="max-width:100%;width:100%;border-radius:8px;">${escapeHtml(asset.origin_name || file.name || '视频')}</video></p>`;
+}
+
+function buildFileHtml(asset: UploadAsset, file: File) {
+  const fileId = Number(asset.id || 0);
+  if (fileId <= 0) return '';
+  const fileName = asset.origin_name || file.name || `附件${fileId}`;
+  return `<p><a href="/project/file/download/${fileId}" title="下载附件：${escapeHtml(fileName)}" data-project-file="1" data-file-id="${fileId}" data-file-name="${escapeHtml(fileName)}" target="_blank" rel="noopener noreferrer" download>${escapeHtml(fileName)}</a></p>`;
 }
 
 function escapeHtml(value: string) {
@@ -320,7 +424,7 @@ function sanitizePreviewHtml(value: string) {
 }
 
 function buildPreviewStyle() {
-  return `body{margin:0;padding:18px 22px;color:CanvasText;background:Canvas;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.85;}img{max-width:100%;height:auto;border-radius:8px;}video{max-width:100%;border-radius:10px;background:#000;}table{width:100%;border-collapse:collapse;}td,th{padding:8px;border:1px solid ButtonBorder;}blockquote{margin:8px 0;padding:8px 12px;border-left:4px solid Highlight;background:color-mix(in srgb, Highlight 8%, Canvas);}pre{padding:12px;overflow:auto;background:color-mix(in srgb, CanvasText 6%, Canvas);border-radius:8px;}.empty{color:GrayText;}`;
+  return `body{margin:0;padding:18px 22px;color:CanvasText;background:Canvas;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.85;}img{max-width:100%;height:auto;border-radius:8px;}video{max-width:100%;border-radius:10px;background:#000;}a[data-project-file="1"]{display:inline-flex;align-items:center;gap:8px;max-width:100%;padding:8px 10px;border:1px solid ButtonBorder;border-radius:8px;background:color-mix(in srgb, CanvasText 5%, Canvas);color:LinkText;text-decoration:none;font-weight:500;overflow-wrap:anywhere;}a[data-project-file="1"]::before{content:"📎";flex:none;}a[data-project-file="1"]:hover{text-decoration:underline;text-underline-offset:2px;}table{width:100%;border-collapse:collapse;}td,th{padding:8px;border:1px solid ButtonBorder;}blockquote{margin:8px 0;padding:8px 12px;border-left:4px solid Highlight;background:color-mix(in srgb, Highlight 8%, Canvas);}pre{padding:12px;overflow:auto;background:color-mix(in srgb, CanvasText 6%, Canvas);border-radius:8px;}.empty{color:GrayText;}`;
 }
 
 async function mountEditor() {
@@ -331,6 +435,9 @@ async function mountEditor() {
 }
 
 function destroyEditor() {
+  if (richEditorRef.value) {
+    attachmentUploadHandlers.delete(richEditorRef.value);
+  }
   richEditorRef.value?.destroy();
   richEditorRef.value = undefined;
   editorMounted.value = false;
@@ -360,7 +467,11 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .admin-rich-text-editor {
-  overflow: hidden;
+  /*
+   * wangEditor 的链接/图片/视频修改弹层会按选区绝对定位，可能向编辑器边界外展开；
+   * 这里不能裁剪根容器，否则弹层会只露出一半，看起来像“没有弹出”。
+   */
+  overflow: visible;
   border: 1px solid var(--ant-colorBorder, hsl(var(--border)));
   border-radius: 10px;
   background: var(--ant-colorBgContainer, hsl(var(--background)));
@@ -415,6 +526,16 @@ onBeforeUnmount(() => {
   margin-inline-end: 0;
 }
 
+.admin-rich-text-editor__file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 .admin-rich-text-editor__mode {
   display: inline-flex;
   overflow: hidden;
@@ -460,6 +581,7 @@ onBeforeUnmount(() => {
 }
 
 .admin-rich-text-editor__visual {
+  overflow: visible;
   background: var(--ant-colorBgContainer, hsl(var(--background)));
 }
 
@@ -472,7 +594,7 @@ onBeforeUnmount(() => {
 }
 
 .admin-rich-text-editor__body {
-  overflow: hidden;
+  overflow: visible;
 }
 
 .admin-rich-text-editor__loading {
@@ -569,6 +691,21 @@ onBeforeUnmount(() => {
   color: var(--ant-colorText, hsl(var(--foreground))) !important;
 }
 
+.admin-rich-text-editor :deep(.w-e-modal) {
+  z-index: 2200 !important;
+  border: 1px solid var(--ant-colorBorderSecondary, hsl(var(--border))) !important;
+  border-radius: 8px !important;
+  background: var(--ant-colorBgElevated, var(--ant-colorBgContainer, hsl(var(--background)))) !important;
+  box-shadow: var(--ant-boxShadowSecondary, 0 8px 24px rgb(0 0 0 / 12%)) !important;
+  color: var(--ant-colorText, hsl(var(--foreground))) !important;
+}
+
+:global(.w-e-modal),
+:global(.w-e-drop-panel),
+:global(.w-e-select-list) {
+  z-index: 2200 !important;
+}
+
 .admin-rich-text-editor :deep(.w-e-select-list ul .selected),
 .admin-rich-text-editor :deep(.w-e-select-list ul li:hover),
 .admin-rich-text-editor :deep(.w-e-drop-panel .w-e-panel-tab-title .active),
@@ -608,6 +745,34 @@ onBeforeUnmount(() => {
   max-width: 100%;
   border-radius: 10px;
   background: #000;
+}
+
+.admin-rich-text-editor :deep(.w-e-text-container a[data-project-file='1']) {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  max-width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--ant-colorBorderSecondary, hsl(var(--border)));
+  border-radius: 8px;
+  background: var(--ant-colorFillQuaternary, hsl(var(--muted)));
+  color: var(--ant-colorPrimary, hsl(var(--primary)));
+  font-weight: 500;
+  line-height: 1.4;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.admin-rich-text-editor :deep(.w-e-text-container a[data-project-file='1']::before) {
+  flex: none;
+  content: '📎';
+}
+
+.admin-rich-text-editor :deep(.w-e-text-container a[data-project-file='1']:hover) {
+  border-color: var(--ant-colorPrimaryBorder, var(--ant-colorPrimary, hsl(var(--primary))));
+  background: var(--ant-colorPrimaryBg, hsl(var(--primary) / 0.12));
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .admin-rich-text-editor :deep(.w-e-text-container h2) {

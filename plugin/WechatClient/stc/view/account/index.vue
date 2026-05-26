@@ -46,7 +46,7 @@
 
       <Card>
         <CrudTableHeader
-          title="接口账号台账"
+          title="接口账号列表"
           description="维护租户侧公众号与小程序接口账号、接入模式和消息安全参数。"
           :count-text="`${pagination.total} 条记录`"
         />
@@ -96,7 +96,7 @@
       :open="open"
       :title="editingId ? '编辑接口账号' : '新增接口账号'"
       :body-style="{ padding: '20px 24px 8px' }"
-      width="min(760px, calc(100vw - 32px))"
+      :width="popupWidth.md"
       placement="right"
       @close="open = false"
     >
@@ -213,6 +213,7 @@ import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 import { requestClient } from '#/api/request';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
+import { popupWidth } from '#/utils/popup';
 
 const { hasAccessByCodes } = useAccess();
 const canCreateAccount = computed(() => hasAccessByCodes(['wechat.client.account.create']));

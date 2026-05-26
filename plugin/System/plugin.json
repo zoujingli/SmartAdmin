@@ -89,7 +89,7 @@
           "view": "file/index.vue",
           "module": {
             "key": "file",
-            "summary": "统一文件台账、上传通道配置和上传运行时规则中心。",
+            "summary": "统一文件记录、上传通道配置和上传运行时规则中心。",
             "features": [
               "文件列表",
               "回收站",

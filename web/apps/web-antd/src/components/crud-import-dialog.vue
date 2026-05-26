@@ -2,7 +2,7 @@
   <Modal
     v-model:open="uploadVisible"
     :title="`${moduleName}数据导入`"
-    width="960px"
+    :width="popupWidth.xl"
     @cancel="handleUploadClose"
   >
     <div class="crud-import-dialog">
@@ -91,7 +91,7 @@
     :keyboard="!importing"
     :mask-closable="!importing"
     :title="previewTitle"
-    width="960px"
+    :width="popupWidth.xl"
     @cancel="handleClose"
   >
     <div class="crud-import-dialog">
@@ -195,6 +195,7 @@ import {
   TypographyText,
   UploadDragger,
 } from 'ant-design-vue';
+import { popupWidth } from '#/utils/popup';
 
 type CellValue = boolean | number | string | null | undefined;
 type ImportStatus = 'done' | 'idle' | 'importing' | 'preview';

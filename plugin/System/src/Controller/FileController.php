@@ -20,6 +20,7 @@ use Hyperf\HttpServer\Contract\RequestInterface;
 use Library\CoreController;
 use Library\Events\Annotation\Auth;
 use Library\Events\Annotation\Logger;
+use Library\Interfaces\UserModelInterface;
 use Psr\Http\Message\ResponseInterface as PsrResponseInterface;
 use System\Service\FileService;
 use System\Service\FileUploadService;
@@ -178,9 +179,12 @@ final class FileController extends CoreController
 
     /**
      * 获取上传运行时配置。
+     *
+     * 上传链路服务于后台文件管理、个人头像、Project 前台富文本等多个登录入口；
+     * 这里只校验合法登录用户模型，具体页面是否展示上传入口仍由各自权限码控制。
      */
     #[GetMapping(path: 'upload/runtime')]
-    #[Auth(name: '上传文件', type: Auth::LOGIN, menu: false)]
+    #[Auth(name: '上传文件', type: Auth::LOGIN, menu: false, userModel: UserModelInterface::class)]
     public function uploadRuntime(): array
     {
         $this->success('获取成功', $this->uploadConfig->getRuntimeConfig());
@@ -190,7 +194,7 @@ final class FileController extends CoreController
      * 准备上传会话。
      */
     #[PostMapping(path: 'upload/prepare')]
-    #[Auth(name: '上传文件', type: Auth::LOGIN, menu: false)]
+    #[Auth(name: '上传文件', type: Auth::LOGIN, menu: false, userModel: UserModelInterface::class)]
     #[Logger(name: '准备上传文件')]
     public function uploadPrepare(RequestInterface $request): array
     {
@@ -201,7 +205,7 @@ final class FileController extends CoreController
      * 中转上传（单文件）。
      */
     #[PostMapping(path: 'upload/relay')]
-    #[Auth(name: '上传文件', type: Auth::LOGIN, menu: false)]
+    #[Auth(name: '上传文件', type: Auth::LOGIN, menu: false, userModel: UserModelInterface::class)]
     #[Logger(name: '中转上传文件')]
     public function uploadRelay(RequestInterface $request): array
     {
@@ -218,7 +222,7 @@ final class FileController extends CoreController
      * 中转上传分块。
      */
     #[PostMapping(path: 'upload/relay-chunk')]
-    #[Auth(name: '上传文件', type: Auth::LOGIN, menu: false)]
+    #[Auth(name: '上传文件', type: Auth::LOGIN, menu: false, userModel: UserModelInterface::class)]
     #[Logger(name: '中转分块上传文件')]
     public function uploadRelayChunk(RequestInterface $request): array
     {
@@ -234,7 +238,7 @@ final class FileController extends CoreController
      * 获取分片上传签名。
      */
     #[PostMapping(path: 'upload/part-sign')]
-    #[Auth(name: '上传文件', type: Auth::LOGIN, menu: false)]
+    #[Auth(name: '上传文件', type: Auth::LOGIN, menu: false, userModel: UserModelInterface::class)]
     public function uploadPartSign(RequestInterface $request): array
     {
         $sessionId = (string)$request->input('upload_session_id', '');
@@ -246,7 +250,7 @@ final class FileController extends CoreController
      * 完成上传会话。
      */
     #[PostMapping(path: 'upload/complete')]
-    #[Auth(name: '上传文件', type: Auth::LOGIN, menu: false)]
+    #[Auth(name: '上传文件', type: Auth::LOGIN, menu: false, userModel: UserModelInterface::class)]
     #[Logger(name: '完成上传文件')]
     public function uploadComplete(RequestInterface $request): array
     {
@@ -257,7 +261,7 @@ final class FileController extends CoreController
      * 中止上传会话。
      */
     #[PostMapping(path: 'upload/abort')]
-    #[Auth(name: '上传文件', type: Auth::LOGIN, menu: false)]
+    #[Auth(name: '上传文件', type: Auth::LOGIN, menu: false, userModel: UserModelInterface::class)]
     #[Logger(name: '终止上传文件')]
     public function uploadAbort(RequestInterface $request): array
     {

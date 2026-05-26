@@ -49,7 +49,7 @@
 
       <Card>
         <CrudTableHeader
-          title="粉丝台账"
+          title="粉丝列表"
           description="展示公众号粉丝、本地标签和同步状态，粉丝同步需先指定接口账号 ID。"
           :count-text="`${pagination.total} 条记录`"
         />

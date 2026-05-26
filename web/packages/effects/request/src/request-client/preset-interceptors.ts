@@ -67,6 +67,9 @@ export const authenticateResponseInterceptor = ({
       if (responseCode !== 401) {
         throw error;
       }
+      // 认证失败由认证拦截器统一触发重新登录；后续通用错误提示只负责透传，
+      // 避免同一轮 profile/codes 等并发 401 把后端原始文案重复弹出。
+      error[REQUEST_ERROR_HANDLED_FLAG] = true;
       // 判断是否启用了 refreshToken 功能
       // 如果没有启用或者已经是重试请求了，直接跳转到重新登录
       if (!enableRefreshToken || config.__isRetryRequest) {
@@ -99,6 +102,9 @@ export const authenticateResponseInterceptor = ({
         return client.request(error.config.url, { ...error.config });
       } catch (refreshError) {
         // 如果刷新 token 失败，处理错误（如强制登出或跳转登录页面）
+        if (refreshError && typeof refreshError === 'object') {
+          (refreshError as Record<string, any>)[REQUEST_ERROR_HANDLED_FLAG] = true;
+        }
         client.refreshTokenQueue.forEach((callback) => callback(''));
         client.refreshTokenQueue = [];
         console.error('Refresh token failed, please login again.');
@@ -118,6 +124,9 @@ export const errorMessageResponseInterceptor = (
   return {
     rejected: (error: any) => {
       if (axios.isCancel(error)) {
+        return Promise.reject(error);
+      }
+      if (error?.[REQUEST_ERROR_HANDLED_FLAG]) {
         return Promise.reject(error);
       }
 

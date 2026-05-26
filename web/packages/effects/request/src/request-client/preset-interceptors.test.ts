@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   authenticateResponseInterceptor,
   defaultResponseInterceptor,
+  errorMessageResponseInterceptor,
+  REQUEST_ERROR_HANDLED_FLAG,
 } from './preset-interceptors';
 
 describe('defaultResponseInterceptor', () => {
@@ -73,5 +75,24 @@ describe('authenticateResponseInterceptor', () => {
 
     await expect(interceptor.rejected?.(error)).rejects.toBe(error);
     expect(doReAuthenticate).toHaveBeenCalledTimes(1);
+    expect(error[REQUEST_ERROR_HANDLED_FLAG]).toBe(true);
+  });
+
+  it('should skip generic error message after auth failure is handled', async () => {
+    const makeErrorMessage = vi.fn();
+    const interceptor = errorMessageResponseInterceptor(makeErrorMessage);
+    const error = {
+      [REQUEST_ERROR_HANDLED_FLAG]: true,
+      response: {
+        data: {
+          code: 401,
+          info: '未登录授权 -> [ Project 账号资料(plugin.project.account-auth.profile) ]',
+        },
+        status: 200,
+      },
+    };
+
+    await expect(interceptor.rejected?.(error)).rejects.toBe(error);
+    expect(makeErrorMessage).not.toHaveBeenCalled();
   });
 });

@@ -98,7 +98,7 @@
 
           <Card>
             <CrudTableHeader
-              title="用户台账"
+              title="用户列表"
               description="维护系统用户、部门归属、角色岗位和账号状态，支持重置密码与批量删除。"
               :count-text="`${pagination.total} 条记录`"
             />
@@ -195,7 +195,7 @@
     <Modal
       :open="detailOpen"
       title="用户详情"
-      width="min(900px, calc(100vw - 32px))"
+      :width="popupWidth.xl"
       ok-text="关闭"
       @cancel="detailOpen = false"
       @ok="detailOpen = false"
@@ -283,6 +283,7 @@ import {
   statusText,
 } from '#/utils/crud-excel';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
+import { popupWidth } from '#/utils/popup';
 import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 
@@ -416,7 +417,7 @@ const stats = ref({
 });
 const summaryCards = computed(() => [
   {
-    desc: '当前用户台账中的有效用户数量。',
+    desc: '当前用户列表中的有效用户数量。',
     icon: 'i-lucide-users',
     label: '总用户数',
     value: String(stats.value.totalUsers),

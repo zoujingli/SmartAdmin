@@ -55,7 +55,7 @@
 
           <Card>
             <CrudTableHeader
-              title="字典台账"
+              title="字典列表"
               description="维护平台全局字典分类与字典项，供业务表单和列表统一取值。"
               :count-text="`${pagination.total} 条记录`"
             />
@@ -142,7 +142,7 @@
     <Modal
       :open="detailOpen"
       title="字典详情"
-      width="min(860px, calc(100vw - 32px))"
+      :width="popupWidth.lg"
       ok-text="关闭"
       @cancel="detailOpen = false"
       @ok="detailOpen = false"
@@ -216,6 +216,7 @@ import {
 import { dictApiService } from '#/api/system/dict';
 import { exportCrudXlsx, statusText } from '#/utils/crud-excel';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
+import { popupWidth } from '#/utils/popup';
 import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 

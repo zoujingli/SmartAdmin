@@ -3,7 +3,7 @@
     :open="visible"
     :title="formData.id ? '编辑租户' : '新增租户'"
     :body-style="{ padding: '20px 24px 8px' }"
-    width="min(760px, calc(100vw - 32px))"
+    :width="popupWidth.md"
     placement="right"
     @close="handleCancel"
   >
@@ -100,6 +100,7 @@ import { Button, Col, Drawer, Form, FormItem, Input, message, RadioGroup, Row } 
 import { tenantApiService } from '#/api/system/tenant';
 
 import type { TenantFormData, TenantType } from '../types';
+import { popupWidth } from '#/utils/popup';
 
 interface Props {
   visible: boolean;

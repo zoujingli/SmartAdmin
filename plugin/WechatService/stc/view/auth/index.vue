@@ -25,7 +25,7 @@
       </Card>
 
       <Card>
-        <CrudTableHeader title="授权账号台账" description="维护开放平台已授权公众号和小程序的租户归属、状态与同步信息。" :count-text="`${pagination.total} 条记录`" />
+        <CrudTableHeader title="授权账号列表" description="维护开放平台已授权公众号和小程序的租户归属、状态与同步信息。" :count-text="`${pagination.total} 条记录`" />
         <Table :columns="columns" :data-source="items" :loading="loading" :locale="buildCrudTableLocale('暂无授权账号')" :pagination="pagination" :scroll="tableScroll" row-key="id" @change="onTableChange">
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'authorizer_appid'">

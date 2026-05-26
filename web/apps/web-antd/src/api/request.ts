@@ -19,24 +19,45 @@ import { useAuthStore } from '#/store';
 import { coreAuthApiService, getAuthEntry, persistAuthToken } from './core';
 import { ENV_CONFIG, REQUEST_CONFIG_FINAL } from './config';
 
+const AUTH_EXPIRED_MESSAGE = '登录状态已失效，请重新登录';
+
 function createRequestClient(baseURL: string, options?: RequestClientOptions) {
   const client = new RequestClient({ ...options, baseURL });
+  let reAuthenticating: null | Promise<void> = null;
+  let reAuthenticateNotified = false;
 
   /**
    * 重新认证逻辑
    */
   async function doReAuthenticate() {
-    console.warn('Access token or refresh token is invalid or expired. ');
-    const accessStore = useAccessStore();
-    const authStore = useAuthStore();
-    accessStore.setAccessToken(null);
-    if (
-      preferences.app.loginExpiredMode === 'modal' &&
-      accessStore.isAccessChecked
-    ) {
-      accessStore.setLoginExpired(true);
-    } else {
-      await authStore.logout();
+    if (reAuthenticating) {
+      return reAuthenticating;
+    }
+
+    reAuthenticating = (async () => {
+      console.warn('Access token or refresh token is invalid or expired. ');
+      const accessStore = useAccessStore();
+      const authStore = useAuthStore();
+      accessStore.setAccessToken(null);
+      // 同一轮 Token 失效只提示一次，具体跳转/弹层仍沿用当前登录过期模式。
+      if (!reAuthenticateNotified) {
+        reAuthenticateNotified = true;
+        message.warning(AUTH_EXPIRED_MESSAGE);
+      }
+      if (
+        preferences.app.loginExpiredMode === 'modal' &&
+        accessStore.isAccessChecked
+      ) {
+        accessStore.setLoginExpired(true);
+      } else {
+        await authStore.logout();
+      }
+    })();
+
+    try {
+      await reAuthenticating;
+    } finally {
+      reAuthenticating = null;
     }
   }
 
@@ -72,6 +93,9 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
     fulfilled: async (config) => {
       const accessStore = useAccessStore();
 
+      if (accessStore.accessToken) {
+        reAuthenticateNotified = false;
+      }
       config.headers.Authorization = formatToken(accessStore.accessToken);
       config.headers['Accept-Language'] = preferences.app.locale;
       return config;
@@ -102,10 +126,13 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
   client.addResponseInterceptor(
     errorMessageResponseInterceptor((msg: string, error) => {
       const responseData = error?.response?.data ?? {};
+      const status = Number(responseData?.code ?? error?.response?.status);
       const errorMessage =
-        responseData?.info ?? responseData?.error ?? responseData?.message ?? '';
+        status === 401
+          ? AUTH_EXPIRED_MESSAGE
+          : responseData?.info ?? responseData?.error ?? responseData?.message ?? '';
 
-      // body.code=401 由 authenticateResponseInterceptor 统一处理，这里只负责展示后端错误信息
+      // 401 面向用户只展示简短登录失效文案，后端节点详情仅保留给接口响应和日志定位。
       message.error(errorMessage || msg);
     }),
   );

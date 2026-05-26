@@ -49,7 +49,7 @@
       :title="editingId ? '编辑文章' : '新增文章'"
       :body-style="{ padding: '20px 24px 8px' }"
       destroy-on-close
-      width="min(1180px, calc(100vw - 32px))"
+      :width="popupWidth.wide"
       placement="right"
       @close="closeArticleDrawer"
     >
@@ -110,6 +110,7 @@ import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 import { requestClient } from '#/api/request';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
+import { popupWidth } from '#/utils/popup';
 
 const { hasAccessByCodes } = useAccess();
 const canSave = computed(() => hasAccessByCodes(['wechat.client.article.save']));

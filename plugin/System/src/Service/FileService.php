@@ -63,6 +63,25 @@ final class FileService extends CoreService
     }
 
     /**
+     * 生成已由上层业务对象授权过的下载目标。
+     *
+     * Project 富文本附件下载先校验“当前用户能读对象 + 对象正文确实引用文件”，
+     * 因此这里仅按文件 ID 和对象租户读取未删除文件，避免再使用 System 文件管理的数据范围误伤 Project 前台账号，
+     * 同时保留 tenant_id 校验防止跨租户猜 ID 下载。
+     *
+     * @return array{type:'local',path:string,name:string}|array{type:'redirect',url:string,name:string}
+     */
+    public function getAuthorizedDownloadTarget(int $id, ?string $attname = null, ?int $tenantId = null): array
+    {
+        $file = $this->findSignedFileOrFail($id);
+        if ($tenantId !== null && (int)$file->tenant_id !== $tenantId) {
+            throw new ErrorResponseException('文件不存在或无权限下载');
+        }
+
+        return $this->buildDownloadTarget($file, $attname);
+    }
+
+    /**
      * 校验短期签名后生成下载目标。
      *
      * 签名链接本身是短期访问凭证，不能依赖登录态和数据范围上下文；校验通过后按文件 ID 直接读取未删除文件。

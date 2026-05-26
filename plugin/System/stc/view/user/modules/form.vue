@@ -9,6 +9,7 @@ import { useVbenForm } from '#/adapter/form';
 import { userApiService } from '#/api/system/user';
 
 import { useFormSchema } from '../data';
+import { popupWidth } from '#/utils/popup';
 
 const emit = defineEmits(['success']);
 const formData = ref<UserType>();
@@ -89,7 +90,7 @@ defineExpose({
     :open="visible"
     :title="getTitle"
     :body-style="{ padding: '20px 24px 8px' }"
-    width="min(760px, calc(100vw - 32px))"
+    :width="popupWidth.md"
     placement="right"
     @close="visible = false"
   >

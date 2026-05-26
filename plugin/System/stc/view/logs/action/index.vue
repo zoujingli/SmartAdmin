@@ -176,7 +176,7 @@
 
           <Card>
             <CrudTableHeader
-              title="日志台账"
+              title="日志列表"
               description="展示当前有效日志记录，可查看详情、导出、删除，并结合近实时监控定位异常请求。"
               :count-text="`${pagination.total} 条记录`"
             />
@@ -326,7 +326,7 @@
     <Modal
       :open="detailOpen"
       title="日志详情"
-      width="min(980px, calc(100vw - 32px))"
+      :width="popupWidth.xl"
       ok-text="关闭"
       @cancel="detailOpen = false"
       @ok="detailOpen = false"
@@ -431,6 +431,7 @@ import { exportCrudXlsx } from '#/utils/crud-excel';
 import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
+import { popupWidth } from '#/utils/popup';
 
 import type { LogsActionChangeField, LogsActionChangeRow, LogsActionRealtimeMetrics, LogsActionSearchForm, LogsActionRow } from './types';
 

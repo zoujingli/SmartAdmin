@@ -63,7 +63,7 @@
 
           <Card>
             <CrudTableHeader
-              title="公告台账"
+              title="公告列表"
               description="维护公告投放、发布状态和收件范围，支持新增、编辑、发布与删除。"
               :count-text="`${managePagination.total} 条记录`"
             />
@@ -209,7 +209,7 @@
       :open="modalVisible"
       :title="formState.id ? '编辑公告' : '新增公告'"
       :body-style="{ padding: '20px 24px 8px' }"
-      width="min(760px, calc(100vw - 32px))"
+      :width="popupWidth.md"
       placement="right"
       @close="modalVisible = false"
     >
@@ -280,7 +280,7 @@
     <Modal
       :open="detailVisible"
       title="公告详情"
-      width="min(860px, calc(100vw - 32px))"
+      :width="popupWidth.lg"
       ok-text="关闭"
       @cancel="detailVisible = false"
       @ok="detailVisible = false"
@@ -365,6 +365,7 @@ import type { NoticeApi } from '#/api/system/notice';
 import { userApiService } from '#/api/system/user';
 import { exportCrudXlsx, openCrudImport, parseStatus, parseStringList } from '#/utils/crud-excel';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
+import { popupWidth } from '#/utils/popup';
 import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 
@@ -457,7 +458,7 @@ const manageSummary = computed(() => ({
 }));
 const manageSummaryCards = computed(() => [
   {
-    desc: '当前公告台账中的有效公告数量。',
+    desc: '当前公告列表中的有效公告数量。',
     icon: 'i-lucide-megaphone',
     label: '公告总数',
     value: String(manageSummary.value.total),

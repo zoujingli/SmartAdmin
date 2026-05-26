@@ -43,7 +43,7 @@
       :open="modalOpen"
       :title="editingId ? '编辑回复规则' : '新增回复规则'"
       :body-style="{ padding: '20px 24px 8px' }"
-      width="min(760px, calc(100vw - 32px))"
+      :width="popupWidth.md"
       placement="right"
       @close="modalOpen = false"
     >
@@ -102,6 +102,7 @@ import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 import { requestClient } from '#/api/request';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
+import { popupWidth } from '#/utils/popup';
 
 const { hasAccessByCodes } = useAccess();
 const canSave = computed(() => hasAccessByCodes(['wechat.client.reply.save']));

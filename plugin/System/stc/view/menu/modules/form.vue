@@ -3,7 +3,7 @@
     :open="visible"
     :title="title"
     :body-style="{ padding: '20px 24px 8px' }"
-    width="min(860px, calc(100vw - 32px))"
+    :width="popupWidth.lg"
     placement="right"
     @close="handleCancel"
   >
@@ -167,6 +167,7 @@ import { menuApiService } from '#/api/system/menu';
 import type { MenuApi } from '#/api/system/menu';
 
 import type { MenuFormData, MenuType } from '../types';
+import { popupWidth } from '#/utils/popup';
 
 interface Props {
   visible: boolean;

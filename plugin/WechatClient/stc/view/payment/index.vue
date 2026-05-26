@@ -140,7 +140,7 @@
       :open="open"
       title="支付商户"
       :body-style="{ padding: '20px 24px 8px' }"
-      width="min(800px, calc(100vw - 32px))"
+      :width="popupWidth.lg"
       placement="right"
       @close="open = false"
     >
@@ -170,7 +170,7 @@
       :open="refundOpen"
       title="发起退款"
       :body-style="{ padding: '20px 24px 8px' }"
-      width="min(560px, calc(100vw - 32px))"
+      :width="popupWidth.xs"
       placement="right"
       @close="refundOpen = false"
     >
@@ -206,6 +206,7 @@ import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 import { requestClient } from '#/api/request';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
+import { popupWidth } from '#/utils/popup';
 
 type PaymentTabKey = 'merchant' | 'order' | 'refund';
 

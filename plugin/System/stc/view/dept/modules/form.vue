@@ -3,7 +3,7 @@
     :open="visible"
     :title="formData.id ? '编辑部门' : '新增部门'"
     :body-style="{ padding: '20px 24px 8px' }"
-    width="min(760px, calc(100vw - 32px))"
+    :width="popupWidth.md"
     placement="right"
     @close="handleCancel"
   >
@@ -100,6 +100,7 @@ import {
 import { deptApiService } from '#/api/system/dept';
 
 import type { DeptType } from '../types';
+import { popupWidth } from '#/utils/popup';
 
 interface Props {
   visible: boolean;

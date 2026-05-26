@@ -3,7 +3,7 @@
     :open="visible"
     :title="formData.id ? '编辑岗位' : '新增岗位'"
     :body-style="{ padding: '20px 24px 8px' }"
-    width="min(760px, calc(100vw - 32px))"
+    :width="popupWidth.md"
     placement="right"
     @close="handleCancel"
   >
@@ -54,6 +54,7 @@ import { Button, Col, Drawer, Form, FormItem, Input, InputNumber, message, Radio
 import { postApiService } from '#/api/system/post';
 
 import type { PostFormData, PostType } from '../types';
+import { popupWidth } from '#/utils/popup';
 
 interface Props {
   visible: boolean;

@@ -78,8 +78,10 @@ export function handleApiError(error: any, customMessage?: string): void {
     const responseData = error.response.data || {};
     const status = Number(responseData.code ?? error.response.status);
 
-    // 优先使用后端返回的错误信息
-    errorMessage = responseData.info || responseData.message || responseData.error || errorMessage;
+    // 401 的后端 info 可能包含鉴权节点详情，用户侧统一显示简短登录失效文案。
+    errorMessage = !customMessage && status === API_CODES.UNAUTHORIZED
+      ? ERROR_MESSAGES[API_CODES.UNAUTHORIZED]
+      : responseData.info || responseData.message || responseData.error || errorMessage;
 
     if (!errorMessage) {
       // 根据状态码设置默认错误信息

@@ -148,5 +148,10 @@
       "Composer\\Config::disableProcessTimeout",
       "sh bin/start-swoole"
     ]
+  },
+  "autoload-dev": {
+    "files": [
+      ".phpstan/ProjectModelTestStubs.php"
+    ]
   }
 }

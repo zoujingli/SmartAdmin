@@ -435,7 +435,7 @@ final class FileUploadService
     }
 
     /**
-     * 持久化上传内容并写入文件台账。
+     * 持久化上传内容并写入文件记录。
      *
      * @param array<string, mixed> $session
      * @return array<string, mixed>

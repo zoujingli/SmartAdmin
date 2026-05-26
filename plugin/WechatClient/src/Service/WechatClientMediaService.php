@@ -15,7 +15,7 @@ use System\Service\FileService;
 /**
  * 微信素材服务。
  *
- * 负责本地素材台账维护、官方永久素材同步，以及将本地文件上传到微信永久素材库。
+ * 负责本地素材记录维护、官方永久素材同步，以及将本地文件上传到微信永久素材库。
  */
 final class WechatClientMediaService extends CoreService
 {

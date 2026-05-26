@@ -55,7 +55,7 @@
 
           <Card>
             <CrudTableHeader
-              title="租户台账"
+              title="租户列表"
               description="维护租户基础信息、联系人、套餐、到期时间和启停状态。"
               :count-text="`${pagination.total} 条记录`"
             />
@@ -140,7 +140,7 @@
     <Modal
       :open="detailOpen"
       title="租户详情"
-      width="min(860px, calc(100vw - 32px))"
+      :width="popupWidth.lg"
       ok-text="关闭"
       @cancel="detailOpen = false"
       @ok="detailOpen = false"
@@ -219,6 +219,7 @@ import {
   statusText,
 } from '#/utils/crud-excel';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
+import { popupWidth } from '#/utils/popup';
 import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 
@@ -257,7 +258,7 @@ const canRecoveryTenants = computed(() => hasAccessByCodes(['system.tenant.recov
 const canRealDeleteTenants = computed(() => hasAccessByCodes(['system.tenant.real-delete']));
 const summaryCards = computed(() => [
   {
-    desc: '当前租户台账中的有效租户数量。',
+    desc: '当前租户列表中的有效租户数量。',
     icon: 'i-lucide-building-2',
     label: '租户总数',
     value: String(statistics.value.total),

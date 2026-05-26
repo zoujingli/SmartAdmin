@@ -3,7 +3,7 @@
     :open="visible"
     :title="title"
     :body-style="{ padding: '20px 24px 8px' }"
-    width="min(760px, calc(100vw - 32px))"
+    :width="popupWidth.md"
     placement="right"
     @close="handleCancel"
   >
@@ -164,6 +164,7 @@ import { roleApiService } from '#/api/system/role';
 
 import { ROLE_SCOPE_DEFAULT, ROLE_SCOPE_OPTIONS } from '../constants';
 import type { RoleFormData, RoleType } from '../types';
+import { popupWidth } from '#/utils/popup';
 
 interface Props {
   canAssignPermissions?: boolean;

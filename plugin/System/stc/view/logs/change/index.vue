@@ -70,7 +70,7 @@
 
       <Card>
         <CrudTableHeader
-          title="变更台账"
+          title="变更记录"
           description="展示业务对象级别的数据变化，一条记录对应一次操作中的一个业务对象变更。"
           :count-text="`${pagination.total} 条记录`"
         />
@@ -109,7 +109,7 @@
     <Modal
       :open="detailOpen"
       title="变更日志详情"
-      width="min(980px, calc(100vw - 32px))"
+      :width="popupWidth.xl"
       ok-text="关闭"
       @cancel="detailOpen = false"
       @ok="detailOpen = false"
@@ -211,6 +211,7 @@ import { exportCrudXlsx } from '#/utils/crud-excel';
 import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
+import { popupWidth } from '#/utils/popup';
 
 type LogsChangeRow = LogsChangeApi.LogsChangeRow;
 type LogsChangeValue = LogsChangeApi.LogsChangeValue;

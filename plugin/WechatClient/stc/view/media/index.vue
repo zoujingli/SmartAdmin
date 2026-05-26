@@ -46,7 +46,7 @@
       </Card>
 
       <Card>
-        <CrudTableHeader title="素材台账" description="维护本地素材与微信永久素材 MediaID，可用于自动回复和菜单发布。" :count-text="`${pagination.total} 条记录`" />
+        <CrudTableHeader title="素材列表" description="维护本地素材与微信永久素材 MediaID，可用于自动回复和菜单发布。" :count-text="`${pagination.total} 条记录`" />
         <Table :columns="columns" :data-source="items" :loading="loading" :locale="buildCrudTableLocale('暂无素材记录')" :pagination="pagination" row-key="id" :scroll="tableScroll" @change="onTableChange">
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'type'"><Tag color="blue">{{ typeLabel(record.media_type) }}</Tag></template>
@@ -72,7 +72,7 @@
       :open="modalOpen"
       :title="editingId ? '编辑素材' : '新增素材'"
       :body-style="{ padding: '20px 24px 8px' }"
-      width="min(720px, calc(100vw - 32px))"
+      :width="popupWidth.sm"
       placement="right"
       @close="modalOpen = false"
     >
@@ -115,6 +115,7 @@ import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 import { requestClient } from '#/api/request';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
+import { popupWidth } from '#/utils/popup';
 
 const { hasAccessByCodes } = useAccess();
 const canSave = computed(() => hasAccessByCodes(['wechat.client.media.save']));

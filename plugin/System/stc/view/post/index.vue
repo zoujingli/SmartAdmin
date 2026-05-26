@@ -55,7 +55,7 @@
 
           <Card>
             <CrudTableHeader
-              title="岗位台账"
+              title="岗位列表"
               description="维护岗位编码、状态与排序，支持新增、编辑、导出和批量删除。"
               :count-text="`${pagination.total} 条记录`"
             />
@@ -141,7 +141,7 @@
     <Modal
       :open="detailOpen"
       title="岗位详情"
-      width="min(860px, calc(100vw - 32px))"
+      :width="popupWidth.lg"
       ok-text="关闭"
       @cancel="detailOpen = false"
       @ok="detailOpen = false"
@@ -215,6 +215,7 @@ import {
   statusText,
 } from '#/utils/crud-excel';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
+import { popupWidth } from '#/utils/popup';
 import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 
@@ -246,7 +247,7 @@ const statistics = ref({
 });
 const summaryCards = computed(() => [
   {
-    desc: '当前岗位台账中的全部岗位数量。',
+    desc: '当前岗位列表中的全部岗位数量。',
     icon: 'i-lucide-briefcase-business',
     label: '岗位总数',
     value: String(statistics.value.total),
