@@ -21,7 +21,6 @@
     "ext-openssl": "*",
     "ext-pcntl": "*",
     "ext-pdo": "*",
-    "ext-pdo_mysql": "*",
     "ext-posix": "*",
     "ext-redis": "*",
     "ext-simplexml": "*",
@@ -33,15 +32,16 @@
     "ext-xmlwriter": "*",
     "ext-zip": "*",
     "ext-zlib": "*",
+    "hyperf/database-sqlite": "^3.2",
     "hyperf/filesystem": "^3.2",
     "hyperf/flysystem-oss": "^1.4",
     "overtrue/flysystem-cos": "^5.2",
-    "zoujingli/wechat-developer": "^2.0@dev",
-    "zoujingli/smart-admin-library": "^1.0",
     "zoujingli/smart-admin-builder": "^1.0",
+    "zoujingli/smart-admin-library": "^1.0",
     "zoujingli/smart-plugin-system": "^1.0",
     "zoujingli/smart-plugin-wechat-client": "^1.0",
-    "zoujingli/smart-plugin-wechat-service": "^1.0"
+    "zoujingli/smart-plugin-wechat-service": "^1.0",
+    "zoujingli/wechat-developer": "^2.0@dev"
   },
   "repositories": [
     {
@@ -66,7 +66,9 @@
   },
   "suggest": {
     "ext-pdo": "Required for MySQL Client.",
-    "ext-pdo_mysql": "Required for MySQL Client.",
+    "ext-pdo_mysql": "Required when DB_DRIVER=mysql and the bundled Swoole runtime is not used.",
+    "ext-pdo_sqlite": "Required for the default SQLite experience when the bundled Swoole runtime is not used.",
+    "ext-sqlite3": "Required for the default SQLite experience when the bundled Swoole runtime is not used.",
     "ext-json": "Required for JSON support.",
     "ext-redis": "Required for Redis Client.",
     "ext-swoole": "Recommended for coroutine support."
@@ -136,6 +138,7 @@
     "build:restore-dev": "export COMPOSER_ALLOW_SUPERUSER=1 && sh bin/runtime-composer install --optimize-autoloader --no-interaction --prefer-dist --no-progress",
     "build": "@php .php-sfx-packer.php build",
     "setup": [
+      "sh bin/prepare-sqlite",
       "sh bin/start-swoole migrate",
       "sh bin/start-swoole xadmin:menu:sync --details",
       "sh bin/start-swoole xadmin:node:sync --details"

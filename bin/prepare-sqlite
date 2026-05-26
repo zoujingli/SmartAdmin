@@ -1,0 +1,64 @@
+#!/bin/sh
+
+set -eu
+
+BASE_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+ENV_FILE="$BASE_DIR/.env"
+
+if [ ! -f "$ENV_FILE" ]; then
+  ENV_FILE="$BASE_DIR/.env.example"
+fi
+
+read_env() {
+  KEY="$1"
+  awk -v key="$KEY" '
+    /^[[:space:]]*#/ { next }
+    {
+      line = $0
+      sub(/^[[:space:]]*export[[:space:]]+/, "", line)
+      pos = index(line, "=")
+      if (pos == 0) {
+        next
+      }
+      name = substr(line, 1, pos - 1)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
+      if (name != key) {
+        next
+      }
+      value = substr(line, pos + 1)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      gsub(/^["'\'']|["'\'']$/, "", value)
+      print value
+      exit
+    }
+  ' "$ENV_FILE"
+}
+
+DB_DRIVER=$(read_env DB_DRIVER || true)
+DB_DRIVER=$(printf '%s' "${DB_DRIVER:-sqlite}" | tr '[:upper:]' '[:lower:]')
+
+if [ "$DB_DRIVER" != "sqlite" ]; then
+  exit 0
+fi
+
+DB_DATABASE=$(read_env DB_DATABASE || true)
+DB_DATABASE=${DB_DATABASE:-runtime/system.db}
+
+if [ "$DB_DATABASE" = ":memory:" ]; then
+  exit 0
+fi
+
+case "$DB_DATABASE" in
+  /*)
+    DB_PATH="$DB_DATABASE"
+    ;;
+  *)
+    DB_PATH="$BASE_DIR/$DB_DATABASE"
+    ;;
+esac
+
+# 官方 hyperf/database-sqlite 会校验数据库文件必须已存在；这里只创建空文件，不覆盖已有体验库。
+mkdir -p "$(dirname -- "$DB_PATH")"
+if [ ! -e "$DB_PATH" ]; then
+  : > "$DB_PATH"
+fi
