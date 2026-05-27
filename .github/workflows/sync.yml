@@ -25,6 +25,8 @@ env:
 
 jobs:
   sync:
+    # 该工作流会同步到公开 SmartAdmin 仓库；公开仓收到 Bot 推送时必须跳过，避免反向同步或缺少私有导出脚本导致失败。
+    if: github.repository == 'zoujingli/SmartAdminDeveloper'
     name: Export and sync public repositories
     runs-on: ubuntu-latest
     services:
