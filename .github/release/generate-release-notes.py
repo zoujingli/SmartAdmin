@@ -393,12 +393,12 @@ def upgrade_notes(repository: str, files: list[str]) -> list[str]:
 def asset_notes(repository: str, profile: RepositoryProfile) -> list[str]:
     if repository == DEVELOPER_REPO:
         return [
-            '- Developer Release：包含全量插件 ZIP、`plugins-manifest.json`、三平台 SFX 二进制、`binary-manifest.json` 与 `SHA256SUMS`。',
+            '- Developer Release：包含全量插件 ZIP（文件名后缀使用本次 Tag）、`plugins-manifest.json`、三平台 SFX 二进制、`binary-manifest.json` 与 `SHA256SUMS`。',
             '- 私有/商用插件 ZIP 只面向内部或授权交付，不作为公开 Composer 包分发。',
         ]
     if repository.endswith('/SmartAdmin'):
         return [
-            '- SmartAdmin Release：包含开源插件 ZIP、`plugins-manifest.json`、三平台 SFX 二进制、`binary-manifest.json` 与 `SHA256SUMS`。',
+            '- SmartAdmin Release：包含开源插件 ZIP（文件名后缀使用本次 Tag）、`plugins-manifest.json`、三平台 SFX 二进制、`binary-manifest.json` 与 `SHA256SUMS`。',
             '- 社区二次开发优先使用源码仓和 Composer 依赖；二进制资产用于快速体验或私有化部署验证。',
         ]
     if profile.package:
