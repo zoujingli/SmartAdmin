@@ -2,6 +2,10 @@
 
 本章帮助你从零启动 SmartAdmin。完成本章后，你应该能打开管理端、使用默认管理员登录、访问后端 API，并知道常见启动问题应该从哪里排查。
 
+## 在线演示
+
+如果只想先体验系统，可直接访问 `https://smart.thinkadmin.top`，使用默认账号 `admin / admin` 登录。演示站使用 `APP_ENV=demo`，允许查询和 Project 普通业务流程体验，但会限制关键数据修改、删除、恢复和禁用，避免公共演示数据被破坏。
+
 ## 适合谁阅读
 
 | 角色 | 目标 |
@@ -36,7 +40,7 @@ composer create-project zoujingli/smartadmin SmartAdmin
 cd SmartAdmin
 cp .env.example .env
 composer setup
-./bin/smart start
+./bin/smart.php
 
 cd web
 pnpm install
@@ -66,7 +70,7 @@ composer create-project zoujingli/smartadmin SmartAdmin
 cd SmartAdmin
 cp .env.example .env
 composer setup
-./bin/smart start
+./bin/smart.php
 cd web
 pnpm install
 pnpm dev:antd
@@ -79,6 +83,7 @@ pnpm dev:antd
 | 后端 | `http://127.0.0.1:9501` 可访问，登录接口返回标准响应 |
 | 前端 | `http://localhost:5666` 打开登录页 |
 | 登录 | `admin / admin` 可登录 |
+| 在线演示 | `https://smart.thinkadmin.top` 可使用 `admin / admin` 登录 |
 | 菜单 | 登录后能看到系统管理、用户、角色、菜单等入口 |
 | 权限 | 管理员能看到按钮，普通角色按授权展示 |
 | 文档 | `http://127.0.0.1:18100` 可打开 docsify |
@@ -88,6 +93,7 @@ pnpm dev:antd
 
 | 入口 | 地址 | 说明 |
 |------|------|------|
+| 在线演示 | `https://smart.thinkadmin.top` | 默认账号 `admin / admin`，关键写操作受 demo 模式保护 |
 | 管理端 | `http://localhost:5666` | Vite 开发服务 |
 | 后端 API | `http://127.0.0.1:9501` | Hyperf/Swoole 服务 |
 | 文档服务 | `http://127.0.0.1:18100` | 执行 `composer docs:serve` 后访问 |
@@ -98,7 +104,7 @@ pnpm dev:antd
 | 命令 | 作用 |
 |------|------|
 | `composer setup` | 执行迁移、同步菜单、同步权限节点 |
-| `composer start` | 启动后端服务 |
+| `composer start` | 开发 watch 启动后端服务（等价于 `./bin/smart.php`） |
 | `composer docs:serve` | 启动独立文档静态站 |
 | `composer docs:check` | 检查 docsify 入口、导航、侧边栏规则 |
 | `composer analyse` | 后端静态检查 |
@@ -125,4 +131,4 @@ pnpm dev:antd
 - 想上线部署：进入 [部署运维](../部署运维/README.md)
 - 想贡献代码：进入 [贡献指南](../开源协作/贡献指南.md)
 
-最后更新：2026-05-22
+最后更新：2026-05-26

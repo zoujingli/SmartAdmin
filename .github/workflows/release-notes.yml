@@ -10,6 +10,10 @@ on:
         description: 'Release tag to generate notes for'
         required: true
         type: string
+      previous_ref:
+        description: 'Optional previous commit/tag used as release notes compare base'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -44,6 +48,7 @@ jobs:
 
       - name: Generate release notes
         env:
+          PREVIOUS_REF: ${{ github.event.inputs.previous_ref || github.event.before }}
           GITHUB_TOKEN: ${{ github.token }}
         run: python .github/release/generate-release-notes.py --tag "$CURRENT_TAG" --output release-notes.md
 

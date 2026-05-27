@@ -38,7 +38,7 @@ try {
 }
 
 /**
- * 解析命令参数；保留旧格式 `source target`，方便旧 Composer 脚本和人工命令继续使用。
+ * 解析标准子命令参数。
  *
  * @return array{0: string, 1: ?string, 2: ?string}
  */
@@ -57,10 +57,6 @@ function parseSfxArguments(array $argv): array
     if ($command === 'pack') {
         return ['pack', $argv[2] ?? null, $argv[3] ?? null];
     }
-    if (isset($argv[1], $argv[2])) {
-        return ['pack', $argv[1], $argv[2]];
-    }
-
     throw new InvalidArgumentException(usageText());
 }
 
@@ -103,15 +99,15 @@ function runReleaseBuild(string $baseDir): void
 
     try {
         assertFrontendDistReady();
-        runBuildCommand('同步菜单种子', ['./bin/smart', 'xadmin:menu:sync', '--details']);
-        runBuildCommand('同步权限节点', ['./bin/smart', 'xadmin:node:sync', '--details']);
+        runBuildCommand('同步菜单种子', ['./bin/smart.php', 'xadmin:menu:sync', '--details']);
+        runBuildCommand('同步权限节点', ['./bin/smart.php', 'xadmin:node:sync', '--details']);
 
         cleanReleaseWorkspace();
         runReleaseSnapshot();
 
         $restoreDevDependencies = true;
         runBuildCommand('安装生产依赖并启用权威 classmap', [
-            './bin/smart',
+            './bin/smart.php',
             'composer',
             'install',
             '--no-dev',
@@ -123,7 +119,7 @@ function runReleaseBuild(string $baseDir): void
         ]);
 
         runBuildCommand('预热 Hyperf 扫描与 DI 缓存', [
-            './bin/smart',
+            './bin/smart.php',
             'runtime',
             '-d',
             'opcache.enable_cli=0',
@@ -136,7 +132,7 @@ function runReleaseBuild(string $baseDir): void
         runBuildPrecompile('.');
 
         runBuildCommand('生成 Phar：system.bin', [
-            './bin/smart',
+            './bin/smart.php',
             'runtime',
             '-d',
             'phar.readonly=Off',
@@ -163,7 +159,7 @@ function runReleaseBuild(string $baseDir): void
         if ($restoreDevDependencies) {
             try {
                 runBuildCommand('恢复本地开发依赖', [
-                    './bin/smart',
+                    './bin/smart.php',
                     'composer',
                     'install',
                     '--optimize-autoloader',
@@ -195,7 +191,7 @@ function runReleaseBuild(string $baseDir): void
  * 发布构建直接复用现有 web/dist，避免 composer build 隐式触发前端编译。
  *
  * 前端产物应由独立流水线或人工执行 composer web:build 生成；这里仅校验入口文件存在且非空，
- * 防止误用旧产物清理后的空目录继续打包出不可访问的发布包。
+ * 防止误用产物清理后的空目录继续打包出不可访问的发布包。
  */
 function assertFrontendDistReady(): void
 {
@@ -240,8 +236,8 @@ function runBuildCommand(string $title, array $command, bool $discardStdout = fa
  */
 function runReleaseSnapshot(): void
 {
-    runBuildCommand('生成数据库安装包', ['./bin/smart', 'xadmin:release:backup', '--install']);
-    runBuildCommand('预览安装包恢复 SQL', ['./bin/smart', 'xadmin:release:restore', '--install', '--dry-run', '--json']);
+    runBuildCommand('生成数据库安装包', ['./bin/smart.php', 'xadmin:release:backup', '--install']);
+    runBuildCommand('预览安装包恢复 SQL', ['./bin/smart.php', 'xadmin:release:restore', '--install', '--dry-run', '--json']);
 
     foreach (['database.schema.gz', 'database.data.gz', 'database.meta.json'] as $filename) {
         $source = 'storage/extra/release/' . $filename;
@@ -316,7 +312,7 @@ function runBuildPrecompile(string $baseDir): void
     removePath($runtimeDir);
     is_dir($runtimeDir) || mkdir($runtimeDir, 0755, true);
 
-    runBuildCommand('生成 Hyperf 扫描缓存', ['./bin/smart', 'list', '--no-ansi', '--no-interaction'], true, [
+    runBuildCommand('生成 Hyperf 扫描缓存', ['./bin/smart.php', 'list', '--no-ansi', '--no-interaction'], true, [
         'APP_ENV' => 'prod',
         'SCAN_CACHEABLE' => 'true',
     ]);
@@ -391,7 +387,7 @@ function packSfxTargets(string $source, string $target): void
 }
 
 /**
- * 打包脚本本身必须运行在 PHP 8.4+，避免生成低版本不兼容 classmap 或缓存。
+ * 打包脚本本身必须运行在 PHP 8.4+，避免生成低版本无法加载的 classmap 或缓存。
  */
 function assertPhp84BuildRuntime(): void
 {
@@ -455,7 +451,7 @@ PHP_CODE;
     foreach ($env as $name => $value) {
         $parts[] = $name . '=' . escapeshellarg($value);
     }
-    foreach (['./bin/smart', 'runtime', '-r', $code] as $argument) {
+    foreach (['./bin/smart.php', 'runtime', '-r', $code] as $argument) {
         $parts[] = escapeshellarg($argument);
     }
 
@@ -1050,7 +1046,7 @@ function removePath(string $path): void
 }
 
 /**
- * 读取 Composer installed.json，兼容 Composer 1/2 结构。
+ * 读取 Composer installed.json，并支持 Composer 1/2 结构。
  *
  * @return array<int, array<string, mixed>>
  */
@@ -1073,7 +1069,7 @@ function runtimeVersionValue(string $key): string
     $code = "echo json_encode(['php_version'=>PHP_VERSION,'swoole_version'=>defined('SWOOLE_VERSION') ? SWOOLE_VERSION : ''], JSON_UNESCAPED_SLASHES);";
     $output = [];
     $status = 0;
-    exec(escapeshellarg('./bin/smart') . ' ' . escapeshellarg('runtime') . ' -r ' . escapeshellarg($code), $output, $status);
+    exec(escapeshellarg('./bin/smart.php') . ' ' . escapeshellarg('runtime') . ' -r ' . escapeshellarg($code), $output, $status);
     if ($status !== 0) {
         return '';
     }

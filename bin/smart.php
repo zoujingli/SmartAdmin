@@ -2,6 +2,7 @@
 <?php
 
 declare(strict_types=1);
+
 /**
  * This file is part of SmartAdmin.
  *
@@ -9,6 +10,9 @@ declare(strict_types=1);
  * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
  * @document https://zoujingli.github.io/SmartAdmin
  */
+use Swoole\Event;
+use Swoole\Process;
+use Swoole\Timer;
 
 /**
  * SmartAdmin 统一开发入口。
@@ -40,7 +44,8 @@ final class SmartEntrypoint
     {
         $args = $this->argv;
         array_shift($args);
-        $command = $args === [] ? 'start' : (string)array_shift($args);
+        // 无参数入口面向本地开发，默认进入 watch 管理模式；生产或一次性前台启动必须显式传入 start。
+        $command = $args === [] ? 'watch' : (string)array_shift($args);
 
         return match ($command) {
             'sqlite' => $this->prepareSqlite($args),
@@ -58,7 +63,7 @@ final class SmartEntrypoint
     private function prepareSqlite(array $args): int
     {
         if ($args !== []) {
-            fwrite(STDERR, 'Usage: ./bin/smart sqlite' . PHP_EOL);
+            fwrite(STDERR, 'Usage: ./bin/smart.php sqlite' . PHP_EOL);
             return 64;
         }
 
@@ -120,7 +125,7 @@ final class SmartEntrypoint
     private function runWatch(array $args): int
     {
         if ($args !== []) {
-            fwrite(STDERR, 'Usage: ./bin/smart watch' . PHP_EOL);
+            fwrite(STDERR, 'Usage: ./bin/smart.php watch' . PHP_EOL);
             return 64;
         }
 
@@ -166,7 +171,7 @@ final class SmartEntrypoint
 
     private function selectRunner(): string
     {
-        // 运行时选择保持原 shell 入口顺序：显式环境变量优先，其次仓库内置二进制，最后才回退系统命令。
+        // 运行时选择顺序固定为显式环境变量优先，其次仓库内置二进制，最后才回退系统命令。
         $osName = php_uname('s') ?: 'unknown';
         $archName = $this->normalizeArch(php_uname('m') ?: 'unknown');
 
@@ -367,16 +372,16 @@ final class SmartWatchRunner
         $procManager->start();
         $fileWatcher->init()->watch(1000, static fn () => $procManager->restart());
 
-        \Swoole\Process::signal(SIGINT, static function () use ($procManager): void {
+        Process::signal(SIGINT, static function () use ($procManager): void {
             $procManager->stop();
-            \Swoole\Event::exit();
+            Event::exit();
         });
-        \Swoole\Process::signal(SIGTERM, static function () use ($procManager): void {
+        Process::signal(SIGTERM, static function () use ($procManager): void {
             $procManager->stop();
-            \Swoole\Event::exit();
+            Event::exit();
         });
 
-        \Swoole\Event::wait();
+        Event::wait();
         return 0;
     }
 
@@ -411,12 +416,12 @@ final class SmartWatchRunner
 /**
  * 开发 Worker 进程管理器。
  *
- * 重启前按 Hyperf 启动脚本和监听端口双重清理旧进程；若旧进程没有及时退出，会逐步升级到 SIGKILL，
+ * 重启前按 Hyperf 启动脚本和监听端口双重清理残留进程；若残留进程没有及时退出，会逐步升级到 SIGKILL，
  * 防止 watch 卡在端口占用清理阶段。
  */
 final class SmartWatchProcessManager
 {
-    private ?\Swoole\Process $serve = null;
+    private ?Process $serve = null;
 
     /**
      * @param string[] $workerStart
@@ -434,11 +439,11 @@ final class SmartWatchProcessManager
         $this->terminateProcesses();
         SmartWatchLogger::info('🔄 Starting service...' . PHP_EOL);
 
-        $this->serve = new \Swoole\Process(fn (\Swoole\Process $process) => $process->exec($this->runner, $this->workerStart), true);
+        $this->serve = new Process(fn (Process $process) => $process->exec($this->runner, $this->workerStart), true);
         if (!$this->serve->start()) {
             throw new RuntimeException('启动开发服务进程失败。');
         }
-        \Swoole\Event::add($this->serve->pipe, fn () => $this->output($this->serve?->read() ?: null));
+        Event::add($this->serve->pipe, fn () => $this->output($this->serve?->read() ?: null));
     }
 
     public function restart(): void
@@ -450,8 +455,8 @@ final class SmartWatchProcessManager
     public function stop(): void
     {
         if ($this->serve?->pid) {
-            @\Swoole\Process::kill($this->serve->pid);
-            @\Swoole\Event::del($this->serve->pipe);
+            @Process::kill($this->serve->pid);
+            @Event::del($this->serve->pipe);
             $this->serve = null;
         }
     }
@@ -462,7 +467,7 @@ final class SmartWatchProcessManager
         do {
             $pids = [];
             $signal = $attempt >= 3 ? SIGKILL : SIGTERM;
-            // 先按 Hyperf 启动脚本清理历史 Worker，再按监听端口兜底，避免上次异常退出后端口被旧进程占用。
+            // 先按 Hyperf 启动脚本清理残留 Worker，再按监听端口兜底，避免上次异常退出后端口被占用。
             $this->terminateByCommand('ps -ef | grep ' . escapeshellarg($this->worker) . " | grep -v grep | awk '{print $2}'", $pids, $signal);
             $this->terminateByCommand('lsof -i:' . (int)$this->workerPort . " | grep LISTEN | awk '{print $2}'", $pids, $signal);
             $pids = array_values(array_unique($pids));
@@ -486,8 +491,8 @@ final class SmartWatchProcessManager
         $output = [];
         @exec($command, $output);
         foreach (array_filter(array_unique($this->splitLines($output))) as $pid) {
-            if (is_numeric($pid) && @\Swoole\Process::kill((int)$pid, 0)) {
-                @\Swoole\Process::kill((int)$pid, $signal);
+            if (is_numeric($pid) && @Process::kill((int)$pid, 0)) {
+                @Process::kill((int)$pid, $signal);
                 $pids[] = (int)$pid;
             }
         }
@@ -561,7 +566,7 @@ final class SmartWatchFileWatcher
 
     public function init(): static
     {
-        $this->timerId === null || \Swoole\Timer::clear($this->timerId);
+        $this->timerId === null || Timer::clear($this->timerId);
         $this->hashes = $this->collectHashes();
         SmartWatchLogger::info('🔄 Watching ' . count($this->hashes) . ' files...' . PHP_EOL);
         return $this;
@@ -569,7 +574,7 @@ final class SmartWatchFileWatcher
 
     public function watch(int $interval, callable $onChange): void
     {
-        $this->timerId = \Swoole\Timer::tick($interval, function () use ($onChange): void {
+        $this->timerId = Timer::tick($interval, function () use ($onChange): void {
             // 每轮重新扫描文件集合，确保新增、删除和修改 PHP/.env 文件都会触发开发 Worker 重启。
             if ($this->collectHashes() !== $this->hashes) {
                 SmartWatchLogger::warning('📡 File change detected. Restarting...' . PHP_EOL);

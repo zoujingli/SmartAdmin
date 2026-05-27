@@ -25,16 +25,16 @@ jobs:
         run: composer install --no-interaction --prefer-dist --optimize-autoloader --ignore-platform-req=ext-opcache
 
       - name: Enable bundled Swoole runtime
-        run: chmod +x bin/smart bin/swoole-linux-x64
+        run: chmod +x bin/smart.php bin/swoole-linux-x64
 
       - name: Run PHPUnit
-        run: ./bin/smart runtime vendor/bin/phpunit
+        run: ./bin/smart.php runtime vendor/bin/phpunit
 
       - name: Run PHPStan
-        run: ./bin/smart runtime vendor/bin/phpstan analyse plugin config tests --level=0 --memory-limit=1G
+        run: ./bin/smart.php runtime vendor/bin/phpstan analyse plugin config tests --level=0 --memory-limit=1G
 
       - name: Hyperf command smoke test
-        run: ./bin/smart list
+        run: ./bin/smart.php list
 
   frontend:
     name: Frontend / Typecheck / Build

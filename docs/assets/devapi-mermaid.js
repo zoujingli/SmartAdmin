@@ -15,7 +15,7 @@
             return false;
         }
 
-        // 兼容标准 mermaid 代码块，也允许普通代码块直接以 flowchart LR / graph TB 开头。
+        // 支持标准 mermaid 代码块，也允许普通代码块直接以 flowchart LR / graph TB 开头。
         return /^(flowchart|graph)\s+(TB|TD|BT|RL|LR)\b/i.test(text)
             || /^(sequenceDiagram|classDiagram|stateDiagram(?:-v2)?|erDiagram|journey|gantt|pie|mindmap|timeline|gitGraph)\b/i.test(text);
     }

@@ -62,6 +62,7 @@ PREFIX_GROUPS = {
     'chore': 'chore',
     '新增': 'feat',
     '功能': 'feat',
+    '演示': 'feat',
     '修复': 'fix',
     '问题': 'fix',
     '安全': 'security',
@@ -80,6 +81,7 @@ PREFIX_GROUPS = {
     '优化': 'perf',
     '工程': 'chore',
     '维护': 'chore',
+    '配置': 'chore',
     '系统': 'feat',
     '数据': 'feat',
 }
@@ -234,8 +236,50 @@ def resolve_previous_tag(current_tag: str) -> str:
     return run_git('describe', '--tags', '--abbrev=0', '--match', 'v*', f'{current_commit}^', allow_fail=True)
 
 
-def commit_rows(current_tag: str, previous_tag: str) -> list[tuple[str, str]]:
-    revision = f'{previous_tag}..{current_tag}' if previous_tag else current_tag
+def valid_compare_ref(ref: str) -> str:
+    ref = ref.strip()
+    if not ref or re.fullmatch(r'0{7,40}', ref):
+        return ''
+    commit = run_git('rev-parse', '--verify', f'{ref}^{{commit}}', allow_fail=True)
+    return ref if commit else ''
+
+
+def resolve_previous_ref(current_tag: str, explicit_ref: str | None = None) -> str:
+    """解析 Release 对比基线。
+
+    同名 tag 被强制替换时，GitHub push 事件会给出旧 tag 的 before SHA；优先使用它，
+    避免旧版本 tag 已删除后 fallback 到“首次发布”或跨多个历史版本的噪声对比。
+    """
+    current_commit = run_git('rev-list', '-n', '1', current_tag, allow_fail=True)
+    candidates = [
+        explicit_ref or '',
+        os.environ.get('PREVIOUS_REF', ''),
+        os.environ.get('BASE_REF', ''),
+        os.environ.get('GITHUB_EVENT_BEFORE', ''),
+        os.environ.get('PREVIOUS_TAG', ''),
+        resolve_previous_tag(current_tag),
+    ]
+    for candidate in candidates:
+        valid = valid_compare_ref(candidate)
+        if not valid:
+            continue
+        candidate_commit = run_git('rev-parse', '--verify', f'{valid}^{{commit}}', allow_fail=True)
+        if candidate_commit and candidate_commit != current_commit:
+            return valid
+    return ''
+
+
+def short_ref(ref: str) -> str:
+    if not ref:
+        return ''
+    exact_tag = run_git('describe', '--tags', '--exact-match', ref, allow_fail=True)
+    if exact_tag:
+        return exact_tag
+    return run_git('rev-parse', '--short=8', ref, allow_fail=True) or ref[:8]
+
+
+def commit_rows(current_tag: str, previous_ref: str) -> list[tuple[str, str]]:
+    revision = f'{previous_ref}..{current_tag}' if previous_ref else current_tag
     rows: list[tuple[str, str]] = []
     for line in git_lines('log', '--pretty=format:%H%x01%s', revision):
         if '\x01' not in line:
@@ -245,9 +289,9 @@ def commit_rows(current_tag: str, previous_tag: str) -> list[tuple[str, str]]:
     return rows
 
 
-def changed_files(current_tag: str, previous_tag: str) -> list[str]:
-    if previous_tag:
-        return sorted(set(git_lines('diff', '--name-only', previous_tag, current_tag)))
+def changed_files(current_tag: str, previous_ref: str) -> list[str]:
+    if previous_ref:
+        return sorted(set(git_lines('diff', '--name-only', previous_ref, current_tag)))
     # 首个发布标签没有上一个 tag，用 Git 空树对比当前 tag，展示完整仓库能力覆盖。
     empty_tree = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
     return sorted(set(git_lines('diff', '--name-only', empty_tree, current_tag)))
@@ -284,6 +328,92 @@ def capability_progress(profile: RepositoryProfile, files: list[str]) -> list[st
     if other_count:
         lines.append(f'- 其他源码与配置：涉及 {other_count} 个文件。')
     return lines or [f'- 本次发布涉及 {len(files)} 个文件，主要为仓库结构或同步类调整。']
+
+
+def has_path(files: list[str], *prefixes: str) -> bool:
+    return any(path == prefix or path.startswith(prefix) for path in files for prefix in prefixes)
+
+
+def count_paths(files: list[str], *prefixes: str) -> int:
+    return len([path for path in files if any(path == prefix or path.startswith(prefix) for prefix in prefixes)])
+
+
+def version_highlights(repository: str, profile: RepositoryProfile, files: list[str], grouped: dict[str, list[str]]) -> list[str]:
+    if not files and not any(grouped.values()):
+        return ['- 本次发布主要用于刷新 Tag、Release 信息或重新上传资产，源码内容未检测到差异。']
+
+    lines: list[str] = []
+    if has_path(files, 'bin/smart.php', 'bin/smart', 'composer.json', '.php-sfx-packer.php'):
+        lines.append('- 命令入口：源码命令统一到 `bin/smart.php`，旧 `bin/smart` 不再作为维护入口，Composer、CI、插件管理和发布构建脚本同步切换。')
+    if has_path(files, '.github/release/', '.github/workflows/release', '.github/tools/release/'):
+        lines.append('- 发布自动化：Release 正文改为版本重点优先，并支持同名 Tag 替换时用旧 SHA 作为对比基线，减少重复仓库介绍和全量文件噪声。')
+    if has_path(files, 'plugin/Library/Middleware/DemoMiddleware.php', '.env.example', 'config/autoload/cache.php', 'docs/index.html'):
+        lines.append('- 演示环境：补充 `APP_ENV=demo` 关键写操作保护、默认在线演示地址和 SmartAdmin 默认缓存/应用标识。')
+
+    if repository == DEVELOPER_REPO and has_path(files, 'plugin/Project/'):
+        lines.append('- 私有生态：Project 商用插件随主仓一并校验和打包，私有 ZIP 仍只进入 Developer Release。')
+    elif repository.endswith('/SmartAdmin') and has_path(files, 'plugin/System/', 'plugin/WechatClient/', 'plugin/WechatService/'):
+        lines.append('- 开源主仓：同步公开插件源码、Web 宿主和文档，可直接用于社区安装与二次开发。')
+    elif repository.endswith('/SmartAdminLibrary') and has_path(files, 'Command/', 'Support/', 'Core', 'Service/', 'Middleware/'):
+        lines.append('- 基础库：同步 Core、命令、中间件、插件管理和发布升级支撑能力，供主项目与插件复用。')
+    elif repository.endswith('/SmartAdminBuilder') and has_path(files, 'Command.php', 'Provider.php', 'Support/', 'Ast/'):
+        lines.append('- 构建器：同步 Phar/SFX 打包、配置改写、源码加固和前端归档能力。')
+
+    for key in ('feat', 'fix', 'security', 'frontend', 'plugin', 'release'):
+        if grouped[key]:
+            label = GROUPS[key]
+            lines.append(f'- {label}：本组包含 {len(grouped[key])} 项提交，见下方精简变更明细。')
+
+    if lines:
+        return list(OrderedDict((line, None) for line in lines).keys())[:8]
+
+    matched = []
+    for label, prefixes in profile.patterns:
+        total = count_paths(files, *prefixes)
+        if total:
+            matched.append(f'- {label}：更新 {total} 个文件。')
+    return matched[:6] or [f'- 本次发布更新 {len(files)} 个文件，详见下方变更明细。']
+
+
+def upgrade_notes(repository: str, files: list[str]) -> list[str]:
+    lines: list[str] = []
+    if has_path(files, 'bin/smart.php', 'bin/smart', 'composer.json', '.php-sfx-packer.php'):
+        lines.append('- 源码命令请改用 `./bin/smart.php`；生产进程管理器必须显式执行 `./bin/smart.php start`，无参数入口只用于本地开发 watch。')
+    if has_path(files, '.github/release/', '.github/workflows/release', '.github/tools/release/'):
+        lines.append('- 维护者如需重跑同名版本 Release，可传入 `previous_ref` 或依赖 Tag push 的 before SHA 保持对比范围准确。')
+    if has_path(files, 'plugin/Library/Middleware/DemoMiddleware.php', '.env.example'):
+        lines.append('- 演示环境使用 `APP_ENV=demo`；正式环境仍应使用 `dev` 或 `prod`，避免误拦截真实写操作。')
+    if repository in {DEVELOPER_REPO, 'zoujingli/SmartAdmin'}:
+        lines.append('- 使用源码部署后，如插件前端或菜单权限变化，请重新执行依赖安装、菜单/节点同步和前端构建。')
+    if not lines:
+        lines.append('- 本版本未标记必须人工迁移的破坏性步骤；正式升级仍建议先执行现有测试、构建和 release dry-run。')
+    return lines
+
+
+def asset_notes(repository: str, profile: RepositoryProfile) -> list[str]:
+    if repository == DEVELOPER_REPO:
+        return [
+            '- Developer Release：包含全量插件 ZIP、`plugins-manifest.json`、三平台 SFX 二进制、`binary-manifest.json` 与 `SHA256SUMS`。',
+            '- 私有/商用插件 ZIP 只面向内部或授权交付，不作为公开 Composer 包分发。',
+        ]
+    if repository.endswith('/SmartAdmin'):
+        return [
+            '- SmartAdmin Release：包含开源插件 ZIP、`plugins-manifest.json`、三平台 SFX 二进制、`binary-manifest.json` 与 `SHA256SUMS`。',
+            '- 社区二次开发优先使用源码仓和 Composer 依赖；二进制资产用于快速体验或私有化部署验证。',
+        ]
+    if profile.package:
+        return [
+            f'- 本仓库作为 Composer 包 `{profile.package}` 发布，不单独上传二进制资产。',
+            '- 正式项目通过 SmartAdmin 主仓依赖解析获取该包，源码由 Developer TAG 自动导出同步。',
+        ]
+    return ['- 本仓库不作为公开安装入口，资产由上游发布流程统一维护。']
+
+
+def compact_capability_lines(profile: RepositoryProfile, files: list[str]) -> list[str]:
+    lines = capability_progress(profile, files)
+    if len(lines) <= 5:
+        return lines
+    return lines[:5] + [f'- 其他能力域：另有 {len(lines) - 5} 组变更，详见变更文件。']
 
 
 def http_json(url: str, token: str | None = None) -> Any:
@@ -396,36 +526,33 @@ def stats_lines(repository: str, profile: RepositoryProfile, current_tag: str) -
     return lines
 
 
-def build_notes(repository: str, current_tag: str, previous_tag: str) -> str:
+def build_notes(repository: str, current_tag: str, previous_ref: str) -> str:
     profile = PROFILES.get(repository, PROFILES['zoujingli/SmartAdmin'])
-    rows = commit_rows(current_tag, previous_tag)
-    files = changed_files(current_tag, previous_tag)
+    rows = commit_rows(current_tag, previous_ref)
+    files = changed_files(current_tag, previous_ref)
     grouped: dict[str, list[str]] = {key: [] for key in GROUPS}
     for sha, subject in rows:
         group, title = normalize_commit(subject)
         grouped[group].append(f'- {title} ({sha[:8]})')
 
-    compare_url = f'https://github.com/{repository}/compare/{previous_tag}...{current_tag}' if previous_tag else ''
+    previous_label = short_ref(previous_ref)
+    compare_url = f'https://github.com/{repository}/compare/{previous_ref}...{current_tag}' if previous_ref else ''
     lines: list[str] = [f'# {profile.title} {current_tag}', '']
     lines.extend([
-        '## 仓库定位',
+        '## 本版本重点',
         '',
-        f'- 仓库：`{repository}`',
-        f'- 开源属性：{profile.visibility}',
-        f'- 授权协议：{profile.license}',
-        f"- Composer 包：`{profile.package}`" if profile.package else '- Composer 包：不适用',
-        f'- 发布范围：{profile.release_scope}',
-        f'- 定位说明：{profile.positioning}',
-        '',
-        '### 代码能力基线',
     ])
-    lines.extend(f'- {item}' for item in profile.capabilities)
-    lines.extend(['', '## 代码能力进度', ''])
-    lines.extend(capability_progress(profile, files))
+    lines.extend(version_highlights(repository, profile, files, grouped))
 
-    lines.extend(['', '## 自动收集的变更记录', ''])
-    if previous_tag:
-        lines.append(f'- 对比范围：[`{previous_tag}...{current_tag}`]({compare_url})')
+    lines.extend(['', '## 升级提醒', ''])
+    lines.extend(upgrade_notes(repository, files))
+
+    lines.extend(['', '## Release 资产', ''])
+    lines.extend(asset_notes(repository, profile))
+
+    lines.extend(['', '## 精简变更明细', ''])
+    if previous_ref:
+        lines.append(f'- 对比范围：[`{previous_label}...{current_tag}`]({compare_url})')
     else:
         lines.append('- 对比范围：首次发布标签')
     lines.append(f'- 提交数量：{len(rows)}')
@@ -442,16 +569,27 @@ def build_notes(repository: str, current_tag: str, previous_tag: str) -> str:
         lines.extend(items)
         lines.append('')
 
-    lines.extend(['## 下载与使用量统计', ''])
+    lines.extend(['## 影响范围', ''])
+    lines.extend(compact_capability_lines(profile, files))
+
+    lines.extend(['', '## 下载与使用量统计', ''])
     lines.extend(stats_lines(repository, profile, current_tag))
 
     lines.extend([
         '',
-        '## 发布说明',
+        '<details>',
+        '<summary>仓库定位与生成说明</summary>',
         '',
+        f'- 仓库：`{repository}`',
+        f'- 开源属性：{profile.visibility}',
+        f'- 授权协议：{profile.license}',
+        f"- Composer 包：`{profile.package}`" if profile.package else '- Composer 包：不适用',
+        f'- 发布范围：{profile.release_scope}',
+        f'- 定位说明：{profile.positioning}',
         '- Release 信息由 GitHub Actions 在 Tag 推送后自动生成或更新。',
         '- 统计数据在 Release 生成时采集，后续下载增长会在下一次生成 Release 信息时刷新。',
-        '- 正式环境请优先使用已发布的 Composer 包；SmartAdminDeveloper 不作为安装入口，私有/商用插件仍只通过 ZIP 分发。',
+        '',
+        '</details>',
         '',
     ])
     return '\n'.join(lines)
@@ -460,13 +598,14 @@ def build_notes(repository: str, current_tag: str, previous_tag: str) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description='Generate SmartAdmin release notes.')
     parser.add_argument('--tag', default=None, help='Current release tag. Defaults to CURRENT_TAG/GITHUB_REF_NAME.')
+    parser.add_argument('--previous-ref', '--base-ref', dest='previous_ref', default=None, help='Optional compare base ref/SHA.')
     parser.add_argument('--repository', default=os.environ.get('GITHUB_REPOSITORY', 'zoujingli/SmartAdmin'))
     parser.add_argument('--output', default=None, help='Output markdown path. Defaults to log/<tag>.md.')
     args = parser.parse_args()
 
     current_tag = resolve_current_tag(args.tag)
-    previous_tag = resolve_previous_tag(current_tag)
-    notes = build_notes(args.repository, current_tag, previous_tag)
+    previous_ref = resolve_previous_ref(current_tag, args.previous_ref)
+    notes = build_notes(args.repository, current_tag, previous_ref)
     output = Path(args.output) if args.output else Path('log') / f'{current_tag}.md'
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(notes, encoding='utf-8')

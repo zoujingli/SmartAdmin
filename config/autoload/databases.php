@@ -11,21 +11,19 @@ declare(strict_types=1);
 use Hyperf\Database\Commands\Ast\ModelRewriteKeyInfoVisitor;
 use Hyperf\Database\Commands\Ast\ModelRewriteSoftDeletesVisitor;
 use Hyperf\Database\Commands\Ast\ModelRewriteTimestampsVisitor;
-use Library\Constants\System;
 
 use function Hyperf\Support\env;
 
 $driver = strtolower((string)env('DB_DRIVER', 'sqlite'));
 $isSqlite = $driver === 'sqlite';
-$database = (string)env('DB_DATABASE', $isSqlite ? 'runtime/system.db' : 'hyadmin');
-if ($isSqlite && $database !== ':memory:' && !str_starts_with($database, '/')) {
-    // SQLite 是默认免 MySQL 体验库；源码模式固定写入项目目录，Phar/SFX 模式固定写入二进制同级运行目录。
-    // 这样部署包内的只读 phar:// 路径不会被误当成数据库目录，也避免命令在不同 cwd 下创建多份数据库。
-    $basePath = System::isPharMode() && function_exists('runpath') ? runpath() : BASE_PATH;
-    $database = rtrim($basePath, '/\\') . '/' . ltrim($database, '/');
+$database = (string)env('DB_DATABASE', $isSqlite ? 'runtime/system.db' : 'smartadmin');
+$isFileSqlite = $isSqlite && $database !== ':memory:';
+
+if ($isFileSqlite && !str_starts_with($database, '/')) {
+    $database = runpath('runtime/system.db');
 }
-if ($isSqlite && $database !== ':memory:') {
-    // 二进制模式没有 bin/smart sqlite 包装器，首次执行 release install/restore 命令时按需创建空库文件。
+if ($isFileSqlite) {
+    // 二进制模式没有源码包装器，首次执行 release install/restore 时按需补齐空库文件。
     is_dir(dirname($database)) || mkdir(dirname($database), 0755, true);
     is_file($database) || touch($database);
 }
@@ -37,9 +35,9 @@ $connection = [
     'pool' => [
         'heartbeat' => -1,
         'wait_timeout' => 3.0,
-        'max_idle_time' => (float)env('DB_MAX_IDLE_TIME', 60),
-        'min_connections' => (int)env('DB_MIN_CONNECTIONS', $isSqlite ? 1 : 2),
-        'max_connections' => (int)env('DB_MAX_CONNECTIONS', $isSqlite ? 1 : 50),
+        'max_idle_time' => 60.0,
+        'min_connections' => 1,
+        'max_connections' => $isSqlite ? 1 : 10,
         'connect_timeout' => 10.0,
     ],
     'commands' => [
@@ -72,6 +70,4 @@ if (!$isSqlite) {
     ]);
 }
 
-return [
-    'default' => $connection,
-];
+return ['default' => $connection];

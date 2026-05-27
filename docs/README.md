@@ -2,7 +2,7 @@
 
 > 面向开源使用、二次开发、接口联调、插件扩展和私有化部署的文档工作台。先从这里确认阅读路径，再进入对应章节查看字段、示例、命令和风险边界。🚀
 
-最后更新：2026-05-18
+最后更新：2026-05-26
 
 ## 🧭 文档边界
 
@@ -39,7 +39,7 @@
 | 文件上传 | 统一使用 `upload/runtime`、`upload/prepare`、`upload/relay`、`upload/relay-chunk`、`upload/part-sign`、`upload/complete`、`upload/abort`。 |
 | 微信支付回调 | 只保留订单与退款标准回调：`/wechat-client/api/payment/notify/order/{merchantId}`、`/wechat-client/api/payment/notify/refund/{merchantId}`。 |
 | 微信开放平台回调 | 授权账号消息与事件必须使用 `/wechat-service/api/callback/notify/{appid}`，由标准 URL 中的 AppID 确认消息归属。 |
-| 前端菜单 | 后台动态路由读取 `/system/menu/user`，按钮权限读取 `/system/menu/permissions`；不再使用额外兼容菜单入口。 |
+| 前端菜单 | 后台动态路由统一读取 `/system/menu/user`，按钮权限统一读取 `/system/menu/permissions`。 |
 | 发布升级 | 生产安装/升级使用 release 安装包，`xadmin:release:restore --install --dry-run` 先输出 SQL 和必要数据恢复计划。 |
 
 ## 🧩 章节索引
@@ -79,7 +79,7 @@ composer create-project zoujingli/smartadmin SmartAdmin
 cd SmartAdmin
 cp .env.example .env
 composer setup
-./bin/smart start
+./bin/smart.php
 cd web && pnpm install && pnpm dev:antd
 ```
 
@@ -89,10 +89,13 @@ cd web && pnpm install && pnpm dev:antd
 
 | 入口 | 地址或账号 |
 |---|---|
+| 在线演示 | `https://smart.thinkadmin.top` |
 | 前端 | `http://localhost:5666` |
 | 后端 | `http://127.0.0.1:9501` |
 | 文档 | `composer docs:serve` 后访问 `http://127.0.0.1:18100` |
 | 默认账号 | `admin/admin` |
+
+在线演示默认账号和密码均为 `admin`。演示站按 `APP_ENV=demo` 启用关键写操作保护，可体验查询和 Project 普通业务流程；系统基础资料、账号权限、全局配置、微信配置、删除、恢复和禁用类操作会被拦截。
 
 完整启动说明见 [本地启动](快速开始/本地启动.md)。
 

@@ -19,7 +19,7 @@ use function Hyperf\Support\env;
 
 $cacheStore = CacheDriverResolver::effectiveStoreKey();
 
-$cachePrefix = rtrim((string)(getenv('CACHE_PREFIX') ?: ($_ENV['CACHE_PREFIX'] ?? $_SERVER['CACHE_PREFIX'] ?? env('CACHE_PREFIX', 'hyadmin'))), ':') . ':';
+$cachePrefix = rtrim((string)(getenv('CACHE_PREFIX') ?: ($_ENV['CACHE_PREFIX'] ?? $_SERVER['CACHE_PREFIX'] ?? env('CACHE_PREFIX', 'smartadmin'))), ':') . ':';
 
 $fileCacheDirectory = runpath('runtime/cache');
 if (!is_dir($fileCacheDirectory) && !@mkdir($fileCacheDirectory, 0755, true) && !is_dir($fileCacheDirectory)) {

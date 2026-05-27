@@ -262,8 +262,10 @@ PHP_CODE;
         self::assertFileDoesNotExist($root . '/bin/build-precompile');
         self::assertSame('@php .php-sfx-packer.php build', $composer['scripts']['build']);
         self::assertSame('rm -rf system.bin build runtime/container storage/extra/release', $composer['scripts']['build:clean']);
-        self::assertSame('./bin/smart xadmin:release:backup --install', $composer['scripts']['release:backup']);
-        self::assertSame('./bin/smart xadmin:release:restore --install --dry-run --json', $composer['scripts']['release:restore:dry-run']);
+        self::assertSame('./bin/smart.php xadmin:release:backup --install', $composer['scripts']['release:backup']);
+        self::assertSame('./bin/smart.php xadmin:release:restore --install --dry-run --json', $composer['scripts']['release:restore:dry-run']);
+        self::assertSame(['Composer\\Config::disableProcessTimeout', './bin/smart.php'], $composer['scripts']['watch']);
+        self::assertSame(['Composer\\Config::disableProcessTimeout', './bin/smart.php'], $composer['scripts']['start']);
         self::assertArrayNotHasKey('release:upgrade:dry-run', $composer['scripts']);
     }
 

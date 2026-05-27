@@ -43,7 +43,7 @@ jobs:
         run: pnpm -F @vben/web-antd run build
 
       - name: Enable bundled Swoole runtime
-        run: chmod +x bin/smart bin/swoole-linux-x64
+        run: chmod +x bin/smart.php bin/swoole-linux-x64
 
       - name: Hyperf command smoke test
-        run: ./bin/smart list
+        run: ./bin/smart.php list

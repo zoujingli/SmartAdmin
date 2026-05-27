@@ -68,8 +68,8 @@ composer analyse
 composer test
 composer web:build
 composer release:check
-./bin/smart xadmin:menu:sync --dry-run --json
-./bin/smart xadmin:node:sync --dry-run --json
+./bin/smart.php xadmin:menu:sync --dry-run --json
+./bin/smart.php xadmin:node:sync --dry-run --json
 ```
 
 ## 不要这样做
