@@ -1,0 +1,172 @@
+name: SmartAdmin Sync
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smartadmin-sync-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TARGET_BRANCH: master
+  SMART_ADMIN_REPO: zoujingli/SmartAdmin
+  SMART_ADMIN_LIBRARY_REPO: zoujingli/SmartAdminLibrary
+  SMART_ADMIN_BUILDER_REPO: zoujingli/SmartAdminBuilder
+  SMARTADMIN_RELEASE_DB_HOST: 127.0.0.1
+  SMARTADMIN_RELEASE_DB_PORT: 3306
+  SMARTADMIN_RELEASE_DB_USERNAME: root
+  SMARTADMIN_RELEASE_DB_PASSWORD: root
+
+jobs:
+  sync:
+    name: Export and sync public repositories
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout SmartAdminDeveloper
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve sync version
+        id: version
+        shell: bash
+        run: |
+          VERSION="$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)"
+          if [[ -z "$VERSION" ]]; then
+            VERSION="v1.0.0"
+          fi
+          echo "name=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "composer_version=${VERSION#v}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo, pdo_mysql, redis, zlib, bcmath, openssl, zip, opcache
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Enable pnpm
+        run: |
+          npm install -g pnpm@10.28.2
+          pnpm --version
+
+      - name: Export SmartAdminLibrary
+        run: .github/tools/release/export-library.sh "$PWD" "$RUNNER_TEMP/SmartAdminLibrary" "${{ steps.version.outputs.name }}"
+
+      - name: Validate SmartAdminLibrary export
+        working-directory: ${{ runner.temp }}/SmartAdminLibrary
+        run: |
+          composer validate --strict
+          composer install --no-interaction --prefer-dist --optimize-autoloader
+          chmod +x "$GITHUB_WORKSPACE/bin/smart.php" "$GITHUB_WORKSPACE/bin/swoole-linux-x64"
+          "$GITHUB_WORKSPACE/bin/smart.php" runtime vendor/bin/phpunit
+          "$GITHUB_WORKSPACE/bin/smart.php" runtime vendor/bin/phpstan analyse --memory-limit=1G
+
+      - name: Sync SmartAdminLibrary repository
+        id: sync_library
+        env:
+          GH_TOKEN: ${{ secrets.SMART_ADMIN_RELEASE_TOKEN }}
+        run: |
+          gh repo view "$SMART_ADMIN_LIBRARY_REPO" >/dev/null 2>&1 || gh repo create "$SMART_ADMIN_LIBRARY_REPO" --public --description 'SmartAdmin base library package'
+          .github/tools/release/sync-target-repo.sh \
+            "$SMART_ADMIN_LIBRARY_REPO" \
+            "$RUNNER_TEMP/SmartAdminLibrary" \
+            "" \
+            "同步: 更新 SmartAdminLibrary ${{ steps.version.outputs.short_sha }}"
+
+      - name: Export SmartAdminBuilder
+        run: .github/tools/release/export-builder.sh "$PWD" "$RUNNER_TEMP/SmartAdminBuilder" "${{ steps.version.outputs.name }}"
+
+      - name: Validate SmartAdminBuilder export
+        working-directory: ${{ runner.temp }}/SmartAdminBuilder
+        run: |
+          composer validate --strict
+          composer install --no-interaction --prefer-dist --optimize-autoloader
+          vendor/bin/phpunit
+          vendor/bin/phpstan analyse --memory-limit=1G
+
+      - name: Sync SmartAdminBuilder repository
+        id: sync_builder
+        env:
+          GH_TOKEN: ${{ secrets.SMART_ADMIN_RELEASE_TOKEN }}
+        run: |
+          gh repo view "$SMART_ADMIN_BUILDER_REPO" >/dev/null 2>&1 || gh repo create "$SMART_ADMIN_BUILDER_REPO" --public --description 'SmartAdmin Phar/SFX builder package'
+          .github/tools/release/sync-target-repo.sh \
+            "$SMART_ADMIN_BUILDER_REPO" \
+            "$RUNNER_TEMP/SmartAdminBuilder" \
+            "" \
+            "同步: 更新 SmartAdminBuilder ${{ steps.version.outputs.short_sha }}"
+
+      - name: Prepare package exports for SmartAdmin validation
+        run: |
+          # Library/Builder 已单独校验；根项目只需要源码包，避免嵌套 vendor 被 DI 扫描。
+          rm -rf "$RUNNER_TEMP/SmartAdminLibrary/vendor" "$RUNNER_TEMP/SmartAdminBuilder/vendor"
+
+      - name: Export SmartAdmin
+        run: .github/tools/release/export-smart-admin.sh "$PWD" "$RUNNER_TEMP/SmartAdmin" "${{ steps.version.outputs.name }}"
+
+      - name: Validate SmartAdmin export
+        working-directory: ${{ runner.temp }}/SmartAdmin
+        env:
+          SYNC_COMPOSER_VERSION: ${{ steps.version.outputs.composer_version }}
+        run: |
+          composer config --global repositories.smart-admin-library "{\"type\":\"path\",\"url\":\"$RUNNER_TEMP/SmartAdminLibrary\",\"options\":{\"versions\":{\"zoujingli/smart-admin-library\":\"$SYNC_COMPOSER_VERSION\"}}}"
+          composer config --global repositories.smart-admin-builder "{\"type\":\"path\",\"url\":\"$RUNNER_TEMP/SmartAdminBuilder\",\"options\":{\"versions\":{\"zoujingli/smart-admin-builder\":\"$SYNC_COMPOSER_VERSION\"}}}"
+          composer validate --strict
+          composer install --dry-run --no-interaction --prefer-dist --ignore-platform-req=ext-opcache
+          composer install --no-interaction --prefer-dist --optimize-autoloader --ignore-platform-req=ext-opcache
+          composer test
+          composer analyse
+          (cd web && pnpm install --frozen-lockfile)
+          composer web:build
+          composer docs:check
+
+      - name: Sync SmartAdmin repository
+        id: sync_smart_admin
+        env:
+          GH_TOKEN: ${{ secrets.SMART_ADMIN_RELEASE_TOKEN }}
+        run: |
+          gh repo view "$SMART_ADMIN_REPO" >/dev/null 2>&1 || gh repo create "$SMART_ADMIN_REPO" --public --description 'SmartAdmin open-source administration framework'
+          .github/tools/release/sync-target-repo.sh \
+            "$SMART_ADMIN_REPO" \
+            "$RUNNER_TEMP/SmartAdmin" \
+            "" \
+            "同步: 更新 SmartAdmin ${{ steps.version.outputs.short_sha }}"
+
+      - name: Sync summary
+        run: |
+          cat <<SUMMARY >> "$GITHUB_STEP_SUMMARY"
+          ## SmartAdmin code sync ${{ steps.version.outputs.short_sha }}
+
+          - SmartAdminLibrary changed: ${{ steps.sync_library.outputs.changed }}
+          - SmartAdminBuilder changed: ${{ steps.sync_builder.outputs.changed }}
+          - SmartAdmin changed: ${{ steps.sync_smart_admin.outputs.changed }}
+          - Version constraint baseline: ${{ steps.version.outputs.name }}
+          - Tag publishing is intentionally skipped in this workflow. Push a `v*` tag to run the release workflow.
+          SUMMARY
