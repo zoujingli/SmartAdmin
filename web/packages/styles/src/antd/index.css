@@ -89,6 +89,13 @@
   padding: var(--app-crud-shell-padding);
 }
 
+.crud-page-shell > .ant-card-body::before,
+.crud-page-shell > .ant-card-body::after {
+  /* Ant Card 默认 clearfix 伪元素在 flex 布局下会参与排版，导致所有 CRUD 页面首尾多出一个 gap。 */
+  display: none !important;
+  content: none !important;
+}
+
 .crud-page-shell > .ant-card-body > .mb-5 {
   /* 兼容历史页面仍使用 mb-5 的写法，实际间距统一交给父级 gap，避免不同来源间距叠加。 */
   margin-bottom: 0 !important;
@@ -112,6 +119,17 @@
 .crud-page-shell .ant-table-wrapper .ant-table-body > table,
 .crud-page-shell .ant-table-wrapper .ant-table-content > table {
   min-width: max(100%, var(--app-list-table-min-width));
+}
+
+.crud-page-shell .ant-table-cell-fix-right-first,
+.crud-page-shell .ant-table-cell-fix-right-last {
+  /* 暗色主题下 Ant Table 固定列默认投影过亮，会在操作列左侧形成明显竖条；改用边线区分固定列边界。 */
+  border-left: 1px solid var(--ant-colorBorderSecondary, hsl(var(--border)));
+}
+
+.crud-page-shell .ant-table-cell-fix-right-first::after,
+.crud-page-shell .ant-table-cell-fix-right-last::after {
+  box-shadow: none !important;
 }
 
 @media (max-width: 768px) {

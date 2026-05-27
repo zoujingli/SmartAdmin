@@ -72,8 +72,12 @@ export function sanitizeReferenceHtml(value: string) {
 
 export function renderReferenceHtml(value: string) {
   const html = sanitizeReferenceHtml(value);
-  if (typeof document === 'undefined' || typeof NodeFilter === 'undefined') {
+  if (typeof document === 'undefined') {
     return html;
+  }
+  if (typeof document.createElement !== 'function' || typeof document.createTreeWalker !== 'function' || typeof NodeFilter === 'undefined') {
+    // 部分嵌入式 WebView 不暴露 createTreeWalker/NodeFilter，但详情抽屉仍需要把 #P/#S 等引用渲染成可点击节点。
+    return renderReferenceHtmlWithoutDomWalker(html);
   }
 
   const template = document.createElement('template');
@@ -119,6 +123,64 @@ export function renderReferenceHtml(value: string) {
   }
 
   return template.innerHTML;
+}
+
+function renderReferenceHtmlWithoutDomWalker(html: string) {
+  const parts = String(html || '').split(/(<[^>]+>)/gu);
+  const result: string[] = [];
+  const skipStack: string[] = [];
+
+  for (const part of parts) {
+    if (!part) continue;
+    if (part.startsWith('<') && part.endsWith('>')) {
+      const closeTag = part.match(/^<\s*\/\s*([a-z0-9-]+)/iu)?.[1]?.toLowerCase();
+      const openTag = part.match(/^<\s*([a-z0-9-]+)/iu)?.[1]?.toLowerCase();
+      result.push(part);
+      if (closeTag && skipStack[skipStack.length - 1] === closeTag) {
+        skipStack.pop();
+      } else if (openTag && ['code', 'pre', 'script', 'style', 'textarea'].includes(openTag) && !/\/\s*>$/u.test(part)) {
+        skipStack.push(openTag);
+      }
+      continue;
+    }
+
+    result.push(skipStack.length > 0 ? part : renderReferencePlainTextHtml(part));
+  }
+
+  return result.join('');
+}
+
+function renderReferencePlainTextHtml(text: string) {
+  return parseReferenceSegments(text).map((segment) => {
+    if (segment.type === 'text') return segment.text;
+
+    const reference = segment.reference;
+    const attributes = [
+      'data-reference-token="1"',
+      `data-reference-prefix="${escapeHtmlAttribute(reference.prefix)}"`,
+      `data-reference-code="${escapeHtmlAttribute(reference.code)}"`,
+      `data-reference-id="${escapeHtmlAttribute(String(reference.id))}"`,
+      `data-reference-raw="${escapeHtmlAttribute(reference.raw)}"`,
+    ];
+    if (reference.label) {
+      attributes.push(`data-reference-label="${escapeHtmlAttribute(reference.label)}"`);
+    }
+
+    return `<span class="reference-token" role="button" tabindex="0" ${attributes.join(' ')}>${escapeHtmlText(referenceClickableText(reference))}</span>${escapeHtmlText(referenceTrailingText(reference))}`;
+  }).join('');
+}
+
+function escapeHtmlText(value: string) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function escapeHtmlAttribute(value: string) {
+  return escapeHtmlText(value)
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 export function referenceFromDataset(element: HTMLElement): ReferenceItem | null {

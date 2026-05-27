@@ -9,14 +9,19 @@
           <span class="reference-detail-id">ID {{ detail.id }}</span>
         </div>
         <h3 class="reference-detail-title">{{ detailTitle }}</h3>
-        <p
-          v-if="detail.subtitle"
-          class="reference-detail-subtitle"
-          v-html="renderInlineText(detail.subtitle)"
-          @click="handleRichReference"
-          @keydown.enter="handleRichReference"
-          @keydown.space="handleRichReference"
-        ></p>
+        <p v-if="detail.subtitle" class="reference-detail-subtitle">
+          <template v-for="(segment, index) in inlineReferenceSegments(detail.subtitle)" :key="inlineSegmentKey(segment, index)">
+            <span v-if="segment.type === 'text'">{{ segment.text }}</span>
+            <button
+              v-else
+              class="reference-token reference-detail-inline-token"
+              type="button"
+              :title="describe(segment.reference)"
+              @click.stop.prevent="openInlineReference(segment.reference)"
+            >{{ referenceClickableText(segment.reference) }}</button>
+            <span v-if="segment.type === 'reference'">{{ referenceTrailingText(segment.reference) }}</span>
+          </template>
+        </p>
         <div v-if="detail.tags?.length" class="reference-detail-tags">
           <Tag v-for="tag in detail.tags" :key="`${tag.label}-${tag.color || ''}`" :color="tag.color">{{ tag.label }}</Tag>
         </div>
@@ -47,22 +52,52 @@
         <Descriptions :column="2" bordered size="small" class="reference-detail-fields">
           <DescriptionsItem v-for="field in detail.fields" :key="field.label">
             <template #label>
-              <span
-                class="reference-detail-field-label-text"
-                v-html="renderInlineText(field.label)"
-                @click="handleRichReference"
-                @keydown.enter="handleRichReference"
-                @keydown.space="handleRichReference"
-              ></span>
+              <span class="reference-detail-field-label-text">
+                <template v-for="(segment, index) in inlineReferenceSegments(field.label)" :key="inlineSegmentKey(segment, index)">
+                  <span v-if="segment.type === 'text'">{{ segment.text }}</span>
+                  <button
+                    v-else
+                    class="reference-token reference-detail-inline-token"
+                    type="button"
+                    :title="describe(segment.reference)"
+                    @click.stop.prevent="openInlineReference(segment.reference)"
+                  >{{ referenceClickableText(segment.reference) }}</button>
+                  <span v-if="segment.type === 'reference'">{{ referenceTrailingText(segment.reference) }}</span>
+                </template>
+              </span>
             </template>
-            <span class="reference-detail-inline-text" v-html="renderInlineText(field.value)" @click="handleRichReference" @keydown.enter="handleRichReference" @keydown.space="handleRichReference"></span>
+            <span class="reference-detail-inline-text">
+              <template v-for="(segment, index) in inlineReferenceSegments(field.value)" :key="inlineSegmentKey(segment, index)">
+                <span v-if="segment.type === 'text'">{{ segment.text }}</span>
+                <button
+                  v-else
+                  class="reference-token reference-detail-inline-token"
+                  type="button"
+                  :title="describe(segment.reference)"
+                  @click.stop.prevent="openInlineReference(segment.reference)"
+                >{{ referenceClickableText(segment.reference) }}</button>
+                <span v-if="segment.type === 'reference'">{{ referenceTrailingText(segment.reference) }}</span>
+              </template>
+            </span>
           </DescriptionsItem>
         </Descriptions>
       </section>
 
       <section v-if="!detail.sections?.length && detail.description" class="reference-detail-section">
         <div class="reference-detail-section-title">完整内容</div>
-        <p class="reference-detail-description">{{ detail.description }}</p>
+        <p class="reference-detail-description">
+          <template v-for="(segment, index) in inlineReferenceSegments(detail.description)" :key="inlineSegmentKey(segment, index)">
+            <span v-if="segment.type === 'text'">{{ segment.text }}</span>
+            <button
+              v-else
+              class="reference-token reference-detail-inline-token"
+              type="button"
+              :title="describe(segment.reference)"
+              @click.stop.prevent="openInlineReference(segment.reference)"
+            >{{ referenceClickableText(segment.reference) }}</button>
+            <span v-if="segment.type === 'reference'">{{ referenceTrailingText(segment.reference) }}</span>
+          </template>
+        </p>
       </section>
 
       <section v-for="section in detail.sections || []" :key="section.title" class="reference-detail-section reference-detail-card">
@@ -75,30 +110,51 @@
           @keydown.enter="handleRichReference"
           @keydown.space="handleRichReference"
         ></div>
-        <p
-          v-else-if="section.content"
-          class="reference-detail-description"
-          v-html="renderInlineText(section.content)"
-          @click="handleRichReference"
-          @keydown.enter="handleRichReference"
-          @keydown.space="handleRichReference"
-        ></p>
+        <p v-else-if="section.content" class="reference-detail-description">
+          <template v-for="(segment, index) in inlineReferenceSegments(section.content)" :key="inlineSegmentKey(segment, index)">
+            <span v-if="segment.type === 'text'">{{ segment.text }}</span>
+            <button
+              v-else
+              class="reference-token reference-detail-inline-token"
+              type="button"
+              :title="describe(segment.reference)"
+              @click.stop.prevent="openInlineReference(segment.reference)"
+            >{{ referenceClickableText(segment.reference) }}</button>
+            <span v-if="segment.type === 'reference'">{{ referenceTrailingText(segment.reference) }}</span>
+          </template>
+        </p>
         <div v-if="section.fields?.length" class="reference-detail-field-list">
           <div v-for="field in section.fields" :key="`${section.title}-${field.label}`" class="reference-detail-field-row">
             <span
               class="reference-detail-field-label"
-              v-html="renderInlineText(field.label)"
-              @click="handleRichReference"
-              @keydown.enter="handleRichReference"
-              @keydown.space="handleRichReference"
-            ></span>
+            >
+              <template v-for="(segment, index) in inlineReferenceSegments(field.label)" :key="inlineSegmentKey(segment, index)">
+                <span v-if="segment.type === 'text'">{{ segment.text }}</span>
+                <button
+                  v-else
+                  class="reference-token reference-detail-inline-token"
+                  type="button"
+                  :title="describe(segment.reference)"
+                  @click.stop.prevent="openInlineReference(segment.reference)"
+                >{{ referenceClickableText(segment.reference) }}</button>
+                <span v-if="segment.type === 'reference'">{{ referenceTrailingText(segment.reference) }}</span>
+              </template>
+            </span>
             <span
               class="reference-detail-field-value"
-              v-html="renderInlineText(field.value)"
-              @click="handleRichReference"
-              @keydown.enter="handleRichReference"
-              @keydown.space="handleRichReference"
-            ></span>
+            >
+              <template v-for="(segment, index) in inlineReferenceSegments(field.value)" :key="inlineSegmentKey(segment, index)">
+                <span v-if="segment.type === 'text'">{{ segment.text }}</span>
+                <button
+                  v-else
+                  class="reference-token reference-detail-inline-token"
+                  type="button"
+                  :title="describe(segment.reference)"
+                  @click.stop.prevent="openInlineReference(segment.reference)"
+                >{{ referenceClickableText(segment.reference) }}</button>
+                <span v-if="segment.type === 'reference'">{{ referenceTrailingText(segment.reference) }}</span>
+              </template>
+            </span>
           </div>
         </div>
       </section>
@@ -108,13 +164,13 @@
 </template>
 
 <script setup lang="ts">
-import type { ReferenceChainItem, ReferenceDetail, ReferenceItem, ReferencePrefix } from './types';
+import type { ReferenceChainItem, ReferenceDetail, ReferenceItem, ReferencePrefix, ReferenceSegment } from './types';
 
 import { computed, ref, watch } from 'vue';
 import { Alert, Descriptions, DescriptionsItem, Drawer, Spin, Tag } from 'ant-design-vue';
 
 import { getReferenceProvider } from './registry';
-import { referenceDisplayText, referenceFromDataset, renderReferenceHtml } from './reference-utils';
+import { parseReferenceSegments, referenceClickableText, referenceDisplayText, referenceFromDataset, referenceTrailingText, renderReferenceHtml } from './reference-utils';
 
 const props = withDefaults(defineProps<{
   open?: boolean;
@@ -131,9 +187,11 @@ const emit = defineEmits<{
 }>();
 
 const typeReferenceMap: Record<string, { code: string; prefix: ReferencePrefix }> = {
+  bug: { code: 'b', prefix: '#' },
   feature: { code: 'f', prefix: '#' },
   module: { code: 'f', prefix: '#' },
   product: { code: 'p', prefix: '#' },
+  subtask: { code: 'st', prefix: '#' },
   task: { code: 's', prefix: '#' },
   test: { code: 't', prefix: '#' },
   user: { code: 'u', prefix: '@' },
@@ -150,6 +208,10 @@ const drawerTitle = computed(() => displayReference.value ? `数据引用 ${disp
 
 function close() {
   emit('update:open', false);
+}
+
+function describe(reference: ReferenceItem) {
+  return getReferenceProvider(props.providerKey)?.describe?.(reference) || `查看 ${reference.raw}`;
 }
 
 function displayValue(value: unknown) {
@@ -196,8 +258,9 @@ function renderSectionHtml(value: string) {
   return renderReferenceHtml(value);
 }
 
-function renderInlineText(value: unknown) {
-  return renderReferenceHtml(escapeHtml(displayValue(value)));
+function inlineReferenceSegments(value: unknown) {
+  // 详情抽屉的标题、字段和纯文本内容直接由 Vue 生成引用节点，避免部分 WebView 缺少 DOM Walker 时退化成不可点击文本。
+  return parseReferenceSegments(displayValue(value));
 }
 
 function chainItemReference(item: ReferenceChainItem): null | ReferenceItem {
@@ -240,6 +303,14 @@ function openChainItem(item: ReferenceChainItem) {
   activeReference.value = reference;
 }
 
+function inlineSegmentKey(segment: ReferenceSegment, index: number) {
+  return segment.type === 'reference' ? `ref-${segment.reference.prefix}-${segment.reference.code}-${segment.reference.id}-${index}` : `text-${index}-${segment.text.length}`;
+}
+
+function openInlineReference(reference: ReferenceItem) {
+  activeReference.value = reference;
+}
+
 function handleRichReference(event: MouseEvent | KeyboardEvent) {
   const target = event.target instanceof HTMLElement ? event.target.closest<HTMLElement>('[data-reference-token="1"]') : null;
   if (!target) return;
@@ -248,15 +319,6 @@ function handleRichReference(event: MouseEvent | KeyboardEvent) {
   event.preventDefault();
   event.stopPropagation();
   activeReference.value = reference;
-}
-
-function escapeHtml(value: string) {
-  return String(value || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 watch(() => props.reference, (reference) => {
@@ -300,6 +362,7 @@ watch(() => [props.open, activeReference.value?.raw, activeReference.value?.id, 
 .reference-detail-description { margin: 0; color: var(--ant-colorText, hsl(var(--foreground))); line-height: 1.8; white-space: pre-wrap; word-break: break-word; }
 .reference-detail-rich-content { color: var(--ant-colorText, hsl(var(--foreground))); line-height: 1.75; overflow-wrap: anywhere; }
 .reference-detail-rich-content :deep(.reference-token) { display: inline; max-width: 100%; padding: 0; margin: 0; border: 0; background: transparent; color: var(--ant-colorPrimary, hsl(var(--primary))); font: inherit; line-height: inherit; vertical-align: baseline; cursor: pointer; }
+.reference-detail-inline-token { display: inline; max-width: 100%; padding: 0; margin: 0; border: 0; appearance: none; background: transparent; color: var(--ant-colorPrimary, hsl(var(--primary))); font: inherit; line-height: inherit; vertical-align: baseline; cursor: pointer; }
 .reference-detail-inline-text :deep(.reference-token),
 .reference-detail-description :deep(.reference-token),
 .reference-detail-subtitle :deep(.reference-token),
@@ -319,7 +382,9 @@ watch(() => [props.open, activeReference.value?.raw, activeReference.value?.id, 
 .reference-detail-field-label-text :deep(.reference-token:hover),
 .reference-detail-field-label-text :deep(.reference-token:focus-visible),
 .reference-detail-field-value :deep(.reference-token:hover),
-.reference-detail-field-value :deep(.reference-token:focus-visible) { color: var(--ant-colorPrimaryHover, var(--ant-colorPrimary, hsl(var(--primary)))); text-decoration: underline; text-underline-offset: 2px; }
+.reference-detail-field-value :deep(.reference-token:focus-visible),
+.reference-detail-inline-token:hover,
+.reference-detail-inline-token:focus-visible { color: var(--ant-colorPrimaryHover, var(--ant-colorPrimary, hsl(var(--primary)))); text-decoration: underline; text-underline-offset: 2px; }
 .reference-detail-rich-content :deep(p) { margin: 0 0 0.75em; }
 .reference-detail-rich-content :deep(p:last-child) { margin-bottom: 0; }
 .reference-detail-rich-content :deep(img) { max-width: 100%; height: auto; border-radius: 10px; }

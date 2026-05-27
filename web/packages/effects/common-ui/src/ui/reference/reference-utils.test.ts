@@ -75,6 +75,22 @@ describe('reference-utils', () => {
     expect(html).not.toContain('@u12[邹景立]');
   });
 
+  it('renders references when dom walker is unavailable', () => {
+    const originalCreateTreeWalker = document.createTreeWalker;
+    Object.defineProperty(document, 'createTreeWalker', { configurable: true, value: undefined });
+
+    try {
+      const html = renderReferenceHtml('<p>#p3[智慧厨房] / #v4[1.0]</p><code>#s2</code>');
+
+      expect(html).toContain('data-reference-code="p"');
+      expect(html).toContain('data-reference-code="v"');
+      expect(html).toContain('>#P3</span> 智慧厨房');
+      expect(html).toContain('<code>#s2</code>');
+    } finally {
+      Object.defineProperty(document, 'createTreeWalker', { configurable: true, value: originalCreateTreeWalker });
+    }
+  });
+
   it('keeps user display lowercase while project display is uppercase', () => {
     const segment = parseReferenceSegments('@u12 处理 #m6')[0];
     if (segment.type !== 'reference') throw new Error('reference expected');
