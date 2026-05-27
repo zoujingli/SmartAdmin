@@ -15,6 +15,7 @@ concurrency:
 
 env:
   TARGET_BRANCH: master
+  SYNC_SOURCE_BEFORE: ${{ github.event.before }}
   SMART_ADMIN_REPO: zoujingli/SmartAdmin
   SMART_ADMIN_LIBRARY_REPO: zoujingli/SmartAdminLibrary
   SMART_ADMIN_BUILDER_REPO: zoujingli/SmartAdminBuilder
@@ -59,6 +60,11 @@ jobs:
           echo "name=$VERSION" >> "$GITHUB_OUTPUT"
           echo "composer_version=${VERSION#v}" >> "$GITHUB_OUTPUT"
           echo "short_sha=${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+          {
+            echo 'source_subject<<SUBJECT'
+            git log -1 --pretty=%s
+            echo 'SUBJECT'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -94,13 +100,14 @@ jobs:
         id: sync_library
         env:
           GH_TOKEN: ${{ secrets.SMART_ADMIN_RELEASE_TOKEN }}
+          SYNC_SOURCE_SUBJECT: ${{ steps.version.outputs.source_subject }}
         run: |
           gh repo view "$SMART_ADMIN_LIBRARY_REPO" >/dev/null 2>&1 || gh repo create "$SMART_ADMIN_LIBRARY_REPO" --public --description 'SmartAdmin base library package'
           .github/tools/release/sync-target-repo.sh \
             "$SMART_ADMIN_LIBRARY_REPO" \
             "$RUNNER_TEMP/SmartAdminLibrary" \
             "" \
-            "同步: 更新 SmartAdminLibrary ${{ steps.version.outputs.short_sha }}"
+            "同步: SmartAdminLibrary ${SYNC_SOURCE_SUBJECT}"
 
       - name: Export SmartAdminBuilder
         run: .github/tools/release/export-builder.sh "$PWD" "$RUNNER_TEMP/SmartAdminBuilder" "${{ steps.version.outputs.name }}"
@@ -117,13 +124,14 @@ jobs:
         id: sync_builder
         env:
           GH_TOKEN: ${{ secrets.SMART_ADMIN_RELEASE_TOKEN }}
+          SYNC_SOURCE_SUBJECT: ${{ steps.version.outputs.source_subject }}
         run: |
           gh repo view "$SMART_ADMIN_BUILDER_REPO" >/dev/null 2>&1 || gh repo create "$SMART_ADMIN_BUILDER_REPO" --public --description 'SmartAdmin Phar/SFX builder package'
           .github/tools/release/sync-target-repo.sh \
             "$SMART_ADMIN_BUILDER_REPO" \
             "$RUNNER_TEMP/SmartAdminBuilder" \
             "" \
-            "同步: 更新 SmartAdminBuilder ${{ steps.version.outputs.short_sha }}"
+            "同步: SmartAdminBuilder ${SYNC_SOURCE_SUBJECT}"
 
       - name: Prepare package exports for SmartAdmin validation
         run: |
@@ -153,13 +161,14 @@ jobs:
         id: sync_smart_admin
         env:
           GH_TOKEN: ${{ secrets.SMART_ADMIN_RELEASE_TOKEN }}
+          SYNC_SOURCE_SUBJECT: ${{ steps.version.outputs.source_subject }}
         run: |
           gh repo view "$SMART_ADMIN_REPO" >/dev/null 2>&1 || gh repo create "$SMART_ADMIN_REPO" --public --description 'SmartAdmin open-source administration framework'
           .github/tools/release/sync-target-repo.sh \
             "$SMART_ADMIN_REPO" \
             "$RUNNER_TEMP/SmartAdmin" \
             "" \
-            "同步: 更新 SmartAdmin ${{ steps.version.outputs.short_sha }}"
+            "同步: SmartAdmin ${SYNC_SOURCE_SUBJECT}"
 
       - name: Sync summary
         run: |
