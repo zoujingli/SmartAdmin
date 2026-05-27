@@ -20,7 +20,10 @@
 *.patch
 .phpunit*
 /start*
-/build
+/build/*
+!/build/upgrade/
+/build/upgrade/*
+!/build/upgrade/start.sh
 /vendor
 /public
 /runtime

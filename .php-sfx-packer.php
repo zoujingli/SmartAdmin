@@ -153,6 +153,8 @@ function runReleaseBuild(string $baseDir): void
         cleanReleaseArtifacts();
         echo '[build] 审计发布包' . PHP_EOL;
         runBuildAudit('build/system');
+        echo '[build] 同步一键升级目录' . PHP_EOL;
+        syncUpgradeDirectory();
     } catch (Throwable $throwable) {
         $buildFailure = $throwable;
     } finally {
@@ -248,16 +250,24 @@ function runReleaseSnapshot(): void
 }
 
 /**
- * 清理发布工作区；只删除明确构建产物和容器预编译缓存，不删除源码 public/runtime、vendor 或 composer.lock。
+ * 清理发布工作区；只删除明确构建产物和容器预编译缓存，不删除源码 public/runtime、vendor、composer.lock 或升级模板脚本。
  */
 function cleanReleaseWorkspace(): void
 {
-    removePath('build');
     removePath('storage/extra/release');
-    removePaths([
-        'system.bin',
-        'runtime/container',
-    ]);
+    removePaths(array_merge(
+        glob('build/system*') ?: [],
+        glob('build/upgrade/system*') ?: [],
+        [
+            'system.bin',
+            'build/.env',
+            'build/.env.example',
+            'build/.DS_Store',
+            'build/public',
+            'build/runtime',
+            'runtime/container',
+        ]
+    ));
 }
 
 /**
@@ -271,6 +281,21 @@ function cleanReleaseArtifacts(): void
         copyFileAtomic('.env.example', 'build/.env.example');
     }
     removePaths(['build/.env', 'build/.DS_Store', 'build/public']);
+}
+
+/**
+ * 同步面向一键升级模板的 Linux 交付文件；模板脚本本身需要保留在 build/upgrade，不能随构建清理删除。
+ */
+function syncUpgradeDirectory(): void
+{
+    if (!is_dir('build/upgrade')) {
+        return;
+    }
+
+    foreach (['system', 'system-linux-x64', 'system-linux-a64'] as $filename) {
+        copyFileAtomic('build/' . $filename, 'build/upgrade/' . $filename);
+        chmod('build/upgrade/' . $filename, 0755);
+    }
 }
 
 /**

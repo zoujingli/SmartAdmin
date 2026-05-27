@@ -241,8 +241,12 @@ PHP_CODE;
         $root = dirname(__DIR__, 3);
         $packer = file_get_contents($root . '/.php-sfx-packer.php');
         $composer = json_decode((string)file_get_contents($root . '/composer.json'), true, 512, JSON_THROW_ON_ERROR);
+        $gitignore = file_get_contents($root . '/.gitignore');
+        $upgradeScript = file_get_contents($root . '/build/upgrade/start.sh');
 
         self::assertIsString($packer);
+        self::assertIsString($gitignore);
+        self::assertIsString($upgradeScript);
         self::assertStringContainsString("case 'build'", $packer);
         self::assertStringContainsString("case 'precompile'", $packer);
         self::assertStringContainsString("case 'audit'", $packer);
@@ -255,18 +259,31 @@ PHP_CODE;
         self::assertStringContainsString("xadmin:release:backup', '--install", $packer);
         self::assertStringContainsString("xadmin:release:restore', '--install', '--dry-run", $packer);
         self::assertStringContainsString('stream_copy_to_stream', $packer);
-        self::assertStringContainsString("removePath('build')", $packer);
+        self::assertStringContainsString('syncUpgradeDirectory', $packer);
+        self::assertStringContainsString("glob('build/upgrade/system*')", $packer);
+        self::assertStringNotContainsString("removePath('build')", $packer);
         self::assertStringContainsString("removePath('storage/extra/release')", $packer);
         self::assertStringNotContainsString('xadmin:release:upgrade', $packer);
         self::assertStringNotContainsString('tools/phpsfx', $packer);
         self::assertFileDoesNotExist($root . '/bin/build-precompile');
         self::assertSame('@php .php-sfx-packer.php build', $composer['scripts']['build']);
-        self::assertSame('rm -rf system.bin build runtime/container storage/extra/release', $composer['scripts']['build:clean']);
+        self::assertSame('rm -f system.bin build/system build/system-linux-x64 build/system-linux-a64 build/system-macos-a64 build/upgrade/system build/upgrade/system-linux-x64 build/upgrade/system-linux-a64 build/upgrade/system-macos-a64 build/.env build/.env.example build/.DS_Store && rm -rf build/public build/runtime runtime/container storage/extra/release', $composer['scripts']['build:clean']);
         self::assertSame('./bin/smart.php xadmin:release:backup --install', $composer['scripts']['release:backup']);
         self::assertSame('./bin/smart.php xadmin:release:restore --install --dry-run --json', $composer['scripts']['release:restore:dry-run']);
         self::assertSame(['Composer\\Config::disableProcessTimeout', './bin/smart.php'], $composer['scripts']['watch']);
         self::assertSame(['Composer\\Config::disableProcessTimeout', './bin/smart.php'], $composer['scripts']['start']);
         self::assertArrayNotHasKey('release:upgrade:dry-run', $composer['scripts']);
+        self::assertStringContainsString('/build/upgrade/*', $gitignore);
+        self::assertStringContainsString('!/build/upgrade/', $gitignore);
+        self::assertStringContainsString('!/build/upgrade/start.sh', $gitignore);
+        self::assertStringNotContainsString('!/build/upgrade/start_', $gitignore);
+        self::assertStringContainsString('LOCAL_FILE="../system-linux-x64"', $upgradeScript);
+        self::assertStringContainsString('REMOTE_TEMP="/tmp/system-linux-x64"', $upgradeScript);
+        self::assertStringContainsString('CONTAINER_PATH="/app/system-linux-x64"', $upgradeScript);
+        self::assertStringContainsString('--self xadmin:release:restore --install', $upgradeScript);
+        self::assertStringContainsString('--self xadmin:website:publish', $upgradeScript);
+        self::assertStringNotContainsString('--dry-run', $upgradeScript);
+        self::assertStringNotContainsString('xadmin:release:backup', $upgradeScript);
     }
 
     public function testPharBootstrapAutoPublishesFrontendOnlyOnStart(): void

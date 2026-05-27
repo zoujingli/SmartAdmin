@@ -116,7 +116,7 @@
       "./bin/smart.php xadmin:node:sync --details",
       "export COMPOSER_ALLOW_SUPERUSER=1 && ./bin/smart.php composer sync"
     ],
-    "build:clean": "rm -rf system.bin build runtime/container storage/extra/release",
+    "build:clean": "rm -f system.bin build/system build/system-linux-x64 build/system-linux-a64 build/system-macos-a64 build/upgrade/system build/upgrade/system-linux-x64 build/upgrade/system-linux-a64 build/upgrade/system-macos-a64 build/.env build/.env.example build/.DS_Store && rm -rf build/public build/runtime runtime/container storage/extra/release",
     "build:install-prod": "export COMPOSER_ALLOW_SUPERUSER=1 && ./bin/smart.php composer install --no-dev --optimize-autoloader --classmap-authoritative --no-interaction --prefer-dist --no-progress",
     "build:snapshot": "./bin/smart.php xadmin:release:backup --install",
     "build:precompile": "@php .php-sfx-packer.php precompile .",

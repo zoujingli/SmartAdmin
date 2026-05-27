@@ -227,12 +227,12 @@ const editorConfig = computed<Partial<IEditorConfig>>(() => ({
       allowedFileTypes: ['image/*'],
       maxNumberOfFiles: 10,
       // 富文本图片必须复用后台统一上传入口，禁止插入 base64 或绕过 system_file 文件记录。
-      customUpload(file: File, insertFn: (src: string, alt: string, href: string) => void) {
+      customUpload(file: File, _insertFn: (src: string, alt: string, href: string) => void) {
         void uploadEditorAsset('image', file)
           .then((asset) => {
             const url = getAssetUrl(asset);
             if (!url) throw new Error('图片上传成功但未返回访问地址');
-            insertFn(url, asset.origin_name || file.name, '');
+            insertUploadedMedia('image', asset, file);
           })
           .catch((error) => handleEditorUploadError(error));
       },
@@ -241,12 +241,12 @@ const editorConfig = computed<Partial<IEditorConfig>>(() => ({
       allowedFileTypes: ['video/*'],
       maxNumberOfFiles: 1,
       // 视频同样进入系统上传机制；正文只持久化可访问 URL，避免保存本地临时路径或 base64。
-      customUpload(file: File, insertFn: (src: string, poster: string) => void) {
+      customUpload(file: File, _insertFn: (src: string, poster: string) => void) {
         void uploadEditorAsset('video', file)
           .then((asset) => {
             const url = getAssetUrl(asset);
             if (!url) throw new Error('视频上传成功但未返回访问地址');
-            insertFn(url, asset.preview_url || '');
+            insertUploadedMedia('video', asset, file);
           })
           .catch((error) => handleEditorUploadError(error));
       },
@@ -366,6 +366,26 @@ async function uploadAndInsertPastedMedia(editor: IDomEditor, files: File[]) {
   } catch (error) {
     handleEditorUploadError(error);
   }
+}
+
+function insertUploadedMedia(scene: 'image' | 'video', asset: UploadAsset, file: File) {
+  const html = scene === 'video' ? buildVideoHtml(asset, file) : buildImageHtml(asset, file);
+  if (!html) {
+    throw new Error('文件上传成功但未返回可插入内容');
+  }
+  const editor = richEditorRef.value;
+  if (!editor) {
+    contentValue.value = `${contentValue.value || ''}${html}`;
+    message.success('媒体已上传并插入正文');
+    return;
+  }
+
+  // wangEditor 工具栏上传在抽屉/弹窗中偶发只回调成功、不触发内置插入；
+  // 这里统一恢复选区、显式写入 HTML 并同步 v-model，确保截图上传后正文立即可见。
+  editor.restoreSelection();
+  editor.dangerouslyInsertHtml(html);
+  contentValue.value = editor.getHtml();
+  message.success('媒体已上传并插入正文');
 }
 
 function openFilePicker() {
