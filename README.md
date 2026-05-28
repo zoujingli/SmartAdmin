@@ -85,8 +85,8 @@ composer create-project zoujingli/smartadmin SmartAdmin
 │   └── container.php             # 容器初始化
 ├── plugin/                       # 公开源码插件与用户本地安装插件
 │   ├── System/                   # 系统管理核心层：Controller/Service/Mapper/Model/Command/Support 与 stc 资源
-│   ├── WechatClient/             # 微信公众号/支付客户端插件
-│   └── WechatService/            # 微信开放平台插件
+│   ├── DemoPlugin/             # 微信公众号/支付客户端插件
+│   └── DemoGateway/            # 微信开放平台插件
 ├── web/                          # 前端工程（Vue 3 Monorepo）
 │   ├── apps/web-antd/            # 通用前端壳、公共页面、插件扫描和共享运行库
 │   ├── packages/                 # 公共包（组件、工具、类型等）

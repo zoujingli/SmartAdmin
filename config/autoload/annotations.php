@@ -16,8 +16,6 @@ return [
             // 业务插件通过本地 Composer path 包和 Provider 装配；这里保留运行时目录兜底，确保命令、控制器和监听器可直接发现。
             syspath('plugin/Builder'),
             syspath('plugin/System/src'),
-            syspath('plugin/WechatClient/src'),
-            syspath('plugin/WechatService/src'),
         ],
         // 初始化注解收集器
         'collectors' => [],

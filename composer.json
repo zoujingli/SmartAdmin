@@ -34,22 +34,12 @@
     "ext-zlib": "*",
     "zoujingli/smart-admin-builder": "^1.0",
     "zoujingli/smart-admin-library": "^1.0",
-    "zoujingli/smart-plugin-system": "^1.0",
-    "zoujingli/smart-plugin-wechat-client": "^1.0",
-    "zoujingli/smart-plugin-wechat-service": "^1.0"
+    "zoujingli/smart-plugin-system": "^1.0"
   },
   "repositories": [
     {
       "type": "path",
       "url": "plugin/System"
-    },
-    {
-      "type": "path",
-      "url": "plugin/WechatClient"
-    },
-    {
-      "type": "path",
-      "url": "plugin/WechatService"
     }
   ],
   "require-dev": {
