@@ -127,8 +127,6 @@ PROFILES: dict[str, RepositoryProfile] = {
             ('构建器能力', ('plugin/Builder/',)),
             ('系统基础插件', ('plugin/System/',)),
             ('微信客户端开源插件', ('plugin/WechatClient/',)),
-            ('项目管理商用插件', ('plugin/Project/',)),
-            ('智能通道商用插件', ('plugin/Smart/',)),
             ('Web 通用壳与前端宿主', ('web/',)),
             ('发布导出与 ZIP 打包链路', ('.github/tools/' + 'release/', '.github/workflows/release.yml')),
             *COMMON_PATTERNS,
@@ -349,9 +347,7 @@ def version_highlights(repository: str, profile: RepositoryProfile, files: list[
     if has_path(files, 'plugin/Library/Middleware/DemoMiddleware.php', '.env.example', 'config/autoload/cache.php', 'docs/index.html'):
         lines.append('- 演示环境：补充 `APP_ENV=demo` 关键写操作保护、默认在线演示地址和 SmartAdmin 默认缓存/应用标识。')
 
-    if repository == DEVELOPER_REPO and has_path(files, 'plugin/Project/'):
-        lines.append('- 私有生态：Project 商用插件随主仓一并校验和打包，私有 ZIP 仍只进入 Developer Release。')
-    elif repository.endswith('/SmartAdmin') and has_path(files, 'plugin/System/', 'plugin/WechatClient/'):
+    if repository.endswith('/SmartAdmin') and has_path(files, 'plugin/System/', 'plugin/WechatClient/'):
         lines.append('- 开源主仓：同步公开插件源码、Web 宿主和文档，可直接用于社区安装与二次开发。')
     elif repository.endswith('/SmartAdminLibrary') and has_path(files, 'Command/', 'Support/', 'Core', 'Service/', 'Middleware/'):
         lines.append('- 基础库：同步 Core、命令、中间件、插件管理和发布升级支撑能力，供主项目与插件复用。')

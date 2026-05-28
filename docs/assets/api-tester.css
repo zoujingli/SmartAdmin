@@ -1,14 +1,28 @@
+/* 在线调试入口与文档主视觉保持同一套玻璃科技风格，交互结构仍由 api-tester.js 控制。 */
 .api-tester-trigger {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   margin: 16px 0 24px;
-  padding: 12px 14px;
-  border: 1px solid rgba(125, 211, 252, 0.52);
-  border-radius: 16px;
-  background: linear-gradient(100deg, rgba(236, 254, 255, 0.92), rgba(245, 243, 255, 0.78));
-  box-shadow: 0 12px 30px rgba(6, 182, 212, 0.08);
+  overflow: hidden;
+  padding: 13px 15px;
+  border: 1px solid rgba(125, 211, 252, 0.58);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(124, 58, 237, 0.12), transparent 30%),
+    linear-gradient(100deg, rgba(236, 254, 255, 0.94), rgba(245, 243, 255, 0.82));
+  box-shadow: 0 14px 34px rgba(6, 182, 212, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.70);
+}
+
+.api-tester-trigger::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: var(--devapi-neon-line, linear-gradient(90deg, #06b6d4, #7c3aed));
+  opacity: 0.78;
 }
 
 .api-tester-trigger__summary {
@@ -23,8 +37,16 @@
 }
 
 .api-tester-trigger__summary::before {
-  content: "🧪";
+  content: "◇";
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 8px;
+  color: #06b6d4;
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.16), rgba(124, 58, 237, 0.12));
   font-family: system-ui, sans-serif;
+  box-shadow: inset 0 0 0 1px rgba(6, 182, 212, 0.22);
 }
 
 .api-tester-trigger__path {
@@ -36,15 +58,17 @@
 
 .api-tester-trigger__button,
 .api-tester__button {
-  border: 1px solid rgba(103, 232, 249, 0.46);
+  border: 1px solid rgba(103, 232, 249, 0.58);
   border-radius: 999px;
   padding: 8px 15px;
   color: #fff;
-  background: linear-gradient(135deg, #06b6d4, #2563eb 58%, #7c3aed);
-  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.18);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.22), transparent 28%),
+    linear-gradient(135deg, #06b6d4, #2563eb 58%, #7c3aed);
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.20), inset 0 1px 0 rgba(255, 255, 255, 0.18);
   cursor: pointer;
   font-weight: 800;
-  transition: transform 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
+  transition: transform var(--devapi-transition, 160ms ease), box-shadow var(--devapi-transition, 160ms ease), opacity var(--devapi-transition, 160ms ease);
 }
 
 .api-tester-trigger__button {
@@ -57,7 +81,7 @@
 .api-tester__button:focus-visible {
   transform: translateY(-1px);
   outline: none;
-  box-shadow: 0 14px 32px rgba(6, 182, 212, 0.24);
+  box-shadow: 0 16px 36px rgba(6, 182, 212, 0.26);
 }
 
 .api-tester-trigger__button:disabled,
@@ -74,6 +98,7 @@
   background: #fff1f2;
 }
 
+/* 调试弹窗只增强遮罩和面板质感，不改变请求表单、Token 缓存和发送流程。 */
 .api-tester-modal {
   position: fixed;
   inset: 0;
@@ -81,9 +106,12 @@
   display: none;
   padding: 16px;
   overflow: hidden;
-  background: rgba(15, 23, 42, 0.48);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  background:
+    radial-gradient(circle at 16% 10%, rgba(34, 211, 238, 0.18), transparent 28%),
+    radial-gradient(circle at 84% 4%, rgba(124, 58, 237, 0.16), transparent 26%),
+    rgba(15, 23, 42, 0.50);
+  -webkit-backdrop-filter: blur(10px) saturate(1.06);
+  backdrop-filter: blur(10px) saturate(1.06);
 }
 
 .api-tester-modal--open {
@@ -95,16 +123,30 @@
 }
 
 .api-tester-modal__dialog {
+  position: relative;
   width: min(1280px, 100%);
   max-height: calc(100vh - 32px);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid rgba(186, 230, 253, 0.70);
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 28px 76px rgba(15, 23, 42, 0.30);
+  border: 1px solid rgba(186, 230, 253, 0.78);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(124, 58, 237, 0.08), transparent 28%),
+    rgba(255, 255, 255, 0.96);
+  box-shadow: 0 30px 82px rgba(15, 23, 42, 0.32), 0 0 0 1px rgba(103, 232, 249, 0.08);
+  -webkit-backdrop-filter: blur(18px) saturate(1.14);
+  backdrop-filter: blur(18px) saturate(1.14);
+}
+
+.api-tester-modal__dialog::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: var(--devapi-neon-line, linear-gradient(90deg, #06b6d4, #7c3aed));
+  opacity: 0.82;
 }
 
 .api-tester-modal__bar {
@@ -116,8 +158,10 @@
   justify-content: space-between;
   gap: 12px;
   padding: 13px 16px;
-  border-bottom: 1px solid rgba(191, 219, 254, 0.78);
-  background: linear-gradient(90deg, rgba(236, 254, 255, 0.96), rgba(245, 243, 255, 0.90));
+  border-bottom: 1px solid rgba(191, 219, 254, 0.80);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(124, 58, 237, 0.10), transparent 32%),
+    linear-gradient(90deg, rgba(236, 254, 255, 0.98), rgba(245, 243, 255, 0.92));
 }
 
 .api-tester-modal__title {
@@ -132,18 +176,21 @@
   justify-content: center;
   width: 34px;
   height: 34px;
-  border: 1px solid rgba(125, 211, 252, 0.52);
+  border: 1px solid rgba(125, 211, 252, 0.58);
   border-radius: 999px;
   padding: 0;
   color: #075985;
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.82);
   cursor: pointer;
   font-size: 20px;
   font-weight: 800;
   line-height: 1;
+  transition: background var(--devapi-transition, 160ms ease), border-color var(--devapi-transition, 160ms ease), color var(--devapi-transition, 160ms ease), transform var(--devapi-transition, 160ms ease);
 }
 
 .api-tester-modal__close:hover {
+  transform: translateY(-1px);
+  border-color: rgba(6, 182, 212, 0.72);
   color: #0f172a;
   background: #ecfeff;
 }
@@ -156,10 +203,12 @@
 
 .api-tester {
   overflow: hidden;
-  border: 1px solid rgba(191, 219, 254, 0.88);
-  border-radius: 18px;
-  background: #fff;
-  box-shadow: 0 14px 36px rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(191, 219, 254, 0.92);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(124, 58, 237, 0.06), transparent 26%),
+    rgba(255, 255, 255, 0.94);
+  box-shadow: 0 16px 42px rgba(37, 99, 235, 0.10);
 }
 
 .api-tester-modal__content > .api-tester {
@@ -175,8 +224,10 @@
   justify-content: space-between;
   gap: 12px;
   padding: 13px 16px;
-  border-bottom: 1px solid rgba(191, 219, 254, 0.78);
-  background: linear-gradient(90deg, #ecfeff, #f5f3ff);
+  border-bottom: 1px solid rgba(191, 219, 254, 0.80);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(124, 58, 237, 0.10), transparent 32%),
+    linear-gradient(90deg, #ecfeff, #f5f3ff);
 }
 
 .api-tester__title {
@@ -199,10 +250,13 @@
   min-width: 54px;
   padding: 3px 9px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #0891b2, #2563eb);
+  background:
+    radial-gradient(circle at 14% 0%, rgba(255, 255, 255, 0.22), transparent 28%),
+    linear-gradient(135deg, #0891b2, #2563eb 64%, #7c3aed);
   color: #fff;
   text-align: center;
   font-weight: 900;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18);
 }
 
 .api-tester__path {
@@ -215,7 +269,7 @@
 .api-tester__body {
   display: grid;
   gap: 14px;
-  padding: 16px;
+  padding: 17px;
   align-content: start;
 }
 
@@ -232,7 +286,7 @@
   max-height: calc(100vh - 138px);
   min-height: calc(100vh - 180px);
   border-top: 0;
-  border-left: 1px solid rgba(15, 23, 42, 0.22);
+  border-left: 1px solid rgba(15, 23, 42, 0.24);
   overflow: hidden;
 }
 
@@ -259,6 +313,7 @@
   color: #0f3f5f;
   font-size: calc(12px * var(--devapi-ui-scale, 1));
   font-weight: 900;
+  letter-spacing: 0.02em;
 }
 
 .api-tester input,
@@ -266,13 +321,14 @@
 .api-tester textarea {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid rgba(203, 213, 225, 0.94);
-  border-radius: 10px;
+  border: 1px solid rgba(186, 230, 253, 0.82);
+  border-radius: 12px;
   padding: 8px 11px;
   color: #111827;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.92);
   font: inherit;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.03);
+  box-shadow: 0 7px 18px rgba(15, 23, 42, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  transition: border-color var(--devapi-transition, 160ms ease), box-shadow var(--devapi-transition, 160ms ease), background var(--devapi-transition, 160ms ease);
 }
 
 .api-tester input:focus,
@@ -280,7 +336,8 @@
 .api-tester textarea:focus {
   border-color: #06b6d4;
   outline: none;
-  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.14);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.14), 0 10px 26px rgba(6, 182, 212, 0.10);
 }
 
 .api-tester textarea {
@@ -307,9 +364,9 @@
 }
 
 .api-tester__button--secondary {
-  border-color: rgba(203, 213, 225, 0.82);
+  border-color: rgba(186, 230, 253, 0.82);
   color: #334155;
-  background: linear-gradient(180deg, #f8fafc, #e2e8f0);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(226, 232, 240, 0.88));
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
 }
 
@@ -340,10 +397,12 @@
 .api-tester__credential-hint {
   margin-top: 0;
   padding: 9px 11px;
-  border: 1px solid rgba(125, 211, 252, 0.48);
-  border-radius: 12px;
+  border: 1px solid rgba(125, 211, 252, 0.54);
+  border-radius: 14px;
   color: #075985;
-  background: linear-gradient(90deg, #ecfeff, #eef2ff);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(124, 58, 237, 0.08), transparent 32%),
+    linear-gradient(90deg, #ecfeff, #eef2ff);
   font-size: calc(12px * var(--devapi-ui-scale, 1));
   line-height: 1.6;
 }
@@ -356,20 +415,24 @@
   padding: 14px;
   border-top: 1px solid rgba(15, 23, 42, 0.22);
   background:
-    radial-gradient(circle at 0 0, rgba(6, 182, 212, 0.18), transparent 36%),
-    #08111f;
+    radial-gradient(circle at 0 0, rgba(6, 182, 212, 0.22), transparent 36%),
+    radial-gradient(circle at 100% 0, rgba(124, 58, 237, 0.20), transparent 34%),
+    #07111f;
   color: #dff7ff;
 }
 
 .api-tester__result--empty {
   border-top-color: rgba(191, 219, 254, 0.88);
-  background: #f8fafc;
+  background:
+    radial-gradient(circle at 100% 0, rgba(6, 182, 212, 0.12), transparent 32%),
+    linear-gradient(180deg, #f8fafc, #eff6ff);
   color: #475569;
 }
 
 .api-tester__result--loading {
   background:
-    radial-gradient(circle at 0 0, rgba(37, 99, 235, 0.24), transparent 36%),
+    radial-gradient(circle at 0 0, rgba(37, 99, 235, 0.26), transparent 36%),
+    radial-gradient(circle at 100% 0, rgba(34, 211, 238, 0.14), transparent 34%),
     #172554;
   color: #dbeafe;
 }
@@ -395,18 +458,20 @@
 
 .api-tester__result-copy {
   flex: 0 0 auto;
-  border: 1px solid rgba(103, 232, 249, 0.30);
+  border: 1px solid rgba(103, 232, 249, 0.36);
   border-radius: 999px;
   padding: 4px 10px;
   color: #dff7ff;
-  background: rgba(8, 145, 178, 0.28);
+  background: rgba(8, 145, 178, 0.32);
   cursor: pointer;
   font-size: calc(12px * var(--devapi-ui-scale, 1));
   font-weight: 800;
+  transition: background var(--devapi-transition, 160ms ease), border-color var(--devapi-transition, 160ms ease), transform var(--devapi-transition, 160ms ease);
 }
 
 .api-tester__result-copy:hover,
 .api-tester__result-copy:focus-visible {
+  transform: translateY(-1px);
   border-color: rgba(103, 232, 249, 0.70);
   outline: none;
   background: rgba(8, 145, 178, 0.46);
@@ -428,10 +493,13 @@
   margin: 0;
   padding: 12px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 12px;
   white-space: pre-wrap;
   color: #e5faff;
-  background: rgba(15, 23, 42, 0.78);
+  background:
+    linear-gradient(rgba(103, 232, 249, 0.035) 1px, transparent 1px),
+    rgba(15, 23, 42, 0.82);
+  background-size: 100% 28px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: calc(12px * var(--devapi-ui-scale, 1));
   line-height: 1.6;
@@ -450,7 +518,7 @@
 
 .api-tester__result--empty .api-tester__output {
   color: #475569;
-  background: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.84);
 }
 
 .markdown-section .api-tester .api-tester__error,

@@ -17,8 +17,10 @@ use System\Support\UploadDriver;
 
 final class AlistStorage extends AbstractRemoteStorage
 {
+    private const TOKEN_CACHE_TTL = 60;
+
     /**
-     * @var array<string, string>
+     * @var array<string, array{token:string,expires_at:int}>
      */
     private static array $tokenCache = [];
 
@@ -228,8 +230,11 @@ final class AlistStorage extends AbstractRemoteStorage
             (string)($this->config['password'] ?? ''),
         ]));
 
-        if (isset(self::$tokenCache[$cacheKey]) && self::$tokenCache[$cacheKey] !== '') {
-            return self::$tokenCache[$cacheKey];
+        // AList Token 受远端服务有效期控制，长驻 Swoole 进程不能永久复用；
+        // 这里按 ThinkAdmin 的短缓存策略保留 60 秒，避免后台轮询或上传长期命中失效 Token。
+        $cached = self::$tokenCache[$cacheKey] ?? null;
+        if (is_array($cached) && (int)($cached['expires_at'] ?? 0) > time() && trim((string)($cached['token'] ?? '')) !== '') {
+            return (string)$cached['token'];
         }
 
         $response = $this->request('POST', $this->apiUrl('/api/auth/login'), [
@@ -247,7 +252,10 @@ final class AlistStorage extends AbstractRemoteStorage
             throw new ErrorResponseException('AList 登录失败，未返回 token');
         }
 
-        self::$tokenCache[$cacheKey] = $token;
+        self::$tokenCache[$cacheKey] = [
+            'expires_at' => time() + self::TOKEN_CACHE_TTL,
+            'token' => $token,
+        ];
         return $token;
     }
 

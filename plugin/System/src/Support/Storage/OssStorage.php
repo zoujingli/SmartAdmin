@@ -302,7 +302,9 @@ final class OssStorage extends AbstractRemoteStorage implements MultipartUploadS
             $this->canonicalizedResource($key, $query),
         ]);
 
-        return [
+        // OSS 签名串包含 Content-MD5 / Content-Type 时，请求头必须同步发送相同值；
+        // 否则服务端会按实际请求头重新计算签名，导致中转上传或分片初始化返回 403。
+        $headers = [
             'Date' => $date,
             'Authorization' => sprintf(
                 'OSS %s:%s',
@@ -310,6 +312,15 @@ final class OssStorage extends AbstractRemoteStorage implements MultipartUploadS
                 base64_encode(hash_hmac('sha1', $stringToSign, (string)$this->config['access_secret'], true))
             ),
         ];
+
+        if ($contentMd5 !== '') {
+            $headers['Content-MD5'] = $contentMd5;
+        }
+        if ($contentType !== '') {
+            $headers['Content-Type'] = $contentType;
+        }
+
+        return $headers;
     }
 
     /**

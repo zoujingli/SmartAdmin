@@ -72,7 +72,7 @@
 | 操作日志、请求日志、变更审计 | `SmartAdminLibrary` Events、`plugin/System/src/Controller/Logs*Controller.php` | [日志审计与公告](系统功能/日志审计与公告.md) |
 | 多租户管理和租户上下文 | `plugin/System`、`TenantContext` | [租户与发布构建](系统功能/租户与发布构建.md) |
 | 微信客户端 | `plugin/WechatClient` | [微信客户端接口](接口参考/微信客户端接口.md) |
-| 官网管理与开放接口 | `plugin/Website` | [官网管理接口](接口参考/官网管理接口.md)、[官网开放接口](接口参考/官网开放接口.md) |
+| 官网管理与开放接口（会员授权） | `plugin/Website` | [官网管理接口](接口参考/官网管理接口.md)、[官网开放接口](接口参考/官网开放接口.md) |
 | 微信开放平台（会员授权） | `plugin/WechatService` | [微信开放平台接口](接口参考/微信开放平台接口.md) |
 | 项目管理（会员授权） | `plugin/Project` | [项目管理接口](接口参考/项目管理接口.md) |
 | 资产管理（会员授权） | `plugin/Asset` | [资产管理接口](接口参考/资产管理接口.md) |

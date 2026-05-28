@@ -56,7 +56,7 @@ cp "$REMOTE_TEMP" "$REMOTE_FILE"
 chmod +x "$REMOTE_FILE"
 docker restart "$CONTAINER_NAME"
 sleep 2
-docker exec "$CONTAINER_NAME" "$CONTAINER_PATH" --self xadmin:release:restore --install
+docker exec "$CONTAINER_NAME" "$CONTAINER_PATH" --self xadmin:release:restore --install --force
 docker exec "$CONTAINER_NAME" "$CONTAINER_PATH" --self xadmin:website:publish
 docker restart "$CONTAINER_NAME"
 EOF_REMOTE
