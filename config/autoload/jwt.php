@@ -55,6 +55,8 @@ return [
             // 其他配置继承全局配置：secret、ttl、alg、blacklist_enabled等
         ],
 
+
+
         // 微信用户模型（按需启用时取消注释）
         // \Wechat\Model\WechatUser::class => [
         //     'secret' => 'wechat-secret-key',   // 微信用户专用密钥

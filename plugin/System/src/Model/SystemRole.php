@@ -35,10 +35,10 @@ use Library\Exception\ErrorResponseException;
  * @property Carbon $created_at 创建时间
  * @property Carbon $updated_at 更新时间
  * @property string $deleted_at 删除时间
- * @property null|Collection|SystemUser[] $users
- * @property null|Collection|SystemNode[] $nodes
- * @property string $scope_text
- * @property string $status_text
+ * @property-read null|Collection|SystemUser[] $users
+ * @property-read null|Collection|SystemNode[] $nodes
+ * @property-read string $scope_text
+ * @property-read string $status_text
  */
 final class SystemRole extends CoreModel
 {

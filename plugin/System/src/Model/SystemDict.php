@@ -33,10 +33,10 @@ use Library\CoreModel;
  * @property Carbon $created_at 创建时间
  * @property Carbon $updated_at 更新时间
  * @property string $deleted_at 删除时间
- * @property null|self $parent
- * @property null|Collection|self[] $children
+ * @property-read null|self $parent
+ * @property-read null|Collection|self[] $children
  * @property array $extra 扩展配置JSON
- * @property string $status_text
+ * @property-read string $status_text
  */
 final class SystemDict extends CoreModel
 {

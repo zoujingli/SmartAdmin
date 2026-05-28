@@ -15,7 +15,7 @@
       "route": "/system/ops",
       "component": "BasicLayout",
       "icon": "lucide:blocks",
-      "sort": 100,
+      "sort": 2,
       "type": "D",
       "redirect": "/system/logs/action",
       "menus": [
@@ -355,7 +355,7 @@
       "route": "/system",
       "component": "BasicLayout",
       "icon": "lucide:settings",
-      "sort": 200,
+      "sort": 1,
       "type": "D",
       "redirect": "/system/user",
       "menus": [

@@ -44,11 +44,11 @@ use function Hyperf\Config\config;
  * @property Carbon $created_at 创建时间
  * @property Carbon $updated_at 更新时间
  * @property string $deleted_at 删除时间
- * @property null|Collection|SystemRole[] $roles
- * @property null|Collection|SystemPost[] $posts
- * @property null|Collection|SystemDept[] $depts
- * @property array|mixed $extra 扩展数据(JSON)
- * @property mixed $password 密码哈希
+ * @property-read null|Collection|SystemRole[] $roles
+ * @property-read null|Collection|SystemPost[] $posts
+ * @property-read null|Collection|SystemDept[] $depts
+ * @property mixed|array $extra 扩展数据(JSON)
+ * @property-write mixed $password 密码哈希
  */
 final class SystemUser extends CoreModel implements UserModelInterface
 {

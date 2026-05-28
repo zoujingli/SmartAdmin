@@ -128,7 +128,7 @@ PROFILES: dict[str, RepositoryProfile] = {
             ('系统基础插件', ('plugin/System/',)),
             ('微信开放插件', ('plugin/WechatClient/', 'plugin/WechatService/')),
             ('项目管理商用插件', ('plugin/Project/',)),
-            ('Smart 调用池商用插件', ('plugin/Smart/',)),
+            ('智能通道商用插件', ('plugin/Smart/',)),
             ('Web 通用壳与前端宿主', ('web/',)),
             ('发布导出与 ZIP 打包链路', ('.github/tools/' + 'release/', '.github/workflows/release.yml')),
             *COMMON_PATTERNS,
