@@ -15,7 +15,7 @@
       <Tabs v-model:activeKey="tab" class="crud-page-tabs payment-single-tabs">
         <TabPane v-if="tab === 'merchant'" key="merchant" tab="商户配置">
           <CrudStatCards class="mb-5" :items="merchantSummaryCards" />
-          <Card class="mb-5" :body-style="{ padding: '20px 24px' }">
+          <Card class="mb-5">
             <Row :gutter="[16, 16]" class="mb-4 crud-search-grid">
               <Col :xs="24" :sm="12" :xl="6">
                 <SearchField label="搜索内容"><Input v-model:value="merchantKeyword" allow-clear placeholder="商户名称 / AppID / 商户号" /></SearchField>
@@ -52,7 +52,7 @@
 
         <TabPane v-if="tab === 'order'" key="order" tab="支付订单">
           <CrudStatCards class="mb-5" :items="orderSummaryCards" />
-          <Card class="mb-5" :body-style="{ padding: '20px 24px' }">
+          <Card class="mb-5">
             <Row :gutter="[16, 16]" class="mb-4 crud-search-grid">
               <Col :xs="24" :sm="12" :xl="6">
                 <SearchField label="搜索内容"><Input v-model:value="orderKeyword" allow-clear placeholder="业务订单号 / 支付号 / 微信订单号 / 描述" /></SearchField>
@@ -91,7 +91,7 @@
 
         <TabPane v-if="tab === 'refund'" key="refund" tab="退款记录">
           <CrudStatCards class="mb-5" :items="refundSummaryCards" />
-          <Card class="mb-5" :body-style="{ padding: '20px 24px' }">
+          <Card class="mb-5">
             <Row :gutter="[16, 16]" class="mb-4 crud-search-grid">
               <Col :xs="24" :sm="12" :xl="6">
                 <SearchField label="搜索内容"><Input v-model:value="refundKeyword" allow-clear placeholder="业务订单号 / 支付号 / 退款号 / 微信退款号" /></SearchField>
@@ -136,13 +136,14 @@
       </Tabs>
     </Card>
 
-    <Drawer
+    <AppDrawer
+      :confirm-loading="saving"
       :open="open"
+      ok-text="确定"
       title="支付商户"
-      :body-style="{ padding: '20px 24px 8px' }"
-      :width="popupWidth.lg"
-      placement="right"
+      width-size="lg"
       @close="open = false"
+      @ok="saveMerchant"
     >
       <Form :model="form" layout="vertical">
         <Row :gutter="[16, 0]">
@@ -158,21 +159,18 @@
           <Col :span="24"><FormItem label="平台公钥"><Textarea v-model:value="form.platform_public_key" :rows="5" placeholder="请输入微信支付平台公钥" /></FormItem></Col>
         </Row>
       </Form>
-      <template #footer>
-        <div class="flex justify-end gap-3">
-          <Button @click="open = false">取消</Button>
-          <Button type="primary" :loading="saving" @click="saveMerchant">确定</Button>
-        </div>
-      </template>
-    </Drawer>
+    </AppDrawer>
 
-    <Drawer
+    <AppDrawer
+      :confirm-loading="refundSubmitting"
+      :ok-disabled="!canSubmitRefund"
       :open="refundOpen"
+      ok-danger
+      ok-text="确认退款"
       title="发起退款"
-      :body-style="{ padding: '20px 24px 8px' }"
-      :width="popupWidth.xs"
-      placement="right"
+      width-size="xs"
       @close="refundOpen = false"
+      @ok="submitRefund"
     >
       <Form :model="refundForm" layout="vertical">
         <FormItem label="业务订单号"><Input v-model:value="refundForm.order_no" disabled /></FormItem>
@@ -183,13 +181,7 @@
         </FormItem>
         <FormItem label="退款原因"><Textarea v-model:value="refundForm.reason" :rows="3" allow-clear /></FormItem>
       </Form>
-      <template #footer>
-        <div class="flex justify-end gap-3">
-          <Button @click="refundOpen = false">取消</Button>
-          <Button type="primary" danger :disabled="!canSubmitRefund" :loading="refundSubmitting" @click="submitRefund">确认退款</Button>
-        </div>
-      </template>
-    </Drawer>
+    </AppDrawer>
   </Page>
 </template>
 
@@ -200,13 +192,13 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAccess } from '@vben/access';
 import { buildCrudTableLocale, CrudFilterSummary, CrudStatCards, CrudTableHeader, Page } from '@vben/common-ui';
-import { Button, Card, Col, Drawer, Form, FormItem, Input, InputNumber, InputPassword, message, Modal, Row, Space, Switch, Table, TabPane, Tabs, Tag, Textarea, Tooltip } from 'ant-design-vue';
+import { Button, Card, Col, Form, FormItem, Input, InputNumber, InputPassword, message, Modal, Row, Space, Switch, Table, TabPane, Tabs, Tag, Textarea, Tooltip } from 'ant-design-vue';
 
 import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 import { requestClient } from '#/api/request';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
-import { popupWidth } from '#/utils/popup';
+import AppDrawer from '#/components/app-drawer.vue';
 
 type PaymentTabKey = 'merchant' | 'order' | 'refund';
 

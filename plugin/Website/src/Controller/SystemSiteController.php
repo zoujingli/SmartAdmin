@@ -37,6 +37,13 @@ final class SystemSiteController extends CoreController
         $this->success('获取成功', $this->service->getPageList($request->all()));
     }
 
+    #[GetMapping(path: 'recycle')]
+    #[Auth(name: '官网站点回收站', type: Auth::CHECK, menu: false, code: 'website.site.index')]
+    public function recycle(RequestInterface $request): array
+    {
+        $this->success('获取成功', $this->service->getRecycleList($request->all()));
+    }
+
     #[GetMapping(path: 'info/{id}')]
     #[Auth(name: '官网站点详情', type: Auth::CHECK, menu: false, code: 'website.site.index')]
     public function info(int $id): array

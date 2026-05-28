@@ -92,6 +92,10 @@ final class WebsiteContractTest extends TestCase
 
         $this->assertSame("GET\n/website/content/index\nchannel=news&page=1&type=news\n" . hash('sha256', '') . "\n1716888888\nnonce-123456", $string);
         $this->assertSame(hash_hmac('sha256', $string, 'demo-key'), WebsiteOpenApiSignature::sign('demo-key', 'get', '/website/content/index', $query, '', '1716888888', 'nonce-123456'));
+        $this->assertSame(
+            'Website-HMAC appid="demo-app", timestamp="1716888888", nonce="nonce-123456", signature="abcdef"',
+            WebsiteOpenApiSignature::authorizationHeader('demo-app', '1716888888', 'nonce-123456', 'ABCDEF')
+        );
     }
 
     public function testOpenApiScopesAndSecretRulesAreStable(): void
@@ -127,6 +131,73 @@ final class WebsiteContractTest extends TestCase
         $this->assertStringContainsString('"app_key":"***"', $response);
     }
 
+    public function testWebsiteTenantBindingIsNotOperatorInput(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $siteService = (string)file_get_contents($root . '/plugin/Website/src/Service/WebsiteSiteService.php');
+        $channelService = (string)file_get_contents($root . '/plugin/Website/src/Service/WebsiteChannelService.php');
+        $navService = (string)file_get_contents($root . '/plugin/Website/src/Service/WebsiteNavService.php');
+        $contentService = (string)file_get_contents($root . '/plugin/Website/src/Service/WebsiteContentService.php');
+        $blockService = (string)file_get_contents($root . '/plugin/Website/src/Service/WebsiteBlockService.php');
+        $appService = (string)file_get_contents($root . '/plugin/Website/src/Service/WebsiteAppService.php');
+
+        // 后台页面不让运营填写租户；站点取登录租户，其它官网数据跟随已选择站点的租户边界。
+        $this->assertStringContainsString("unset(\$data['tenant_id'])", $siteService);
+        $this->assertStringContainsString("\$rules['tenant_id.default'] = tenant_id();", $siteService);
+        $this->assertStringContainsString("\$data['tenant_id'] = tenant_id();", $siteService);
+        foreach ([$channelService, $navService, $contentService, $blockService, $appService] as $service) {
+            $this->assertStringContainsString("\$data['tenant_id'] = (int)\$site->tenant_id;", $service);
+        }
+    }
+
+    public function testWebsiteAdminFormsAreOperatorFriendly(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $siteView = (string)file_get_contents($root . '/plugin/Website/stc/view/site/index.vue');
+        $channelView = (string)file_get_contents($root . '/plugin/Website/stc/view/channel/index.vue');
+        $navView = (string)file_get_contents($root . '/plugin/Website/stc/view/nav/index.vue');
+        $contentView = (string)file_get_contents($root . '/plugin/Website/stc/view/content/index.vue');
+        $blockView = (string)file_get_contents($root . '/plugin/Website/stc/view/block/index.vue');
+        $appView = (string)file_get_contents($root . '/plugin/Website/stc/view/app/index.vue');
+        $crudView = (string)file_get_contents($root . '/plugin/Website/stc/view/components/website-crud-page.vue');
+
+        $this->assertStringNotContainsString('租户ID', $siteView);
+        foreach ([$siteView, $channelView, $navView, $contentView, $blockView] as $view) {
+            $this->assertStringNotContainsString("type: 'json'", $view);
+            $this->assertStringNotContainsString('必须填写 JSON 对象', $view);
+            $this->assertStringNotContainsString('父级ID', $view);
+        }
+        $this->assertStringContainsString("type: 'object'", $siteView);
+        $this->assertStringContainsString("type: 'image'", $siteView);
+        $this->assertStringContainsString("type: 'kv'", $blockView);
+        $this->assertStringContainsString("type: 'video'", $blockView);
+        $this->assertStringContainsString("type: 'richtext'", $contentView);
+        $this->assertStringContainsString("valueType: 'option'", $channelView);
+        $this->assertStringContainsString("emptyLabel: '顶级栏目'", $channelView);
+        $this->assertStringContainsString("emptyLabel: '顶级导航'", $navView);
+        $this->assertStringContainsString('filterBySite: true', $navView);
+        $this->assertStringContainsString("emptyLabel: '不归属栏目'", $contentView);
+        $this->assertStringContainsString('AdminRichTextEditor', $crudView);
+        $this->assertStringContainsString('AdminImageUpload', $crudView);
+        $this->assertStringContainsString('AdminVideoUpload', $crudView);
+        $this->assertStringNotContainsString('mode="multiple"', $appView);
+        $this->assertStringContainsString('website-app-page__scope-grid', $appView);
+        $this->assertStringContainsString('<Checkbox', $appView);
+        $this->assertStringContainsString('hasAccessByCodes', $crudView);
+        $this->assertStringContainsString('permissionPrefix', $crudView);
+        $this->assertStringContainsString('.create', $crudView);
+        $this->assertStringContainsString('/recycle', $crudView);
+        $this->assertStringContainsString('回收站', $crudView);
+        $this->assertStringContainsString('立即发布', $crudView);
+        $this->assertStringContainsString('canCreateApp', $appView);
+        $this->assertStringContainsString('canResetKeyApp', $appView);
+        $this->assertStringContainsString('system/website/app/recycle', $appView);
+        $this->assertStringContainsString('咨询内容', $crudView);
+        $this->assertStringContainsString('website-crud-page__lead-content', $crudView);
+        $this->assertStringContainsString('当前后台不提供回收站恢复入口', $crudView);
+        $this->assertStringNotContainsString('Host', $siteView);
+    }
+
     public function testPublicServiceSourceKeepsFailClosedSiteAndPublishBoundary(): void
     {
         $root = dirname(__DIR__, 3);
@@ -134,6 +205,8 @@ final class WebsiteContractTest extends TestCase
         $siteMapper = (string)file_get_contents($root . '/plugin/Website/src/Mapper/WebsiteSiteMapper.php');
         $contentMapper = (string)file_get_contents($root . '/plugin/Website/src/Mapper/WebsiteContentMapper.php');
         $blockMapper = (string)file_get_contents($root . '/plugin/Website/src/Mapper/WebsiteBlockMapper.php');
+        $channelMapper = (string)file_get_contents($root . '/plugin/Website/src/Mapper/WebsiteChannelMapper.php');
+        $navMapper = (string)file_get_contents($root . '/plugin/Website/src/Mapper/WebsiteNavMapper.php');
 
         // 公开接口必须先解析站点，后续查询显式绑定 tenant_id + site_id；解析失败不能退化成全量查询。
         $this->assertStringContainsString('resolveSite', $source);
@@ -146,6 +219,10 @@ final class WebsiteContractTest extends TestCase
         $this->assertStringContainsString('WebsitePublishStatus::PUBLISHED', $contentMapper);
         $this->assertStringContainsString('WebsitePublishStatus::SCHEDULED', $contentMapper);
         $this->assertStringContainsString("where('published_at', '<='", $contentMapper);
+        $this->assertStringContainsString("->with(['site'", $channelMapper);
+        $this->assertStringContainsString("->with(['site'", $navMapper);
+        $this->assertStringContainsString('父级栏目不能选择当前栏目的下级栏目', (string)file_get_contents($root . '/plugin/Website/src/Service/WebsiteChannelService.php'));
+        $this->assertStringContainsString('父级导航不能选择当前导航的下级导航', (string)file_get_contents($root . '/plugin/Website/src/Service/WebsiteNavService.php'));
 
         $manifestSource = (string)file_get_contents($root . '/plugin/Website/plugin.json');
         $appController = (string)file_get_contents($root . '/plugin/Website/src/Controller/SystemAppController.php');
@@ -159,6 +236,9 @@ final class WebsiteContractTest extends TestCase
         $this->assertStringContainsString('WebsiteOpenApiScope::PAGE_READ', $publicController);
         $this->assertStringContainsString('WebsiteOpenApiScope::CONTENT_READ', $publicController);
         $this->assertStringContainsString('不能只给 page:read 就绕开细分读取权限', $publicController);
+        $this->assertStringContainsString('Authorization', $authenticator);
+        $this->assertStringContainsString('Website-HMAC', (string)file_get_contents($root . '/plugin/Website/src/Support/WebsiteOpenApiSignature.php'));
+        $this->assertStringContainsString('legacyCredentials', $authenticator);
         $this->assertStringContainsString('X-Website-Appid', $authenticator);
         $this->assertStringContainsString('hash_equals', $authenticator);
         $this->assertStringContainsString('开放接口签名头缺失', $authenticator);

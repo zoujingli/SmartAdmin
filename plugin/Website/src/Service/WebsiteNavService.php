@@ -99,11 +99,16 @@ final class WebsiteNavService extends CoreService
         $data = _vali($rules, $data);
         $this->normalizeIntFields($data, ['site_id', 'parent_id', 'channel_id', 'content_id', 'sort', 'status']);
         $siteId = (int)($data['site_id'] ?? $exists['site_id'] ?? 0);
-        $this->ensureSite($siteId);
+        $site = $this->ensureSite($siteId);
+        // 导航租户归属必须与站点一致，避免前端切站或恶意请求造成跨租户导航数据。
+        $data['tenant_id'] = (int)$site->tenant_id;
         $parentId = (int)($data['parent_id'] ?? $exists['parent_id'] ?? 0);
         if ($parentId > 0) {
             if ($exists !== [] && $parentId === (int)($exists['id'] ?? 0)) {
                 throw new ErrorResponseException('父级导航不能选择自身');
+            }
+            if ($exists !== []) {
+                $this->assertParentDoesNotCreateCycle((int)($exists['id'] ?? 0), $parentId, $siteId);
             }
             $parent = WebsiteNav::query()->where('id', $parentId)->where('site_id', $siteId)->first();
             if (!$parent instanceof WebsiteNav) {
@@ -136,5 +141,30 @@ final class WebsiteNavService extends CoreService
         }
 
         return $data;
+    }
+
+    private function assertParentDoesNotCreateCycle(int $currentId, int $parentId, int $siteId): void
+    {
+        if ($currentId <= 0 || $parentId <= 0) {
+            return;
+        }
+
+        // 导航树与栏目树一样禁止闭环，否则公开 nav/tree 会出现节点丢失或递归异常。
+        $parents = [];
+        foreach (WebsiteNav::query()->where('site_id', $siteId)->get(['id', 'parent_id']) as $nav) {
+            $parents[(int)$nav->id] = (int)$nav->parent_id;
+        }
+
+        $visited = [];
+        for ($cursor = $parentId; $cursor > 0;) {
+            if ($cursor === $currentId) {
+                throw new ErrorResponseException('父级导航不能选择当前导航的下级导航');
+            }
+            if (isset($visited[$cursor])) {
+                break;
+            }
+            $visited[$cursor] = true;
+            $cursor = $parents[$cursor] ?? 0;
+        }
     }
 }

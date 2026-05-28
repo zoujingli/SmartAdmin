@@ -152,7 +152,9 @@ final class WebsiteContentService extends CoreService
         $data = _vali($rules, $data);
         $this->normalizeIntFields($data, ['site_id', 'channel_id', 'sort', 'is_top', 'status']);
         $siteId = (int)($data['site_id'] ?? $exists['site_id'] ?? 0);
-        $this->ensureSite($siteId);
+        $site = $this->ensureSite($siteId);
+        // 内容按站点继承租户边界；公开接口后续也依赖 tenant_id + site_id 双条件过滤。
+        $data['tenant_id'] = (int)$site->tenant_id;
         $this->ensureChannel((int)($data['channel_id'] ?? $exists['channel_id'] ?? 0), $siteId);
         if (array_key_exists('content_html', $data)) {
             $data['content_html'] = RichText::sanitize((string)$data['content_html']);

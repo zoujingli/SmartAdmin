@@ -36,7 +36,8 @@ final class WebsiteChannelMapper extends CoreMapper
             ->equal('site_id,parent_id,status,type')
             ->in('site_id#site_ids,status#status_ids')
             ->dateBetween('created_at')
-            ->getQuery();
+            ->getQuery()
+            ->with(['site' => fn ($query) => $query->select(['id', 'code', 'name'])]);
     }
 
     /**
@@ -121,16 +122,20 @@ final class WebsiteChannelMapper extends CoreMapper
             ->where('status', Status::ENABLED)
             ->limit(max(1, min((int)($params['limit'] ?? 200), 500)))
             ->get(['id', 'site_id', 'parent_id', 'code', 'name', 'route'])
-            ->map(static fn (WebsiteChannel $channel): array => [
-                'id' => (int)$channel->id,
-                'value' => (int)$channel->id,
-                'label' => (string)$channel->name,
-                'site_id' => (int)$channel->site_id,
-                'parent_id' => (int)$channel->parent_id,
-                'code' => (string)$channel->code,
-                'name' => (string)$channel->name,
-                'route' => (string)$channel->route,
-            ])
+            ->map(static function (WebsiteChannel $channel): array {
+                $route = (string)$channel->route;
+
+                return [
+                    'id' => (int)$channel->id,
+                    'value' => (int)$channel->id,
+                    'label' => $route === '' ? (string)$channel->name : sprintf('%s（%s）', (string)$channel->name, $route),
+                    'site_id' => (int)$channel->site_id,
+                    'parent_id' => (int)$channel->parent_id,
+                    'code' => (string)$channel->code,
+                    'name' => (string)$channel->name,
+                    'route' => $route,
+                ];
+            })
             ->all();
     }
 

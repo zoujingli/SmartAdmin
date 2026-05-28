@@ -89,11 +89,16 @@ final class WebsiteChannelService extends CoreService
             $data['seo'] = WebsiteData::object($data['seo']);
         }
         $siteId = (int)($data['site_id'] ?? $exists['site_id'] ?? 0);
-        $this->ensureSite($siteId);
+        $site = $this->ensureSite($siteId);
+        // 栏目租户归属始终跟随所属站点，后台表单不暴露 tenant_id，也不能由请求体直接指定。
+        $data['tenant_id'] = (int)$site->tenant_id;
         $parentId = (int)($data['parent_id'] ?? $exists['parent_id'] ?? 0);
         if ($parentId > 0) {
             if ($exists !== [] && $parentId === (int)($exists['id'] ?? 0)) {
                 throw new ErrorResponseException('父级栏目不能选择自身');
+            }
+            if ($exists !== []) {
+                $this->assertParentDoesNotCreateCycle((int)($exists['id'] ?? 0), $parentId, $siteId);
             }
             $this->ensureChannel($parentId, $siteId, '父级栏目不存在或不属于当前站点');
         }
@@ -101,5 +106,30 @@ final class WebsiteChannelService extends CoreService
         $this->ensureUniqueInSite(WebsiteChannel::class, 'route', $data, $exists, '当前站点下栏目路由已存在');
 
         return $data;
+    }
+
+    private function assertParentDoesNotCreateCycle(int $currentId, int $parentId, int $siteId): void
+    {
+        if ($currentId <= 0 || $parentId <= 0) {
+            return;
+        }
+
+        // 栏目树只允许向上指向祖先链之外的节点；逐级回溯父级，防止把栏目挂到自己的子孙下面形成闭环。
+        $parents = [];
+        foreach (WebsiteChannel::query()->where('site_id', $siteId)->get(['id', 'parent_id']) as $channel) {
+            $parents[(int)$channel->id] = (int)$channel->parent_id;
+        }
+
+        $visited = [];
+        for ($cursor = $parentId; $cursor > 0;) {
+            if ($cursor === $currentId) {
+                throw new ErrorResponseException('父级栏目不能选择当前栏目的下级栏目');
+            }
+            if (isset($visited[$cursor])) {
+                break;
+            }
+            $visited[$cursor] = true;
+            $cursor = $parents[$cursor] ?? 0;
+        }
     }
 }

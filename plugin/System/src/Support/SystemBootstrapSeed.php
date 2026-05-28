@@ -56,7 +56,6 @@ final class SystemBootstrapSeed
             'id' => self::SUPER_ROLE_ID,
             'tenant_id' => 0,
             'name' => '超级管理员',
-            'code' => 'super-admin',
             'scope' => 1,
             'remark' => '初始化超级管理员角色',
             'status' => Status::ENABLED,
@@ -69,12 +68,12 @@ final class SystemBootstrapSeed
         ];
     }
 
-    public static function superAdminRoleBindingRow(int $userId): array
+    public static function superAdminRoleBindingRow(int $userId, int $roleId = self::SUPER_ROLE_ID): array
     {
         return [
             'tenant_id' => 0,
             'user_id' => $userId,
-            'role_id' => self::SUPER_ROLE_ID,
+            'role_id' => $roleId,
         ];
     }
 }

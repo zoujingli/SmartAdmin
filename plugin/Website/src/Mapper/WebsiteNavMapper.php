@@ -35,7 +35,8 @@ final class WebsiteNavMapper extends CoreMapper
             ->equal('site_id,parent_id,position,link_type,status')
             ->in('site_id#site_ids,status#status_ids')
             ->dateBetween('created_at')
-            ->getQuery();
+            ->getQuery()
+            ->with(['site' => fn ($query) => $query->select(['id', 'code', 'name'])]);
     }
 
     /**
@@ -59,18 +60,23 @@ final class WebsiteNavMapper extends CoreMapper
             ->where('status', Status::ENABLED)
             ->limit(max(1, min((int)($params['limit'] ?? 200), 500)))
             ->get(['id', 'site_id', 'parent_id', 'position', 'title', 'link_type', 'route', 'url'])
-            ->map(static fn (WebsiteNav $nav): array => [
-                'id' => (int)$nav->id,
-                'value' => (int)$nav->id,
-                'label' => (string)$nav->title,
-                'site_id' => (int)$nav->site_id,
-                'parent_id' => (int)$nav->parent_id,
-                'position' => (string)$nav->position,
-                'title' => (string)$nav->title,
-                'link_type' => (string)$nav->link_type,
-                'route' => (string)$nav->route,
-                'url' => (string)$nav->url,
-            ])
+            ->map(static function (WebsiteNav $nav): array {
+                $position = (string)$nav->position;
+                $positionText = ['top' => '顶部导航', 'bottom' => '底部导航', 'side' => '侧边导航'][$position] ?? $position;
+
+                return [
+                    'id' => (int)$nav->id,
+                    'value' => (int)$nav->id,
+                    'label' => $position === '' ? (string)$nav->title : sprintf('%s（%s）', (string)$nav->title, $positionText),
+                    'site_id' => (int)$nav->site_id,
+                    'parent_id' => (int)$nav->parent_id,
+                    'position' => $position,
+                    'title' => (string)$nav->title,
+                    'link_type' => (string)$nav->link_type,
+                    'route' => (string)$nav->route,
+                    'url' => (string)$nav->url,
+                ];
+            })
             ->all();
     }
 

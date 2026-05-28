@@ -31,9 +31,6 @@
                 <SearchField label="名称搜索"><Input v-model:value="searchForm.name" placeholder="请输入角色名称" allow-clear /></SearchField>
               </Col>
               <Col :xs="24" :sm="12" :xl="6">
-                <SearchField label="编码搜索"><Input v-model:value="searchForm.code" placeholder="请输入角色编码" allow-clear /></SearchField>
-              </Col>
-              <Col :xs="24" :sm="12" :xl="6">
                 <SearchField label="当前状态">
                   <Select v-model:value="searchForm.status" class="w-full" placeholder="请选择" allow-clear>
                     <SelectOption :value="1">启用</SelectOption>
@@ -59,7 +56,7 @@
             </Row>
             <CrudFilterSummary
               :items="activeFilterItems"
-              empty-text="当前显示全部角色记录，可按名称、编码、状态和数据范围快速筛选。"
+              empty-text="当前显示全部角色记录，可按名称、状态和数据范围快速筛选。"
             />
           </Card>
 
@@ -167,7 +164,6 @@
             `授权菜单：${currentRole.menuNames?.length || 0} 项`,
           ]"
           :tags="[
-            { label: currentRole.code || '未设置编码' },
             { color: currentRole.status === 1 ? 'success' : 'default', label: roleStatusText(currentRole.status) },
             { color: 'processing', label: roleScopeText(currentRole.scope) },
           ]"
@@ -178,7 +174,6 @@
           <DescriptionsItem label="角色 ID">{{ currentRole.id }}</DescriptionsItem>
           <DescriptionsItem label="创建时间">{{ currentRole.created_at || '-' }}</DescriptionsItem>
           <DescriptionsItem label="角色名称">{{ currentRole.name }}</DescriptionsItem>
-          <DescriptionsItem label="角色编码">{{ currentRole.code || '-' }}</DescriptionsItem>
           <DescriptionsItem label="状态">{{ roleStatusText(currentRole.status) }}</DescriptionsItem>
           <DescriptionsItem label="数据范围">{{ roleScopeText(currentRole.scope) }}</DescriptionsItem>
           <DescriptionsItem label="排序">{{ currentRole.sort }}</DescriptionsItem>
@@ -246,7 +241,6 @@ import FormModal from './modules/form.vue';
 import type { RoleSearchForm, RoleType } from './types';
 
 const searchForm = reactive<RoleSearchForm>({
-  code: '',
   name: '',
   scope: undefined,
   status: undefined,
@@ -306,10 +300,6 @@ const activeFilterItems = computed(() => {
   if (name !== '') {
     items.push({ label: '角色名称', value: name });
   }
-  const code = searchForm.code?.trim() || '';
-  if (code !== '') {
-    items.push({ label: '角色编码', value: code });
-  }
   if (typeof searchForm.status === 'number') {
     items.push({ label: '状态', value: roleStatusText(searchForm.status) });
   }
@@ -365,7 +355,6 @@ function roleRecycleActions(record: RoleType) {
 const exportColumns = [
   { key: 'id', title: 'ID', width: 80 },
   { key: 'name', title: '角色名称', width: 150 },
-  { key: 'code', title: '角色编码', width: 150 },
   { key: 'scope', title: '数据范围', width: 130, formatter: (record: RoleType) => roleScopeText(record.scope) },
   { key: 'sort', title: '排序', width: 80 },
   { key: 'status', title: '状态', width: 90, formatter: (record: RoleType) => statusText(record.status) },
@@ -374,7 +363,6 @@ const exportColumns = [
 
 const importColumns = [
   { key: 'name', title: '角色名称', required: true, example: '导入角色', rule: '角色名称需唯一。' },
-  { key: 'code', title: '角色编码', required: true, example: 'import_role', rule: '权限编码需唯一，建议使用英文、数字或下划线。' },
   { key: 'scope', title: '数据范围', example: '本人数据', parser: (value: any) => parseRoleScope(value), rule: '支持 全部数据/本部门数据/本部门及以下/本人数据 或 1/2/3/4。' },
   { key: 'sort', title: '排序', example: 0, parser: (value: any) => parseNumber(value, 0), rule: '数字越小排序越靠前，留空默认 0。' },
   { key: 'status', title: '状态', example: '启用', parser: (value: any) => parseStatus(value, 1), rule: '支持 启用/禁用 或 1/0，留空默认启用。' },
@@ -597,7 +585,6 @@ const handleSearch = () => {
 };
 
 const handleReset = () => {
-  searchForm.code = '';
   searchForm.name = '';
   searchForm.scope = undefined;
   searchForm.status = undefined;
@@ -757,7 +744,6 @@ const handleExport = async () => {
     await exportCrudXlsx<RoleType>({
     columns: exportColumns,
     fetchPage: (page, pageSize) => roleApiService.getRoleList({
-      code: searchForm.code,
       name: searchForm.name,
       page,
       pageSize,
@@ -779,11 +765,10 @@ const handleImport = async () => {
     moduleName: '角色',
     rules: [
       '角色导入只创建角色基础信息，菜单权限请导入后通过授权功能维护。',
-      '角色编码和名称需满足后端唯一性校验，重复行会在结果中标记失败。',
+      '只需填写角色名称，角色身份由系统主键维护；权限节点通过授权功能单独维护。',
     ],
     submit: async (payload) => {
       await roleApiService.createRole({
-        code: String(payload.code || ''),
         name: String(payload.name || ''),
         scope: parseRoleScope(payload.scope, ROLE_SCOPE_DEFAULT),
         sort: parseNumber(payload.sort, 0),

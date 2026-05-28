@@ -14,7 +14,7 @@
     <Card class="crud-page-shell">
       <CrudStatCards class="mb-5" :items="summaryCards" />
 
-      <Card class="mb-5" :body-style="{ padding: '20px 24px' }">
+      <Card class="mb-5">
         <Row :gutter="[16, 16]" class="mb-4 crud-search-grid">
           <Col :xs="24" :sm="12" :xl="6">
             <SearchField label="搜索内容"><Input v-model:value="keyword" allow-clear placeholder="AppID / 账号名称" /></SearchField>
@@ -92,13 +92,14 @@
       </Card>
     </Card>
 
-    <Drawer
+    <AppDrawer
+      :confirm-loading="saving"
       :open="open"
       :title="editingId ? '编辑接口账号' : '新增接口账号'"
-      :body-style="{ padding: '20px 24px 8px' }"
-      :width="popupWidth.md"
-      placement="right"
+      ok-text="确定"
+      width-size="md"
       @close="open = false"
+      @ok="save"
     >
       <Form :model="form" layout="vertical">
         <Row :gutter="[16, 0]">
@@ -167,13 +168,7 @@
           </Col>
         </Row>
       </Form>
-      <template #footer>
-        <div class="flex justify-end gap-3">
-          <Button @click="open = false">取消</Button>
-          <Button type="primary" :loading="saving" @click="save">确定</Button>
-        </div>
-      </template>
-    </Drawer>
+    </AppDrawer>
   </Page>
 </template>
 
@@ -189,31 +184,13 @@ import {
   CrudTableHeader,
   Page,
 } from '@vben/common-ui';
-import {
-  Button,
-  Card,
-  Col,
-  Drawer,
-  Form,
-  FormItem,
-  Input,
-  InputPassword,
-  message,
-  Row,
-  Select,
-  SelectOption,
-  Space,
-  Switch,
-  Table,
-  Tag,
-  Tooltip,
-} from 'ant-design-vue';
+import { Button, Card, Col, Form, FormItem, Input, InputPassword, message, Row, Select, SelectOption, Space, Switch, Table, Tag, Tooltip } from 'ant-design-vue';
 
 import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 import { requestClient } from '#/api/request';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
-import { popupWidth } from '#/utils/popup';
+import AppDrawer from '#/components/app-drawer.vue';
 
 const { hasAccessByCodes } = useAccess();
 const canCreateAccount = computed(() => hasAccessByCodes(['wechat.client.account.create']));

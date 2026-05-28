@@ -10,7 +10,7 @@
     <Card class="crud-page-shell">
       <CrudStatCards class="mb-5" :items="summaryCards" />
 
-      <Card class="mb-5" :body-style="{ padding: '20px 24px' }">
+      <Card class="mb-5">
         <Row class="crud-search-grid" :gutter="[16, 16]">
           <Col :xs="24" :sm="12" :xl="6"><SearchField label="搜索内容"><Input v-model:value="keyword" allow-clear placeholder="名称 / MediaID / 地址" /></SearchField></Col>
           <Col :xs="24" :sm="12" :xl="5">
@@ -68,13 +68,14 @@
       </Card>
     </Card>
 
-    <Drawer
+    <AppDrawer
+      :confirm-loading="saving"
       :open="modalOpen"
       :title="editingId ? '编辑素材' : '新增素材'"
-      :body-style="{ padding: '20px 24px 8px' }"
-      :width="popupWidth.sm"
-      placement="right"
+      ok-text="确定"
+      width-size="sm"
       @close="modalOpen = false"
+      @ok="save"
     >
       <Form :model="form" layout="vertical">
         <Row :gutter="[16, 0]">
@@ -88,13 +89,7 @@
           <Col :span="24"><FormItem label="素材 URL"><Input v-model:value="form.url" placeholder="微信返回或外部可访问地址" /></FormItem></Col>
         </Row>
       </Form>
-      <template #footer>
-        <div class="flex justify-end gap-3">
-          <Button @click="modalOpen = false">取消</Button>
-          <Button type="primary" :loading="saving" @click="save">确定</Button>
-        </div>
-      </template>
-    </Drawer>
+    </AppDrawer>
   </Page>
 </template>
 
@@ -110,12 +105,12 @@ import {
   CrudTableHeader,
   Page,
 } from '@vben/common-ui';
-import { Button, Card, Col, Drawer, Form, FormItem, Input, InputNumber, message, Row, Select, SelectOption, Space, Table, Tag, TypographyText } from 'ant-design-vue';
+import { Button, Card, Col, Form, FormItem, Input, InputNumber, message, Row, Select, SelectOption, Space, Table, Tag, TypographyText } from 'ant-design-vue';
 import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 import { requestClient } from '#/api/request';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
-import { popupWidth } from '#/utils/popup';
+import AppDrawer from '#/components/app-drawer.vue';
 
 const { hasAccessByCodes } = useAccess();
 const canSave = computed(() => hasAccessByCodes(['wechat.client.media.save']));

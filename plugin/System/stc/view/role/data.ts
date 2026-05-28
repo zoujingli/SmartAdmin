@@ -23,15 +23,6 @@ export function getRoleFormSchema() {
       ],
     },
     {
-      name: 'code',
-      label: '角色编码',
-      component: 'Input',
-      rules: [
-        { required: true, message: '请输入角色编码' },
-        { min: 2, max: 50, message: '角色编码长度为 2-50 个字符' },
-      ],
-    },
-    {
       name: 'sort',
       label: '排序',
       component: 'InputNumber',

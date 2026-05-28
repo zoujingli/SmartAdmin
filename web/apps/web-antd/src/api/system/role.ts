@@ -8,7 +8,6 @@ export namespace RoleApi {
   export interface RoleInfo {
     id: number;
     name: string;
-    code?: string;
     scope: number;
     sort: number;
     status: number;
@@ -30,7 +29,6 @@ export namespace RoleApi {
   export interface RoleListParams {
     page?: number;
     pageSize?: number;
-    code?: string;
     name?: string;
     scope?: number;
     status?: number;
@@ -38,7 +36,6 @@ export namespace RoleApi {
 
   export interface RoleFormData {
     id?: number;
-    code: string;
     name: string;
     scope: number;
     sort: number;

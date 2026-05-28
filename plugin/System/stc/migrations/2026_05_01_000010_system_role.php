@@ -22,7 +22,6 @@ return new class extends Migration {
         Schema::create('system_role', function (Blueprint $table) {
             $table->addColumn('bigInteger', 'id', ['autoIncrement' => true, 'unsigned' => true])->comment('主键ID');
             $table->addColumn('string', 'name', ['length' => 100])->nullable()->default('')->comment('角色名称');
-            $table->addColumn('string', 'code', ['length' => 100])->nullable()->default('')->comment('角色编码');
             $table->addColumn('bigInteger', 'scope', [])->nullable()->default(4)->comment('数据范围(1全部,2本部门,3部门及下级,4仅本人)');
             $table->addColumn('bigInteger', 'sort', [])->nullable()->default(0)->comment('排序权重');
             $table->addColumn('bigInteger', 'status', [])->nullable()->default(1)->comment('状态(1启用,0禁用)');
@@ -37,7 +36,6 @@ return new class extends Migration {
             $table->index(['sort'], 'idx_sr_4b30_sort');
             $table->index(['status'], 'idx_sr_4b30_status');
             $table->index(['tenant_id'], 'idx_sr_4b30_tenant_id');
-            $table->unique(['tenant_id', 'code'], 'uni_sr_4b30_tenant_id_1f6ca33c');
             $table->comment('系统角色表');
         });
     }

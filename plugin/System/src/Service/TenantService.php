@@ -225,7 +225,6 @@ final class TenantService extends CoreService
         $role = SystemRole::query()->create([
             'tenant_id' => $tenantId,
             'name' => '租户管理员',
-            'code' => 'tenant-admin',
             'scope' => DataScope::ALL,
             'sort' => 1000,
             'status' => Status::ENABLED,

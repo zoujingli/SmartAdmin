@@ -19,6 +19,8 @@ namespace Plugin\Website\Support;
  */
 final class WebsiteOpenApiSignature
 {
+    public const AUTH_SCHEME = 'Website-HMAC';
+
     /**
      * @param array<string, mixed> $query
      */
@@ -41,6 +43,21 @@ final class WebsiteOpenApiSignature
     }
 
     /**
+     * 生成标准 Authorization 头，避免开放接口继续散落多个自定义 X-Website-* Header。
+     */
+    public static function authorizationHeader(string $appId, string $timestamp, string $nonce, string $signature): string
+    {
+        return sprintf(
+            '%s appid="%s", timestamp="%s", nonce="%s", signature="%s"',
+            self::AUTH_SCHEME,
+            self::quoteAuthorizationValue($appId),
+            self::quoteAuthorizationValue($timestamp),
+            self::quoteAuthorizationValue($nonce),
+            self::quoteAuthorizationValue(strtolower($signature))
+        );
+    }
+
+    /**
      * @param array<string, mixed> $query
      */
     public static function canonicalQuery(array $query): string
@@ -55,6 +72,11 @@ final class WebsiteOpenApiSignature
         $path = trim($path);
 
         return $path === '' ? '/' : $path;
+    }
+
+    private static function quoteAuthorizationValue(string $value): string
+    {
+        return addcslashes(trim($value), "\\\"");
     }
 
     /**

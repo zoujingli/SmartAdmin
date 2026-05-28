@@ -214,8 +214,8 @@ final class UserMapper extends CoreMapper
             return false;
         }
 
-        // belongsToMany()->sync() 直接写关联表，不触发模型 Saving 事件，必须显式写入当前租户 ID。
-        $user->roles()->syncWithPivotValues($roleIds, ['tenant_id' => $tenantId]);
+        // belongsToMany()->sync() 直接写关联表，不触发模型 Saving 事件，必须显式写入目标用户租户 ID。
+        $user->roles()->sync($this->makeTenantPivotSyncRecords($roleIds, $tenantId));
 
         return true;
     }
@@ -236,8 +236,8 @@ final class UserMapper extends CoreMapper
             return false;
         }
 
-        // belongsToMany()->sync() 直接写关联表，不触发模型 Saving 事件，必须显式写入当前租户 ID。
-        $user->depts()->syncWithPivotValues($deptIds, ['tenant_id' => $tenantId]);
+        // belongsToMany()->sync() 直接写关联表，不触发模型 Saving 事件，必须显式写入目标用户租户 ID。
+        $user->depts()->sync($this->makeTenantPivotSyncRecords($deptIds, $tenantId));
 
         return true;
     }
@@ -258,8 +258,8 @@ final class UserMapper extends CoreMapper
             return false;
         }
 
-        // belongsToMany()->sync() 直接写关联表，不触发模型 Saving 事件，必须显式写入当前租户 ID。
-        $user->posts()->syncWithPivotValues($postIds, ['tenant_id' => $tenantId]);
+        // belongsToMany()->sync() 直接写关联表，不触发模型 Saving 事件，必须显式写入目标用户租户 ID。
+        $user->posts()->sync($this->makeTenantPivotSyncRecords($postIds, $tenantId));
 
         return true;
     }
@@ -576,7 +576,6 @@ final class UserMapper extends CoreMapper
                 'system_user_role.user_id as user_id',
                 'system_role.id',
                 'system_role.name',
-                'system_role.code',
                 'system_role.scope',
                 'system_role.status',
             ])
@@ -597,7 +596,6 @@ final class UserMapper extends CoreMapper
             $map[$userId][] = [
                 'id' => $roleId,
                 'name' => (string)($row->name ?? ''),
-                'code' => (string)($row->code ?? ''),
                 'scope' => (int)($row->scope ?? 0),
                 'status' => (int)($row->status ?? 0),
                 'pivot' => [
@@ -716,7 +714,6 @@ final class UserMapper extends CoreMapper
             ->select([
                 'id',
                 'name',
-                'code',
                 'scope',
                 'sort',
                 'status',
@@ -953,5 +950,17 @@ final class UserMapper extends CoreMapper
             ->whereIn('id', $ids)
             ->where(DataField::TENANT, $tenantId)
             ->count() === count($ids);
+    }
+
+    /**
+     * Hyperf 的 BelongsToMany 没有 syncWithPivotValues()，需用 sync() 支持的 “关联 ID => pivot 字段” 格式。
+     * 这里统一组装租户字段，避免用户角色、部门、岗位关联表在平台管理员代维护时落入默认租户。
+     *
+     * @param array<int, int> $ids
+     * @return array<int, array{tenant_id:int}>
+     */
+    private function makeTenantPivotSyncRecords(array $ids, int $tenantId): array
+    {
+        return array_fill_keys($ids, ['tenant_id' => $tenantId]);
     }
 }

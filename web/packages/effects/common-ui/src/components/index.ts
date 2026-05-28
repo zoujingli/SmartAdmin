@@ -1,4 +1,5 @@
 export * from './api-component';
+export * from './app-drawer';
 export * from './captcha';
 export * from './col-page';
 export * from './count-to';

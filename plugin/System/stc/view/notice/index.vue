@@ -25,7 +25,7 @@
     <Card class="crud-page-shell">
       <Tabs v-model:activeKey="activeTab" class="crud-page-tabs">
         <TabPane v-if="canManageNotices" key="data" tab="数据列表">
-          <Card class="mb-5" :body-style="{ padding: '20px 24px' }">
+          <Card class="mb-5">
             <Row :gutter="[16, 16]" class="mb-4 crud-search-grid">
               <Col :xs="24" :sm="12" :xl="6">
                 <SearchField label="搜索内容"><Input v-model:value="manageSearch.keyword" allow-clear placeholder="请输入公告标题或内容" /></SearchField>
@@ -133,7 +133,7 @@
         </TabPane>
 
         <TabPane key="inbox" tab="我的通知">
-          <Card class="mb-5" :body-style="{ padding: '20px 24px' }">
+          <Card class="mb-5">
             <Row :gutter="[16, 16]" class="mb-4 crud-search-grid">
               <Col :xs="24" :sm="12" :xl="6">
                 <SearchField label="搜索内容"><Input v-model:value="inboxSearch.keyword" allow-clear placeholder="请输入标题或内容关键字" /></SearchField>
@@ -205,13 +205,14 @@
       </Tabs>
     </Card>
 
-    <Drawer
+    <AppDrawer
+      :confirm-loading="saving"
       :open="modalVisible"
       :title="formState.id ? '编辑公告' : '新增公告'"
-      :body-style="{ padding: '20px 24px 8px' }"
-      :width="popupWidth.md"
-      placement="right"
+      ok-text="确定"
+      width-size="md"
       @close="modalVisible = false"
+      @ok="handleSubmit"
     >
       <Form ref="formRef" :model="formState" layout="vertical">
         <Row :gutter="[16, 0]">
@@ -269,13 +270,7 @@
           </Col>
         </Row>
       </Form>
-      <template #footer>
-        <div class="flex justify-end gap-3">
-          <Button @click="modalVisible = false">取消</Button>
-          <Button type="primary" :loading="saving" @click="handleSubmit">确定</Button>
-        </div>
-      </template>
-    </Drawer>
+    </AppDrawer>
 
     <Modal
       :open="detailVisible"
@@ -338,27 +333,7 @@ import {
   CrudTableHeader,
   Page,
 } from '@vben/common-ui';
-import {
-  Button,
-  Card,
-  Col,
-  DescriptionsItem,
-  Drawer,
-  Form,
-  FormItem,
-  Input,
-  message,
-  Modal,
-  Row,
-  Select,
-  SelectOption,
-  Space,
-  Switch,
-  Table,
-  Tabs,
-  TabPane,
-  Tooltip,
-} from 'ant-design-vue';
+import { Button, Card, Col, DescriptionsItem, Form, FormItem, Input, message, Modal, Row, Select, SelectOption, Space, Switch, Table, Tabs, TabPane, Tooltip } from 'ant-design-vue';
 
 import { noticeApiService } from '#/api/system/notice';
 import type { NoticeApi } from '#/api/system/notice';
@@ -368,6 +343,7 @@ import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/tab
 import { popupWidth } from '#/utils/popup';
 import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
+import AppDrawer from '#/components/app-drawer.vue';
 
 const route = useRoute();
 const router = useRouter();

@@ -25,7 +25,6 @@ use Library\Exception\ErrorResponseException;
  * @property int $id 主键ID
  * @property int $tenant_id 租户ID
  * @property string $name 角色名称
- * @property string $code 角色编码
  * @property int $scope 数据范围(1全部,2本部门,3部门及下级,4仅本人)
  * @property int $sort 排序权重
  * @property int $status 状态(1启用,0禁用)
@@ -44,14 +43,13 @@ final class SystemRole extends CoreModel
 {
     use SoftDeletes;
 
-    protected array $fillable = ['id', 'tenant_id', 'name', 'code', 'scope', 'sort', 'status', 'remark', 'created_by', 'updated_by', 'created_at', 'updated_at', 'deleted_at'];
+    protected array $fillable = ['id', 'tenant_id', 'name', 'scope', 'sort', 'status', 'remark', 'created_by', 'updated_by', 'created_at', 'updated_at', 'deleted_at'];
 
     protected array $logRules = [
         'name' => '系统角色',
         'title' => 'name',
         'fields' => [
             'name' => '角色名称',
-            'code' => '角色编码',
             'scope' => [
                 'name' => '数据范围',
                 'values' => [
@@ -150,8 +148,11 @@ final class SystemRole extends CoreModel
             ]);
         }
 
-        // 角色-节点关联写入不会触发模型事件，租户 ID 必须跟随角色归属，支持平台管理员维护租户角色。
-        $this->nodes()->syncWithPivotValues(array_values(array_unique($nodeIds)), ['tenant_id' => (int)($this->tenant_id ?? System::getTenantId())]);
+        // Hyperf 的 BelongsToMany 不提供 Laravel 的 syncWithPivotValues()；使用 sync() 的 “节点 ID => pivot 字段”
+        // 结构完成全量同步，确保新增与已存在的角色-节点关联都写入角色所属租户，支持平台管理员维护租户角色。
+        $nodeIds = array_values(array_unique($nodeIds));
+        $pivotRecords = array_fill_keys($nodeIds, ['tenant_id' => (int)($this->tenant_id ?? System::getTenantId())]);
+        $this->nodes()->sync($pivotRecords);
     }
 
     /**

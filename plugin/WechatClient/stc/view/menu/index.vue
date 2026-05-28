@@ -10,7 +10,7 @@
     <Card class="crud-page-shell">
       <CrudStatCards class="mb-5" :items="summaryCards" />
 
-      <Card class="mb-5" :body-style="{ padding: '20px 24px' }">
+      <Card class="mb-5">
         <Row class="crud-search-grid" :gutter="[16, 16]">
           <Col :xs="24" :sm="12" :xl="6"><SearchField label="方案名称"><Input v-model:value="keyword" allow-clear placeholder="请输入菜单方案名称" /></SearchField></Col>
           <Col :xs="24" :sm="12" :xl="4"><SearchField label="接口账号"><InputNumber v-model:value="accountId" :min="1" class="w-full" placeholder="账号 ID" /></SearchField></Col>
@@ -33,13 +33,14 @@
       </Card>
     </Card>
 
-    <Drawer
+    <AppDrawer
+      :confirm-loading="saving"
       :open="modalOpen"
       :title="editingId ? '设计菜单方案' : '新增菜单方案'"
-      :body-style="{ padding: '20px 24px 8px' }"
-      :width="popupWidth.wide"
-      placement="right"
+      ok-text="确定"
+      width-size="wide"
       @close="modalOpen = false"
+      @ok="save"
     >
       <Alert class="mb-4" type="info" show-icon :message="officialMenuLimitTip" />
       <Form :model="form" layout="vertical">
@@ -227,13 +228,7 @@
           </Card>
         </Col>
       </Row>
-      <template #footer>
-        <div class="flex justify-end gap-3">
-          <Button @click="modalOpen = false">取消</Button>
-          <Button type="primary" :loading="saving" @click="save">确定</Button>
-        </div>
-      </template>
-    </Drawer>
+    </AppDrawer>
   </Page>
 </template>
 
@@ -243,12 +238,12 @@ import type { CrudFilterSummaryItem } from '@vben/common-ui';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useAccess } from '@vben/access';
 import { buildCrudTableLocale, CrudFilterSummary, CrudStatCards, CrudTableHeader, Page } from '@vben/common-ui';
-import { Alert, Button, Card, Col, Drawer, Empty, Form, FormItem, Input, InputNumber, message, Popconfirm, Row, Select, SelectOption, Space, Table, Tag, Textarea } from 'ant-design-vue';
+import { Alert, Button, Card, Col, Empty, Form, FormItem, Input, InputNumber, message, Popconfirm, Row, Select, SelectOption, Space, Table, Tag, Textarea } from 'ant-design-vue';
 import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 import { requestClient } from '#/api/request';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
-import { popupWidth } from '#/utils/popup';
+import AppDrawer from '#/components/app-drawer.vue';
 
 type PreviewMode = 'edit' | 'simulate';
 type SimulatedActionTone = 'article' | 'empty' | 'json' | 'media' | 'reply' | 'view';

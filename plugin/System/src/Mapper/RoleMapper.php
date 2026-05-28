@@ -111,7 +111,7 @@ final class RoleMapper extends CoreMapper
     protected function handleSearch(Builder $query, array $params): Builder
     {
         return _query($query, $params)
-            ->like('name,code')
+            ->like('name')
             ->equal('status,scope')
             ->dateBetween('created_at')
             ->getQuery();

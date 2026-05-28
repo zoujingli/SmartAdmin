@@ -1,5 +1,5 @@
 <template>
-  <Drawer :body-style="{ padding: '20px 24px' }" :open="open" :title="drawerTitle" width="min(920px, calc(100vw - 24px))" @close="close">
+  <AppDrawer :open="open" :show-footer="false" :title="drawerTitle" width-size="xl" @close="close">
     <div v-if="loading" class="reference-detail-state"><Spin /> <span>正在读取引用数据...</span></div>
     <Alert v-else-if="error" show-icon type="warning" :message="error" />
     <div v-else-if="detail" class="reference-detail-panel">
@@ -160,15 +160,16 @@
       </section>
     </div>
     <Alert v-else show-icon type="info" message="请选择一个引用标签" />
-  </Drawer>
+  </AppDrawer>
 </template>
 
 <script setup lang="ts">
 import type { ReferenceChainItem, ReferenceDetail, ReferenceItem, ReferencePrefix, ReferenceSegment } from './types';
 
 import { computed, ref, watch } from 'vue';
-import { Alert, Descriptions, DescriptionsItem, Drawer, Spin, Tag } from 'ant-design-vue';
+import { Alert, Descriptions, DescriptionsItem, Spin, Tag } from 'ant-design-vue';
 
+import AppDrawer from '../../components/app-drawer/app-drawer.vue';
 import { getReferenceProvider } from './registry';
 import { parseReferenceSegments, referenceClickableText, referenceDisplayText, referenceFromDataset, referenceTrailingText, renderReferenceHtml } from './reference-utils';
 

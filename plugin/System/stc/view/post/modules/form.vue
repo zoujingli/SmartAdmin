@@ -1,11 +1,11 @@
 ﻿<template>
-  <Drawer
+  <AppDrawer
+    :confirm-loading="saving"
     :open="visible"
-    :title="formData.id ? '编辑岗位' : '新增岗位'"
-    :body-style="{ padding: '20px 24px 8px' }"
-    :width="popupWidth.md"
-    placement="right"
+    :title="formData.id ? '编辑岗位' : '新增岗位'" width-size="md"
+    ok-text="确定"
     @close="handleCancel"
+    @ok="handleOk"
   >
     <Form ref="formRef" :model="formData" :rules="formRules" layout="vertical">
       <Row :gutter="[16, 0]">
@@ -38,23 +38,17 @@
         </Col>
       </Row>
     </Form>
-    <template #footer>
-      <div class="flex justify-end gap-3">
-        <Button @click="handleCancel">取消</Button>
-        <Button type="primary" @click="handleOk">确定</Button>
-      </div>
-    </template>
-  </Drawer>
+  </AppDrawer>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue';
-import { Button, Col, Drawer, Form, FormItem, Input, InputNumber, message, RadioGroup, Row } from 'ant-design-vue';
+import { Col, Form, FormItem, Input, InputNumber, message, RadioGroup, Row } from 'ant-design-vue';
 
 import { postApiService } from '#/api/system/post';
 
 import type { PostFormData, PostType } from '../types';
-import { popupWidth } from '#/utils/popup';
+import AppDrawer from '#/components/app-drawer.vue';
 
 interface Props {
   visible: boolean;
@@ -70,6 +64,7 @@ const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
 const formRef = ref();
+const saving = ref(false);
 const formData = reactive<PostFormData>({
   id: 0,
   code: '',

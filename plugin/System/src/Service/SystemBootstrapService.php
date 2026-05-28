@@ -66,7 +66,7 @@ final class SystemBootstrapService
             ->where('role_id', $superRoleId)
             ->exists();
         if (!$exists && !$dryRun) {
-            Db::table('system_user_role')->insert(SystemBootstrapSeed::superAdminRoleBindingRow($superUserId));
+            Db::table('system_user_role')->insert(SystemBootstrapSeed::superAdminRoleBindingRow($superUserId, $superRoleId));
         }
 
         return $superUserId;
@@ -104,8 +104,10 @@ final class SystemBootstrapService
             ->whereNull('deleted_at')
             ->first();
         if (!$existingRole) {
+            // 角色不再维护内部 code；历史库若超级管理员角色 ID 被调整，只按平台租户 + 角色名称兜底识别。
             $existingRole = Db::table('system_role')
-                ->where('code', 'super-admin')
+                ->where('tenant_id', 0)
+                ->where('name', '超级管理员')
                 ->whereNull('deleted_at')
                 ->first();
         }
@@ -146,14 +148,22 @@ final class SystemBootstrapService
             return false;
         }
 
-        $roleId = SystemBootstrapSeed::SUPER_ROLE_ID;
         $superRole = Db::table('system_role')
-            ->where('id', $roleId)
+            ->where('id', SystemBootstrapSeed::SUPER_ROLE_ID)
             ->whereNull('deleted_at')
             ->first();
         if (!$superRole) {
+            // 无角色 code 后，通配授权兜底只能依赖平台超级管理员角色名称，避免新库访问不存在字段。
+            $superRole = Db::table('system_role')
+                ->where('tenant_id', 0)
+                ->where('name', '超级管理员')
+                ->whereNull('deleted_at')
+                ->first();
+        }
+        if (!$superRole) {
             return false;
         }
+        $roleId = (int)$superRole->id;
 
         $exists = Db::table('system_role_node')
             ->where('role_id', $roleId)

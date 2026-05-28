@@ -216,11 +216,12 @@ final class RoleService extends CoreService
      *
      * - 新增时默认补充 scope
      * - 校验 scope 枚举合法性
-     * - 校验 name/code 唯一性
+     * - 角色身份统一使用主键 ID，权限授权使用菜单/节点 code，不再维护单独角色 code
+     * - 校验 name 唯一性
      */
     protected function filterData(array &$data, array $exists = []): array
     {
-        foreach (['name', 'code', 'remark'] as $field) {
+        foreach (['name', 'remark'] as $field) {
             if (array_key_exists($field, $data) && is_string($data[$field])) {
                 $data[$field] = trim($data[$field]);
             }
@@ -231,8 +232,6 @@ final class RoleService extends CoreService
             'tenant_id.min:0' => '租户 ID 不能小于 0',
             'name.filled' => '角色名称不能为空',
             'name.max:100' => '角色名称最多 100 位',
-            'code.filled' => '角色编码不能为空',
-            'code.max:100' => '角色编码最多 100 位',
             'scope.integer' => '数据范围必须为数字',
             'scope.in:' . implode(',', array_keys(DataScope::getAll())) => '数据范围无效',
             'sort.integer' => '排序值必须为数字',
@@ -242,7 +241,6 @@ final class RoleService extends CoreService
         ];
         if ($exists === []) {
             $rules['name.required'] = '角色名称不能为空';
-            $rules['code.required'] = '角色编码不能为空';
             $rules['scope.default'] = DataScope::getDefault();
             $rules['sort.default'] = 0;
             $rules['status.default'] = Status::ENABLED;
@@ -256,7 +254,6 @@ final class RoleService extends CoreService
         }
 
         $this->ensureUniqueField('name', $data, $exists, '角色名称已存在');
-        $this->ensureUniqueField('code', $data, $exists, '角色编码已存在');
 
         return $data;
     }

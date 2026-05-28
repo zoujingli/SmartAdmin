@@ -12,10 +12,13 @@
 
 > 小提示：接口字段、请求示例、响应示例、权限码和错误边界以 [接口参考](接口参考/README.md) 与当前源码为准；本页用于快速找入口和理解维护边界。
 
+公开文档站保留全生态插件文档，包括会员授权插件的接口与使用说明。标记为“会员授权”的插件不随开源仓源码或公开 Release ZIP 分发，安装使用需会员授权或内部交付。
+
 阅读建议：
 
 - 🧪 初次体验先完成 [本地启动](快速开始/本地启动.md)，再进入用户教程验证后台主流程。
 - 🔐 做接口联调先读 [接口参考](接口参考/README.md) 和 [在线测试](接口参考/在线测试.md)，确认 Token、权限码和标准响应壳。
+- 🧩 做插件或业务模块开发先读 [插件开发](开发指南/插件开发.md)、[新模块开发](开发指南/新模块开发.md)、[智能通道标准化调用](开发指南/智能通道标准化调用.md) 和 [权限与菜单](架构设计/权限与菜单.md)。
 - 📦 准备生产发布先读 [生产部署](部署运维/生产部署.md) 与 [发布升级](部署运维/发布升级.md)，再执行 release dry-run。
 - 📌 文档、接口或菜单变更后必须运行 `composer docs:check`，接口数量和路由覆盖以检查结果为准。
 
@@ -27,7 +30,7 @@
 | [用户教程](用户教程/README.md) | 管理员、产品、测试 | 登录、工作台、组织权限、文件公告日志、租户运维 |
 | [系统功能](系统功能/README.md) | 实施、架构、开发 | 认证权限、系统管理、上传、审计、租户和发布能力边界 |
 | [开发指南](开发指南/README.md) | 后端、前端、插件开发 | 分层规则、接口规范、插件开发、前端接入和编码约束 |
-| [接口参考](接口参考/README.md) | 前后端联调、测试 | 当前 `384` 个 HTTP 接口的字段、示例、权限和在线调试 |
+| [接口参考](接口参考/README.md) | 前后端联调、测试 | 当前 `725` 个 HTTP 接口的字段、示例、权限和在线调试，含会员授权插件文档 |
 | [部署运维](部署运维/README.md) | 运维、私有化交付 | 开发/生产部署、Docs 静态站、发布升级、缓存和日志 |
 | [开源协作](开源协作/README.md) | 贡献者、维护者 | 协议、贡献、赞助、发布流程、安全披露和路线图 |
 
@@ -38,6 +41,7 @@
 | 插件资源 | 业务插件通过本地 Composer path 包、Provider、`plugin.json` 和 Web 编译期扫描接入；源码/CI 模式可使用 SmartAdminLibrary 提供的 `xadmin:plugin:*` 打包、安装、移除和备份恢复，backup 默认只备份代码，`--with-data` 才包含插件自有表，发布二进制内不出现这些命令，也不支持运行时远程安装、更新或删除插件。 |
 | 文件上传 | 统一使用 `upload/runtime`、`upload/prepare`、`upload/relay`、`upload/relay-chunk`、`upload/part-sign`、`upload/complete`、`upload/abort`。 |
 | 微信支付回调 | 只保留订单与退款标准回调：`/wechat-client/api/payment/notify/order/{merchantId}`、`/wechat-client/api/payment/notify/refund/{merchantId}`。 |
+| 微信开放平台回调 | 授权账号消息与事件必须使用 `/wechat-service/api/callback/notify/{appid}`，由标准 URL 中的 AppID 确认消息归属。 |
 | 前端菜单 | 后台动态路由统一读取 `/system/menu/user`，按钮权限统一读取 `/system/menu/permissions`。 |
 | 发布升级 | 生产安装/升级使用 release 安装包，`xadmin:release:restore --install --dry-run` 先输出 SQL 和必要数据恢复计划。 |
 
@@ -68,6 +72,12 @@
 | 操作日志、请求日志、变更审计 | `SmartAdminLibrary` Events、`plugin/System/src/Controller/Logs*Controller.php` | [日志审计与公告](系统功能/日志审计与公告.md) |
 | 多租户管理和租户上下文 | `plugin/System`、`TenantContext` | [租户与发布构建](系统功能/租户与发布构建.md) |
 | 微信客户端 | `plugin/WechatClient` | [微信客户端接口](接口参考/微信客户端接口.md) |
+| 官网管理与开放接口 | `plugin/Website` | [官网管理接口](接口参考/官网管理接口.md)、[官网开放接口](接口参考/官网开放接口.md) |
+| 微信开放平台（会员授权） | `plugin/WechatService` | [微信开放平台接口](接口参考/微信开放平台接口.md) |
+| 项目管理（会员授权） | `plugin/Project` | [项目管理接口](接口参考/项目管理接口.md) |
+| 资产管理（会员授权） | `plugin/Asset` | [资产管理接口](接口参考/资产管理接口.md) |
+| 积分管理（会员授权） | `plugin/Points` | [积分管理接口](接口参考/积分管理接口.md) |
+| 智能通道（会员授权） | `plugin/Smart` | [智能通道接口](接口参考/智能通道接口.md)、[智能通道标准化调用](开发指南/智能通道标准化调用.md) |
 | 数据库 release 安装包、运行备份和 Phar 打包 | `SmartAdminLibrary` Command、`zoujingli/smart-admin-builder` | [发布升级](部署运维/发布升级.md) |
 | Vue 3 管理端 | `web/apps/web-antd` 通用壳、`plugin/*/stc/view` 插件页面 | [前端接入](开发指南/前端接入.md) |
 
@@ -105,6 +115,7 @@ cd web && pnpm install && pnpm dev:antd
 - [接口参考](接口参考/README.md)
 - [在线测试](接口参考/在线测试.md)
 - [插件开发](开发指南/插件开发.md)
+- [智能通道标准化调用](开发指南/智能通道标准化调用.md)
 - [前端接入](开发指南/前端接入.md)
 - [Docs 静态站](部署运维/Docs静态站.md)
 - [文档维护规范](文档维护/维护规范.md)

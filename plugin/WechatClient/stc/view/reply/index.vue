@@ -10,7 +10,7 @@
       <Alert class="mb-5" type="info" show-icon message="订阅延时回复采用 Swoole 内存协程发送，服务重启会丢失尚未执行的延时任务；如需强可靠请后续切换为数据库队列。" />
       <CrudStatCards class="mb-5" :items="summaryCards" />
 
-      <Card class="mb-5" :body-style="{ padding: '20px 24px' }">
+      <Card class="mb-5">
         <Row class="crud-search-grid" :gutter="[16,16]">
           <Col :xs="24" :sm="12" :xl="4"><SearchField label="接口账号"><InputNumber v-model:value="accountId" :min="1" class="w-full" placeholder="账号 ID" /></SearchField></Col>
           <Col :xs="24" :sm="12" :xl="5"><SearchField label="规则类型"><Select v-model:value="ruleType" allow-clear class="w-full" placeholder="请选择"><SelectOption value="subscribe">订阅回复</SelectOption><SelectOption value="default">默认回复</SelectOption><SelectOption value="keyword">关键词</SelectOption><SelectOption value="menu_click">菜单点击</SelectOption></Select></SearchField></Col>
@@ -39,13 +39,14 @@
       </Card>
     </Card>
 
-    <Drawer
+    <AppDrawer
+      :confirm-loading="saving"
       :open="modalOpen"
       :title="editingId ? '编辑回复规则' : '新增回复规则'"
-      :body-style="{ padding: '20px 24px 8px' }"
-      :width="popupWidth.md"
-      placement="right"
+      ok-text="确定"
+      width-size="md"
       @close="modalOpen = false"
+      @ok="save"
     >
       <Form :model="form" layout="vertical">
         <Row :gutter="[16,0]">
@@ -75,13 +76,7 @@
           </template>
         </Row>
       </Form>
-      <template #footer>
-        <div class="flex justify-end gap-3">
-          <Button @click="modalOpen = false">取消</Button>
-          <Button type="primary" :loading="saving" @click="save">确定</Button>
-        </div>
-      </template>
-    </Drawer>
+    </AppDrawer>
   </Page>
 </template>
 
@@ -97,12 +92,12 @@ import {
   CrudTableHeader,
   Page,
 } from '@vben/common-ui';
-import { Alert, Button, Card, Col, Drawer, Form, FormItem, Input, InputNumber, message, Row, Select, SelectOption, Space, Table, Tag, Textarea } from 'ant-design-vue';
+import { Alert, Button, Card, Col, Form, FormItem, Input, InputNumber, message, Row, Select, SelectOption, Space, Table, Tag, Textarea } from 'ant-design-vue';
 import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 import { requestClient } from '#/api/request';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
-import { popupWidth } from '#/utils/popup';
+import AppDrawer from '#/components/app-drawer.vue';
 
 const { hasAccessByCodes } = useAccess();
 const canSave = computed(() => hasAccessByCodes(['wechat.client.reply.save']));

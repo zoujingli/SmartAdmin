@@ -4,29 +4,15 @@ import type { UserType } from '../types';
 import { computed, nextTick, reactive, ref, watch } from 'vue';
 
 import { useAccess } from '@vben/access';
-import {
-  Button,
-  Col,
-  Drawer,
-  Form,
-  FormItem,
-  Input,
-  InputPassword,
-  message,
-  RadioGroup,
-  Row,
-  Select,
-  Space,
-  Textarea,
-  TreeSelect,
-} from 'ant-design-vue';
+import { Button, Col, Form, FormItem, Input, InputPassword, message, RadioGroup, Row, Select, Textarea, TreeSelect } from 'ant-design-vue';
 
 import { deptApiService, postApiService, roleApiService, tenantApiService, userApiService } from '#/api';
-import { popupWidth } from '#/utils/popup';
+import AppDrawer from '#/components/app-drawer.vue';
 
 const emit = defineEmits(['success']);
 
 const formRef = ref();
+const saving = ref(false);
 const visible = ref(false);
 const createInitialFormData = (): UserType => ({
   id: 0,
@@ -234,13 +220,13 @@ watch(
 </script>
 
 <template>
-  <Drawer
+  <AppDrawer
+    :confirm-loading="saving"
     :open="visible"
-    :title="getTitle"
-    :body-style="{ padding: '20px 24px 8px' }"
-    :width="popupWidth.md"
-    placement="right"
+    :title="getTitle" width-size="md"
+    ok-text="确定"
     @close="handleCancel"
+    @ok="handleSubmit"
   >
     <Form ref="formRef" :model="formData" layout="vertical">
       <Row :gutter="[16, 0]">
@@ -338,15 +324,8 @@ watch(
         </Col>
       </Row>
     </Form>
-
-    <template #footer>
-      <div class="flex w-full items-center justify-between gap-3">
-        <Button @click="handleReset">重置</Button>
-        <Space>
-          <Button @click="handleCancel">取消</Button>
-          <Button type="primary" @click="handleSubmit">确定</Button>
-        </Space>
-      </div>
+    <template #footer-left>
+      <Button :disabled="saving" @click="handleReset">重置</Button>
     </template>
-  </Drawer>
+  </AppDrawer>
 </template>

@@ -64,17 +64,21 @@ final class WebsiteContentMapper extends CoreMapper
             ->where('status', Status::ENABLED)
             ->limit(max(1, min((int)($params['limit'] ?? 200), 500)))
             ->get(['id', 'site_id', 'channel_id', 'type', 'title', 'slug', 'route'])
-            ->map(static fn (WebsiteContent $content): array => [
-                'id' => (int)$content->id,
-                'value' => (int)$content->id,
-                'label' => (string)$content->title,
-                'site_id' => (int)$content->site_id,
-                'channel_id' => (int)$content->channel_id,
-                'type' => (string)$content->type,
-                'title' => (string)$content->title,
-                'slug' => (string)$content->slug,
-                'route' => (string)$content->route,
-            ])
+            ->map(static function (WebsiteContent $content): array {
+                $routeOrSlug = (string)($content->route ?: $content->slug);
+
+                return [
+                    'id' => (int)$content->id,
+                    'value' => (int)$content->id,
+                    'label' => $routeOrSlug === '' ? (string)$content->title : sprintf('%s（%s）', (string)$content->title, $routeOrSlug),
+                    'site_id' => (int)$content->site_id,
+                    'channel_id' => (int)$content->channel_id,
+                    'type' => (string)$content->type,
+                    'title' => (string)$content->title,
+                    'slug' => (string)$content->slug,
+                    'route' => (string)$content->route,
+                ];
+            })
             ->all();
     }
 

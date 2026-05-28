@@ -9,7 +9,7 @@
     <Card class="crud-page-shell">
       <CrudStatCards class="mb-5" :items="summaryCards" />
 
-      <Card class="mb-5" :body-style="{ padding: '20px 24px' }">
+      <Card class="mb-5">
         <Row class="crud-search-grid" :gutter="[16, 16]">
           <Col :xs="24" :sm="12" :xl="5"><SearchField label="搜索内容"><Input v-model:value="keyword" allow-clear placeholder="标题 / 作者 / 发布ID" /></SearchField></Col>
           <Col :xs="24" :sm="12" :xl="4"><SearchField label="接口账号"><InputNumber v-model:value="accountId" :min="1" class="w-full" placeholder="账号 ID" /></SearchField></Col>
@@ -44,14 +44,15 @@
       </Card>
     </Card>
 
-    <Drawer
+    <AppDrawer
+      :confirm-loading="saving || editorUploading"
       :open="modalOpen"
       :title="editingId ? '编辑文章' : '新增文章'"
-      :body-style="{ padding: '20px 24px 8px' }"
       destroy-on-close
-      :width="popupWidth.wide"
-      placement="right"
+      ok-text="确定"
+      width-size="wide"
       @close="closeArticleDrawer"
+      @ok="save"
     >
       <Form :model="form" layout="vertical">
         <Row :gutter="[16, 0]">
@@ -90,13 +91,7 @@
           </Col>
         </Row>
       </Form>
-      <template #footer>
-        <div class="flex justify-end gap-3">
-          <Button @click="closeArticleDrawer">取消</Button>
-          <Button type="primary" :loading="saving || editorUploading" @click="save">确定</Button>
-        </div>
-      </template>
-    </Drawer>
+    </AppDrawer>
   </Page>
 </template>
 
@@ -105,12 +100,12 @@ import type { CrudFilterSummaryItem, UploadAsset, UploadFieldValue } from '@vben
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useAccess } from '@vben/access';
 import { AdminImageUpload, AdminRichTextEditor, buildCrudTableLocale, CrudFilterSummary, CrudStatCards, CrudTableHeader, Page } from '@vben/common-ui';
-import { Button, Card, Col, Drawer, Form, FormItem, Input, InputNumber, message, Row, Select, SelectOption, Space, Table, Tag, Textarea } from 'ant-design-vue';
+import { Button, Card, Col, Form, FormItem, Input, InputNumber, message, Row, Select, SelectOption, Space, Table, Tag, Textarea } from 'ant-design-vue';
 import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 import { requestClient } from '#/api/request';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
-import { popupWidth } from '#/utils/popup';
+import AppDrawer from '#/components/app-drawer.vue';
 
 const { hasAccessByCodes } = useAccess();
 const canSave = computed(() => hasAccessByCodes(['wechat.client.article.save']));

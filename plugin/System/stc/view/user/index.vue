@@ -192,13 +192,12 @@
 
     <FormModal ref="formModalRef" @success="handleFormSuccess" />
 
-    <Modal
+    <AppDrawer
       :open="detailOpen"
+      :show-footer="false"
       title="用户详情"
-      :width="popupWidth.xl"
-      ok-text="关闭"
-      @cancel="detailOpen = false"
-      @ok="detailOpen = false"
+      width-size="xl"
+      @close="detailOpen = false"
     >
       <CrudDetailPanel v-if="currentUser">
         <CrudDetailHero
@@ -234,7 +233,7 @@
           <DescriptionsItem label="备注" :span="2">{{ currentUser.remark || '-' }}</DescriptionsItem>
         </CrudDetailDescriptions>
       </CrudDetailPanel>
-    </Modal>
+    </AppDrawer>
   </Page>
 </template>
 
@@ -283,7 +282,7 @@ import {
   statusText,
 } from '#/utils/crud-excel';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
-import { popupWidth } from '#/utils/popup';
+import AppDrawer from '#/components/app-drawer.vue';
 import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 

@@ -1,11 +1,11 @@
 <template>
-  <Drawer
+  <AppDrawer
+    :confirm-loading="saving"
     :open="visible"
-    :title="formData.id ? '编辑字典' : '新增字典'"
-    :body-style="{ padding: '20px 24px 8px' }"
-    :width="popupWidth.md"
-    placement="right"
+    :title="formData.id ? '编辑字典' : '新增字典'" width-size="md"
+    ok-text="确定"
     @close="handleCancel"
+    @ok="handleOk"
   >
     <Form ref="formRef" :model="formData" :rules="formRules" layout="vertical">
       <Row :gutter="[16, 0]">
@@ -58,23 +58,17 @@
         </Col>
       </Row>
     </Form>
-    <template #footer>
-      <div class="flex justify-end gap-3">
-        <Button @click="handleCancel">取消</Button>
-        <Button type="primary" @click="handleOk">确定</Button>
-      </div>
-    </template>
-  </Drawer>
+  </AppDrawer>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue';
-import { Button, Col, Drawer, Form, FormItem, Input, InputNumber, message, RadioGroup, Row, TreeSelect } from 'ant-design-vue';
+import { Col, Form, FormItem, Input, InputNumber, message, RadioGroup, Row, TreeSelect } from 'ant-design-vue';
 
 import { dictApiService } from '#/api/system/dict';
 
 import type { DictFormData, DictInfo } from '../types';
-import { popupWidth } from '#/utils/popup';
+import AppDrawer from '#/components/app-drawer.vue';
 
 interface Props {
   visible: boolean;
@@ -91,6 +85,7 @@ const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
 const formRef = ref();
+const saving = ref(false);
 const formData = reactive<DictFormData>({
   id: 0,
   pid: 0,

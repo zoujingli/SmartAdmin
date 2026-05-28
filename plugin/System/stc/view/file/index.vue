@@ -45,7 +45,7 @@
     <Card class="crud-page-shell">
       <Tabs v-model:activeKey="activeTab" class="crud-page-tabs">
         <TabPane key="data" tab="数据列表">
-          <Card class="mb-5" :body-style="{ padding: '20px 24px' }">
+          <Card class="mb-5">
             <Row :gutter="[16, 16]" class="mb-4 crud-search-grid">
               <Col :xs="24" :sm="12" :xl="6">
                 <SearchField label="文件名称"><Input v-model:value="searchForm.origin_name" allow-clear placeholder="搜索文件名" @press-enter="loadFiles" /></SearchField>
@@ -647,13 +647,14 @@
       </CrudDetailPanel>
     </Modal>
 
-    <Drawer
+    <AppDrawer
+      :confirm-loading="savingEdit"
       :open="editOpen"
+      ok-text="确定"
       title="编辑文件"
-      :body-style="{ padding: '20px 24px 8px' }"
-      :width="popupWidth.xs"
-      placement="right"
+      width-size="xs"
       @close="editOpen = false"
+      @ok="handleSubmitEdit"
     >
       <Form layout="vertical">
         <FormItem label="原始文件名">
@@ -663,43 +664,14 @@
           <InputTextArea v-model:value="editForm.remark" :rows="3" />
         </FormItem>
       </Form>
-      <template #footer>
-        <div class="flex justify-end gap-3">
-          <Button @click="editOpen = false">取消</Button>
-          <Button type="primary" @click="handleSubmitEdit">确定</Button>
-        </div>
-      </template>
-    </Drawer>
+    </AppDrawer>
   </Page>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 
-import {
-  Button,
-  Card,
-  Col,
-  DescriptionsItem,
-  Drawer,
-  Form,
-  FormItem,
-  Image,
-  Input,
-  InputNumber,
-  Modal,
-  Row,
-  Select,
-  SelectOption,
-  Space,
-  Spin,
-  Switch,
-  Table,
-  Tabs,
-  TabPane,
-  Tooltip,
-  message,
-} from 'ant-design-vue';
+import { Button, Card, Col, DescriptionsItem, Form, FormItem, Image, Input, InputNumber, Modal, Row, Select, SelectOption, Space, Spin, Switch, Table, Tabs, TabPane, Tooltip, message } from 'ant-design-vue';
 
 import { useAccess } from '@vben/access';
 
@@ -725,6 +697,7 @@ import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/tab
 import { popupWidth } from '#/utils/popup';
 import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
+import AppDrawer from '#/components/app-drawer.vue';
 
 type FileRecord = FileApi.FileRecord;
 type UploadDriverKey = 'alist' | 'cos' | 'local' | 'oss' | 'qiniu';
@@ -749,6 +722,7 @@ const exporting = ref(false);
 const loadingRecycle = ref(false);
 const loadingConfig = ref(false);
 const savingConfig = ref(false);
+const savingEdit = ref(false);
 const fileItems = ref<FileRecord[]>([]);
 const recycleItems = ref<FileRecord[]>([]);
 const selectedFileIds = ref<number[]>([]);

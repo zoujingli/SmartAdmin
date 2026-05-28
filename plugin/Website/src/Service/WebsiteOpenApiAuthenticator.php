@@ -46,10 +46,11 @@ final class WebsiteOpenApiAuthenticator
 
     public function authenticate(RequestInterface $request, string $scope, string $ip): WebsiteOpenApiContext
     {
-        $appId = strtolower(trim($request->getHeaderLine('X-Website-Appid')));
-        $timestamp = trim($request->getHeaderLine('X-Website-Timestamp'));
-        $nonce = trim($request->getHeaderLine('X-Website-Nonce'));
-        $sign = strtolower(trim($request->getHeaderLine('X-Website-Sign')));
+        $credentials = $this->resolveCredentials($request);
+        $appId = $credentials['app_id'];
+        $timestamp = $credentials['timestamp'];
+        $nonce = $credentials['nonce'];
+        $sign = $credentials['signature'];
         if ($appId === '' || $timestamp === '' || $nonce === '' || $sign === '') {
             throw new UnauthorizedResponseException('开放接口签名头缺失');
         }
@@ -114,6 +115,73 @@ final class WebsiteOpenApiAuthenticator
             ->update(['last_used_at' => date('Y-m-d H:i:s'), 'last_used_ip' => $ip]);
 
         return new WebsiteOpenApiContext($app, $site, $scope, $ip);
+    }
+
+    /**
+     * 开放接口优先使用标准 Authorization 认证头：
+     * Authorization: Website-HMAC appid="...", timestamp="...", nonce="...", signature="..."
+     *
+     * 历史 X-Website-* 头保留兼容，避免已接入的服务端调用在升级时立即失效。
+     *
+     * @return array{app_id: string, timestamp: string, nonce: string, signature: string}
+     */
+    private function resolveCredentials(RequestInterface $request): array
+    {
+        $authorization = trim($request->getHeaderLine('Authorization'));
+        if ($authorization !== '') {
+            if (!preg_match('/^\s*' . preg_quote(WebsiteOpenApiSignature::AUTH_SCHEME, '/') . '\s+/i', $authorization)) {
+                $legacy = $this->legacyCredentials($request);
+                if (implode('', $legacy) !== '') {
+                    return $legacy;
+                }
+            }
+
+            return $this->parseAuthorization($authorization);
+        }
+
+        return $this->legacyCredentials($request);
+    }
+
+    /**
+     * @return array{app_id: string, timestamp: string, nonce: string, signature: string}
+     */
+    private function legacyCredentials(RequestInterface $request): array
+    {
+        return [
+            'app_id' => strtolower(trim($request->getHeaderLine('X-Website-Appid'))),
+            'timestamp' => trim($request->getHeaderLine('X-Website-Timestamp')),
+            'nonce' => trim($request->getHeaderLine('X-Website-Nonce')),
+            'signature' => strtolower(trim($request->getHeaderLine('X-Website-Sign'))),
+        ];
+    }
+
+    /**
+     * 按 RFC Auth Scheme + auth-param 风格解析 Authorization，参数名大小写不敏感。
+     *
+     * @return array{app_id: string, timestamp: string, nonce: string, signature: string}
+     */
+    private function parseAuthorization(string $authorization): array
+    {
+        $scheme = preg_quote(WebsiteOpenApiSignature::AUTH_SCHEME, '/');
+        if (preg_match('/^\s*' . $scheme . '\s+(.+)\s*$/i', $authorization, $match) !== 1) {
+            throw new UnauthorizedResponseException('开放接口 Authorization 格式错误');
+        }
+
+        $params = [];
+        if (preg_match_all('/([A-Za-z][A-Za-z0-9_-]*)\s*=\s*(?:"((?:[^"\\\\]|\\\\.)*)"|([^,\s]+))/u', $match[1], $matches, PREG_SET_ORDER) !== false) {
+            foreach ($matches as $item) {
+                $key = strtolower(str_replace('_', '', $item[1]));
+                $value = $item[2] !== '' ? stripcslashes($item[2]) : ($item[3] ?? '');
+                $params[$key] = trim($value);
+            }
+        }
+
+        return [
+            'app_id' => strtolower($params['appid'] ?? ''),
+            'timestamp' => $params['timestamp'] ?? '',
+            'nonce' => $params['nonce'] ?? '',
+            'signature' => strtolower($params['signature'] ?? $params['sign'] ?? ''),
+        ];
     }
 
     private function assertNonceUnused(string $appId, string $nonce): void

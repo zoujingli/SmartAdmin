@@ -37,6 +37,13 @@ final class SystemChannelController extends CoreController
         $this->success('获取成功', $this->service->getPageList($request->all()));
     }
 
+    #[GetMapping(path: 'recycle')]
+    #[Auth(name: '官网栏目回收站', type: Auth::CHECK, menu: false, code: 'website.channel.index')]
+    public function recycle(RequestInterface $request): array
+    {
+        $this->success('获取成功', $this->service->getRecycleList($request->all()));
+    }
+
     #[GetMapping(path: 'tree')]
     #[Auth(name: '官网栏目树', type: Auth::CHECK, menu: false, code: 'website.channel.index')]
     public function tree(RequestInterface $request): array

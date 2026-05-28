@@ -22,6 +22,7 @@ import { leadStatusOptions } from '../website-api';
 
 const columns = [
   { title: '联系人', dataIndex: 'name', width: 120 },
+  { title: '所属站点', dataIndex: ['site', 'name'], width: 140 },
   { title: '手机号', dataIndex: 'mobile', valueType: 'copy', width: 150 },
   { title: '邮箱', dataIndex: 'email', valueType: 'copy', width: 200 },
   { title: '公司', dataIndex: 'company', width: 180 },

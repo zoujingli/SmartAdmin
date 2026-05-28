@@ -92,7 +92,7 @@ composer create-project zoujingli/smartadmin SmartAdmin
 │   ├── packages/                 # 公共包（组件、工具、类型等）
 │   ├── internal/                 # 内部构建配置
 │   └── dist/                     # 本地/CI 生成的前端构建产物（不提交 Git，供打包复用）
-├── docs/                         # 开源文档静态站
+├── docs/                         # 全生态文档静态站（会员插件仅公开文档说明）
 ├── composer.json                 # 后端依赖、Composer 包约束与构建脚本
 └── .env.example                  # 环境配置模板
 ```

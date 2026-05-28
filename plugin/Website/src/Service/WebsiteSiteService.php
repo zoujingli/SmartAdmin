@@ -35,6 +35,8 @@ final class WebsiteSiteService extends CoreService
 
     protected function filterData(array &$data, array $exists = []): array
     {
+        // 官网站点租户归属不接受请求体输入；创建取当前登录租户，编辑保持原归属不变。
+        unset($data['tenant_id']);
         foreach (['code', 'name', 'domain', 'logo', 'favicon'] as $field) {
             if (array_key_exists($field, $data) && is_string($data[$field])) {
                 $data[$field] = trim($data[$field]);
@@ -65,6 +67,7 @@ final class WebsiteSiteService extends CoreService
             'status.in:1,0' => '状态值错误',
         ];
         if ($exists === []) {
+            $rules['tenant_id.default'] = tenant_id();
             $rules['code.required'] = '站点编码不能为空';
             $rules['name.required'] = '站点名称不能为空';
             $rules['domain.required'] = '主域名不能为空';
@@ -76,6 +79,10 @@ final class WebsiteSiteService extends CoreService
         }
 
         $data = _vali($rules, $data);
+        if ($exists === []) {
+            // 后台页面不展示租户字段；创建时强制取当前登录租户，防止请求体指定 tenant_id 跨租户写入。
+            $data['tenant_id'] = tenant_id();
+        }
         foreach (['status', 'tenant_id'] as $field) {
             if (array_key_exists($field, $data)) {
                 $data[$field] = (int)$data[$field];

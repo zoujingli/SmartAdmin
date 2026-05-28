@@ -1,11 +1,11 @@
 ﻿<template>
-  <Drawer
+  <AppDrawer
+    :confirm-loading="saving"
     :open="visible"
-    :title="title"
-    :body-style="{ padding: '20px 24px 8px' }"
-    :width="popupWidth.lg"
-    placement="right"
+    :title="title" width-size="lg"
+    ok-text="确定"
     @close="handleCancel"
+    @ok="handleOk"
   >
     <div class="menu-form-overview" :style="overviewStyle">
       <div>
@@ -146,28 +146,21 @@
         </Row>
       </div>
     </Form>
-
-    <template #footer>
-      <div class="flex justify-end gap-3">
-        <Button @click="handleCancel">取消</Button>
-        <Button type="primary" @click="handleOk">确定</Button>
-      </div>
-    </template>
-  </Drawer>
+  </AppDrawer>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { CrudNoticeAlert, IconPicker } from '@vben/common-ui';
 import { IconifyIcon } from '@vben/icons';
-import { AutoComplete, Button, Col, Drawer, Form, FormItem, Input, InputNumber, message, RadioGroup, Row, Tag, TreeSelect, theme } from 'ant-design-vue';
+import { AutoComplete, Button, Col, Form, FormItem, Input, InputNumber, message, RadioGroup, Row, Tag, TreeSelect, theme } from 'ant-design-vue';
 
 import { menuApiService } from '#/api/system/menu';
 
 import type { MenuApi } from '#/api/system/menu';
 
 import type { MenuFormData, MenuType } from '../types';
-import { popupWidth } from '#/utils/popup';
+import AppDrawer from '#/components/app-drawer.vue';
 
 interface Props {
   visible: boolean;
@@ -185,6 +178,7 @@ const emit = defineEmits<Emits>();
 const { token } = theme.useToken();
 
 const formRef = ref();
+const saving = ref(false);
 const nodeOptions = ref<MenuApi.NodeOption[]>([]);
 let nodeSearchTimer: ReturnType<typeof setTimeout> | undefined;
 const formData = reactive<MenuFormData>({

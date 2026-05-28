@@ -1,7 +1,6 @@
 export interface RoleType {
   id: number
   name: string
-  code?: string
   scope?: number
   status: number
   sort: number
@@ -16,7 +15,6 @@ export interface RoleType {
 export interface RoleFormData {
   id?: number
   name: string
-  code: string
   scope: number
   status: number
   sort: number
@@ -27,7 +25,6 @@ export interface RoleFormData {
 
 export interface RoleSearchForm {
   name?: string
-  code?: string
   scope?: number
   status?: number
 }

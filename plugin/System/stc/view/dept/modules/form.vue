@@ -1,11 +1,11 @@
 ﻿<template>
-  <Drawer
+  <AppDrawer
+    :confirm-loading="saving"
     :open="visible"
-    :title="formData.id ? '编辑部门' : '新增部门'"
-    :body-style="{ padding: '20px 24px 8px' }"
-    :width="popupWidth.md"
-    placement="right"
+    :title="formData.id ? '编辑部门' : '新增部门'" width-size="md"
+    ok-text="确定"
     @close="handleCancel"
+    @ok="handleOk"
   >
     <Form ref="formRef" :model="formData" :rules="formRules" layout="vertical">
       <Row :gutter="[16, 0]">
@@ -70,37 +70,17 @@
         </Col>
       </Row>
     </Form>
-    <template #footer>
-      <div class="flex justify-end gap-3">
-        <Button @click="handleCancel">取消</Button>
-        <Button type="primary" @click="handleOk">确定</Button>
-      </div>
-    </template>
-  </Drawer>
+  </AppDrawer>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue';
-import {
-  Button,
-  Form,
-  FormItem,
-  Input,
-  InputNumber,
-  Col,
-  Drawer,
-  message,
-  Radio,
-  RadioGroup,
-  Row,
-  Textarea,
-  TreeSelect,
-} from 'ant-design-vue';
+import { Form, FormItem, Input, InputNumber, Col, message, Radio, RadioGroup, Row, Textarea, TreeSelect } from 'ant-design-vue';
 
 import { deptApiService } from '#/api/system/dept';
 
 import type { DeptType } from '../types';
-import { popupWidth } from '#/utils/popup';
+import AppDrawer from '#/components/app-drawer.vue';
 
 interface Props {
   visible: boolean;
@@ -122,6 +102,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>();
 
 const formRef = ref();
+const saving = ref(false);
 const formData = reactive<DeptType>({
   id: 0,
   name: '',

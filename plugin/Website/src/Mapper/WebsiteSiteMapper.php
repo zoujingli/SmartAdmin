@@ -44,14 +44,18 @@ final class WebsiteSiteMapper extends CoreMapper
             ->where('status', Status::ENABLED)
             ->limit(max(1, min((int)($params['limit'] ?? 100), 200)))
             ->get(['id', 'code', 'name', 'domain'])
-            ->map(static fn (WebsiteSite $site): array => [
-                'id' => (int)$site->id,
-                'value' => (int)$site->id,
-                'label' => (string)$site->name,
-                'code' => (string)$site->code,
-                'name' => (string)$site->name,
-                'domain' => (string)$site->domain,
-            ])
+            ->map(static function (WebsiteSite $site): array {
+                $domain = (string)$site->domain;
+
+                return [
+                    'id' => (int)$site->id,
+                    'value' => (int)$site->id,
+                    'label' => $domain === '' ? (string)$site->name : sprintf('%s（%s）', (string)$site->name, $domain),
+                    'code' => (string)$site->code,
+                    'name' => (string)$site->name,
+                    'domain' => $domain,
+                ];
+            })
             ->all();
     }
 

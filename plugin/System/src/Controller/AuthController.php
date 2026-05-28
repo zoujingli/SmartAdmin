@@ -299,7 +299,6 @@ final class AuthController extends CoreController
             'roles' => array_map(static fn (array $role): array => [
                 'id' => (int)($role['id'] ?? 0),
                 'name' => (string)($role['name'] ?? ''),
-                'code' => (string)($role['code'] ?? ''),
                 'scope' => (int)($role['scope'] ?? 0),
                 'sort' => (int)($role['sort'] ?? 0),
                 'status' => (int)($role['status'] ?? 0),

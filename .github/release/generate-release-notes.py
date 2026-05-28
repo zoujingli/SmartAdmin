@@ -140,7 +140,7 @@ PROFILES: dict[str, RepositoryProfile] = {
         visibility='Public：Apache-2.0 开源主项目，面向社区提供可运行后台框架与公开插件源码。',
         license='Apache-2.0',
         positioning='普通用户直接使用和二次开发的开源主仓，也是 SmartAdmin 生态的公开入口；基于 Hyperf、Swoole、Vue 与 TypeScript 提供高性能前后端一体化后台框架。',
-        release_scope='发布开源核心、Web 通用壳、公开插件、文档、测试与开源插件 ZIP；不包含私有/商用插件源码。',
+        release_scope='发布开源核心、Web 通用壳、公开插件、全生态文档、测试与开源插件 ZIP；不包含私有/商用插件源码或会员插件 ZIP。',
         capabilities=(
             'RBAC 权限、数据范围、租户隔离和统一响应约定',
             'System 与 WechatClient 开源插件源码与页面',

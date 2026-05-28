@@ -3,17 +3,18 @@ import type { UserType } from '../types';
 
 import { computed, ref } from 'vue';
 
-import { Button, Drawer, message, Space } from 'ant-design-vue';
+import { Button, message } from 'ant-design-vue';
 
 import { useVbenForm } from '#/adapter/form';
 import { userApiService } from '#/api/system/user';
 
 import { useFormSchema } from '../data';
-import { popupWidth } from '#/utils/popup';
+import AppDrawer from '#/components/app-drawer.vue';
 
 const emit = defineEmits(['success']);
 const formData = ref<UserType>();
 const visible = ref(false);
+const saving = ref(false);
 
 const [Form, formApi] = useVbenForm({
   layout: 'vertical',
@@ -86,25 +87,17 @@ defineExpose({
 </script>
 
 <template>
-  <Drawer
+  <AppDrawer
+    :confirm-loading="saving"
     :open="visible"
-    :title="getTitle"
-    :body-style="{ padding: '20px 24px 8px' }"
-    :width="popupWidth.md"
-    placement="right"
+    :title="getTitle" width-size="md"
+    ok-text="确定"
     @close="visible = false"
+    @ok="handleSubmit"
   >
     <Form />
-    <template #footer>
-      <div class="flex w-full items-center justify-between gap-3">
-        <Button @click="resetForm">
-          重置
-        </Button>
-        <Space>
-          <Button @click="visible = false">取消</Button>
-          <Button type="primary" @click="handleSubmit">确定</Button>
-        </Space>
-      </div>
+    <template #footer-left>
+      <Button :disabled="saving" @click="resetForm">重置</Button>
     </template>
-  </Drawer>
+  </AppDrawer>
 </template>

@@ -92,7 +92,9 @@ final class WebsiteBlockService extends CoreService
         $data = _vali($rules, $data);
         $this->normalizeIntFields($data, ['site_id', 'sort', 'status']);
         $siteId = (int)($data['site_id'] ?? $exists['site_id'] ?? 0);
-        $this->ensureSite($siteId);
+        $site = $this->ensureSite($siteId);
+        // 页面区块租户归属跟随站点，保证开放区块查询的 tenant_id + site_id 边界稳定。
+        $data['tenant_id'] = (int)$site->tenant_id;
         foreach (['payload', 'media', 'link'] as $field) {
             if (array_key_exists($field, $data)) {
                 $data[$field] = WebsiteData::object($data[$field]);
