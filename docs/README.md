@@ -37,6 +37,7 @@
 |---|---|
 | 插件资源 | 业务插件通过本地 Composer path 包、Provider、`plugin.json` 和 Web 编译期扫描接入；源码/CI 模式可使用 SmartAdminLibrary 提供的 `xadmin:plugin:*` 打包、安装、移除和备份恢复，backup 默认只备份代码，`--with-data` 才包含插件自有表，发布二进制内不出现这些命令，也不支持运行时远程安装、更新或删除插件。 |
 | 文件上传 | 统一使用 `upload/runtime`、`upload/prepare`、`upload/relay`、`upload/relay-chunk`、`upload/part-sign`、`upload/complete`、`upload/abort`。 |
+| 微信支付回调 | 只保留订单与退款标准回调：`/wechat-client/api/payment/notify/order/{merchantId}`、`/wechat-client/api/payment/notify/refund/{merchantId}`。 |
 | 前端菜单 | 后台动态路由统一读取 `/system/menu/user`，按钮权限统一读取 `/system/menu/permissions`。 |
 | 发布升级 | 生产安装/升级使用 release 安装包，`xadmin:release:restore --install --dry-run` 先输出 SQL 和必要数据恢复计划。 |
 
@@ -66,6 +67,7 @@
 | 文件管理、上传通道、去重 | `plugin/System/src/Controller/FileController.php` | [文件上传与存储](系统功能/文件上传与存储.md) |
 | 操作日志、请求日志、变更审计 | `SmartAdminLibrary` Events、`plugin/System/src/Controller/Logs*Controller.php` | [日志审计与公告](系统功能/日志审计与公告.md) |
 | 多租户管理和租户上下文 | `plugin/System`、`TenantContext` | [租户与发布构建](系统功能/租户与发布构建.md) |
+| 微信客户端 | `plugin/WechatClient` | [微信客户端接口](接口参考/微信客户端接口.md) |
 | 数据库 release 安装包、运行备份和 Phar 打包 | `SmartAdminLibrary` Command、`zoujingli/smart-admin-builder` | [发布升级](部署运维/发布升级.md) |
 | Vue 3 管理端 | `web/apps/web-antd` 通用壳、`plugin/*/stc/view` 插件页面 | [前端接入](开发指南/前端接入.md) |
 

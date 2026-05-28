@@ -126,6 +126,7 @@ PROFILES: dict[str, RepositoryProfile] = {
             ('基础库能力', ('plugin/Library/',)),
             ('构建器能力', ('plugin/Builder/',)),
             ('系统基础插件', ('plugin/System/',)),
+            ('微信客户端开源插件', ('plugin/WechatClient/',)),
             ('项目管理商用插件', ('plugin/Project/',)),
             ('智能通道商用插件', ('plugin/Smart/',)),
             ('Web 通用壳与前端宿主', ('web/',)),
@@ -142,15 +143,16 @@ PROFILES: dict[str, RepositoryProfile] = {
         release_scope='发布开源核心、Web 通用壳、公开插件、文档、测试与开源插件 ZIP；不包含私有/商用插件源码。',
         capabilities=(
             'RBAC 权限、数据范围、租户隔离和统一响应约定',
-            'System 开源插件源码与页面',
+            'System 与 WechatClient 开源插件源码与页面',
             '源码环境可通过 ZIP 安装或使用 --force 更新插件，再重新执行 Composer 更新和前端构建',
             'Web 通用壳、插件路由/鉴权/菜单消费与前端构建宿主',
             '基于 SmartAdminLibrary 与 SmartAdminBuilder 的安装、构建和发布基础能力',
         ),
         patterns=(
             ('系统管理插件', ('plugin/System/',)),
+            ('微信客户端插件', ('plugin/WechatClient/',)),
             ('Web 通用壳与前端运行库', ('web/',)),
-            ('应用配置与插件迁移', ('config/', 'plugin/System/stc/migrations/')),
+            ('应用配置与插件迁移', ('config/', 'plugin/System/stc/migrations/', 'plugin/WechatClient/stc/migrations/')),
             *COMMON_PATTERNS,
         ),
     ),
@@ -349,7 +351,7 @@ def version_highlights(repository: str, profile: RepositoryProfile, files: list[
 
     if repository == DEVELOPER_REPO and has_path(files, 'plugin/Project/'):
         lines.append('- 私有生态：Project 商用插件随主仓一并校验和打包，私有 ZIP 仍只进入 Developer Release。')
-    elif repository.endswith('/SmartAdmin') and has_path(files, 'plugin/System/'):
+    elif repository.endswith('/SmartAdmin') and has_path(files, 'plugin/System/', 'plugin/WechatClient/'):
         lines.append('- 开源主仓：同步公开插件源码、Web 宿主和文档，可直接用于社区安装与二次开发。')
     elif repository.endswith('/SmartAdminLibrary') and has_path(files, 'Command/', 'Support/', 'Core', 'Service/', 'Middleware/'):
         lines.append('- 基础库：同步 Core、命令、中间件、插件管理和发布升级支撑能力，供主项目与插件复用。')
