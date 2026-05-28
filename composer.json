@@ -34,10 +34,15 @@
     "ext-zlib": "*",
     "zoujingli/smart-admin-builder": "^1.0",
     "zoujingli/smart-admin-library": "^1.0",
+    "zoujingli/smart-plugin-website": "^1.0",
     "zoujingli/smart-plugin-system": "^1.0",
     "zoujingli/smart-plugin-wechat-client": "^1.0"
   },
   "repositories": [
+    {
+      "type": "path",
+      "url": "plugin/Website"
+    },
     {
       "type": "path",
       "url": "plugin/System"

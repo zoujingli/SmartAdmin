@@ -7,6 +7,7 @@ import { useAccessStore } from '@vben/stores';
 import { baseRequestClient, requestClient } from '#/api/request';
 
 import type { DataApi } from '../system/data';
+import { filterAuthEntryMenus } from './auth-entry-menus';
 import { encryptPasswordFields, PASSWORD_PURPOSES } from './password-crypto';
 
 const AUTH_ENTRY_KEY = 'xadmin-auth-entry';
@@ -242,46 +243,7 @@ export function activateAuthEntry(entry: string) {
 
 export function getAuthEntryMenus(entry = getAuthEntry()): RouteRecordStringComponent[] {
   const config = getAuthEntryConfig(entry);
-  const accessCodes = useAccessStore().accessCodes.map(String);
-  if (accessCodes.includes('*')) {
-    return cloneMenus(config.menus);
-  }
-
-  const allowed = new Set(accessCodes);
-  return cloneMenus(filterMenus(config.menus, allowed));
-}
-
-function filterMenus(rows: RouteRecordStringComponent[], allowed: Set<string>): RouteRecordStringComponent[] {
-  return rows
-    .map((row: any) => {
-      const children = Array.isArray(row.children) ? filterMenus(row.children, allowed) : [];
-      const code = String(row.code || row.permission || '').trim();
-      const keepSelf = code && allowed.has(code);
-      if (children.length === 0 && !keepSelf) {
-        return null;
-      }
-
-      return {
-        ...row,
-        ...(children.length > 0 ? { children } : {}),
-      };
-    })
-    .filter(Boolean) as RouteRecordStringComponent[];
-}
-
-function cloneMenus(rows: RouteRecordStringComponent[]): RouteRecordStringComponent[] {
-  // 动态路由生成阶段会把 component 字符串替换成真实组件；每次返回新对象，避免污染插件配置模板。
-  return rows.map((row: any) => {
-    const children = Array.isArray(row.children) && row.children.length > 0
-      ? cloneMenus(row.children)
-      : undefined;
-
-    return {
-      ...row,
-      meta: row.meta ? { ...row.meta } : row.meta,
-      ...(children ? { children } : {}),
-    };
-  });
+  return filterAuthEntryMenus(config.menus, useAccessStore().accessCodes);
 }
 
 function currentLoginEntry() {

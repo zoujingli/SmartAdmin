@@ -1,5 +1,7 @@
 import type { Router } from 'vue-router';
 
+import backendPluginHomes from 'virtual:xadmin-plugin-backend-homes';
+
 import { LOGIN_PATH } from '@vben/constants';
 import { preferences } from '@vben/preferences';
 import { useAccessStore, useUserStore } from '@vben/stores';
@@ -64,14 +66,33 @@ function setupCommonGuard(router: Router) {
  * @param router
  */
 function setupAccessGuard(router: Router) {
+  function normalizeGuardPath(path?: string): string {
+    const raw = String(path || '').split(/[?#]/)[0] || '';
+
+    return `/${raw.replace(/^\/+/, '')}`.replace(/\/+$/, '') || '/';
+  }
+
+  function pathMatchesPrefix(path: string, prefix: string): boolean {
+    return path === prefix || path.startsWith(`${prefix}/`);
+  }
+
+  function isBackendPluginPath(path?: string): boolean {
+    const normalized = normalizeGuardPath(path);
+
+    return backendPluginHomes.some((entry) => pathMatchesPrefix(normalized, normalizeGuardPath(entry.routePrefix)));
+  }
+
   function isSystemPath(path?: string): boolean {
-    const normalized = `/${String(path || '').replace(/^\/+/, '')}`;
+    const normalized = normalizeGuardPath(path);
+
+    // System 登录体系不仅包含平台内置 /system/**，也包含由 plugin.json 声明的后台插件入口。
     return normalized === '/'
       || normalized === '/dashboard'
       || normalized.startsWith('/dashboard/')
       || normalized === '/system'
       || normalized.startsWith('/system/')
-      || normalized === '/account/profile';
+      || normalized === '/account/profile'
+      || isBackendPluginPath(normalized);
   }
 
   function resetAccessRuntimeState() {
@@ -182,10 +203,8 @@ function setupAccessGuard(router: Router) {
   function activateEntryForPath(path: string, userInfo: any) {
     const loginEntry = getLoginEntryByPath(path);
     const routeEntry = loginEntry || getAuthEntryByRoutePath(path);
-    const nextEntry = routeEntry || (isSystemPath(path) ? SYSTEM_ENTRY : undefined);
-    if (!nextEntry) {
-      return;
-    }
+    // 未命中插件前台入口的路径统一归到 System 入口，避免上一个 Project/Points/Asset 前台入口污染平台 404 或后台插件深链。
+    const nextEntry = routeEntry || SYSTEM_ENTRY;
 
     activateAuthEntry(nextEntry);
     if (userInfo && !isUserInfoForAuthEntry(userInfo, nextEntry)) {

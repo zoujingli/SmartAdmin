@@ -59,9 +59,13 @@ const pluginRoutesModuleId = 'virtual:xadmin-plugin-routes';
 const resolvedPluginRoutesModuleId = `\0${pluginRoutesModuleId}`;
 const pluginAuthEntriesModuleId = 'virtual:xadmin-plugin-auth-entries';
 const resolvedPluginAuthEntriesModuleId = `\0${pluginAuthEntriesModuleId}`;
+const pluginBackendHomesModuleId = 'virtual:xadmin-plugin-backend-homes';
+const resolvedPluginBackendHomesModuleId = `\0${pluginBackendHomesModuleId}`;
 
 interface PluginManifest {
+  apps?: unknown;
   plugin?: {
+    code?: unknown;
     view_root?: unknown;
   };
   view_root?: unknown;
@@ -95,6 +99,13 @@ function normalizePluginResourcePath(value: unknown): string {
   return normalized;
 }
 
+function normalizeRoutePath(value: unknown): string {
+  const raw = String(value || '').trim().split(/[?#]/)[0] || '';
+  const normalized = `/${raw.replace(/^\/+/, '')}`.replace(/\/+$/, '');
+
+  return normalized || '/';
+}
+
 function readPluginManifest(file: string): PluginManifest | undefined {
   try {
     return JSON.parse(fs.readFileSync(file, 'utf8')) as PluginManifest;
@@ -126,6 +137,26 @@ function walkVueFiles(root: string): string[] {
 
 function fsImportPath(file: string): string {
   return `/@fs/${file.replaceAll('\\', '/')}`;
+}
+
+function getPluginManifestFiles(): string[] {
+  if (!fs.existsSync(pluginRoot)) {
+    return [];
+  }
+
+  const files: string[] = [];
+  for (const plugin of fs.readdirSync(pluginRoot, { withFileTypes: true })) {
+    if (!plugin.isDirectory()) {
+      continue;
+    }
+
+    const file = path.join(pluginRoot, plugin.name, 'plugin.json');
+    if (fs.existsSync(file) && fs.statSync(file).isFile()) {
+      files.push(file);
+    }
+  }
+
+  return files.sort();
 }
 
 function createPluginPagesModule(): string {
@@ -276,10 +307,46 @@ function createPluginAuthEntriesModule(): string {
     + 'export default authEntries;\n';
 }
 
+function createPluginBackendHomesModule(): string {
+  const entries: Array<{ homePath: string; routePrefix: string }> = [];
+
+  for (const file of getPluginManifestFiles()) {
+    const manifest = readPluginManifest(file);
+    const pluginCode = String(manifest?.plugin?.code || '').toLowerCase();
+    if (pluginCode === 'system') {
+      continue;
+    }
+
+    for (const app of Array.isArray(manifest?.apps) ? manifest.apps : []) {
+      const item = app as Record<string, unknown>;
+      const routePrefix = normalizeRoutePath(item.route);
+      if (routePrefix === '/') {
+        continue;
+      }
+
+      entries.push({
+        homePath: normalizeRoutePath(item.redirect || routePrefix),
+        routePrefix,
+      });
+    }
+  }
+
+  entries.sort((a, b) => b.routePrefix.length - a.routePrefix.length);
+
+  // 这里只输出插件后台入口与首页映射，避免异常页引入完整 plugin.json 菜单树。
+  return `const backendHomes = ${JSON.stringify(entries, null, 2)};\nexport default backendHomes;\n`;
+}
+
 function isPluginRouteFile(file: string): boolean {
   const normalized = file.replaceAll('\\', '/');
 
   return getPluginRouteFiles().some((routeFile) => routeFile.replaceAll('\\', '/') === normalized);
+}
+
+function isPluginManifestFile(file: string): boolean {
+  const normalized = file.replaceAll('\\', '/');
+
+  return getPluginManifestFiles().some((manifestFile) => manifestFile.replaceAll('\\', '/') === normalized);
 }
 
 function isPluginAuthEntryFile(file: string): boolean {
@@ -295,6 +362,7 @@ function pluginPagesVirtualModule(): Plugin {
       const viewRoots = getPluginViewRoots();
       const routeFiles = getPluginRouteFiles();
       const authEntryFiles = getPluginAuthEntryFiles();
+      const manifestFiles = getPluginManifestFiles();
       if (viewRoots.length > 0) {
         server.watcher.add(viewRoots);
       }
@@ -304,12 +372,16 @@ function pluginPagesVirtualModule(): Plugin {
       if (authEntryFiles.length > 0) {
         server.watcher.add(authEntryFiles);
       }
+      if (manifestFiles.length > 0) {
+        server.watcher.add(manifestFiles);
+      }
     },
     handleHotUpdate(ctx) {
       const isViewFile = isPluginViewFile(ctx.file);
       const isRouteFile = isPluginRouteFile(ctx.file);
       const isAuthEntryFile = isPluginAuthEntryFile(ctx.file);
-      if (!isViewFile && !isRouteFile && !isAuthEntryFile) {
+      const isManifestFile = isPluginManifestFile(ctx.file);
+      if (!isViewFile && !isRouteFile && !isAuthEntryFile && !isManifestFile) {
         return;
       }
 
@@ -334,8 +406,15 @@ function pluginPagesVirtualModule(): Plugin {
         ctx.server.moduleGraph.invalidateModule(authEntriesModule);
       }
 
+      const backendHomesModule = ctx.server.moduleGraph.getModuleById(
+        resolvedPluginBackendHomesModuleId,
+      );
+      if (backendHomesModule) {
+        ctx.server.moduleGraph.invalidateModule(backendHomesModule);
+      }
+
       // 已加载的插件 .vue 文件继续交给 @vitejs/plugin-vue 做组件级 HMR；
-      // routes.ts / auth-entry.ts 仅让虚拟模块下次读取时重新生成，不处理新增插件或 plugin.json 变更。
+      // routes.ts / auth-entry.ts / plugin.json 仅让虚拟模块下次读取时重新生成。
       return;
     },
     resolveId(id) {
@@ -348,6 +427,9 @@ function pluginPagesVirtualModule(): Plugin {
       if (id === pluginAuthEntriesModuleId) {
         return resolvedPluginAuthEntriesModuleId;
       }
+      if (id === pluginBackendHomesModuleId) {
+        return resolvedPluginBackendHomesModuleId;
+      }
       return undefined;
     },
     load(id) {
@@ -359,6 +441,9 @@ function pluginPagesVirtualModule(): Plugin {
       }
       if (id === resolvedPluginAuthEntriesModuleId) {
         return createPluginAuthEntriesModule();
+      }
+      if (id === resolvedPluginBackendHomesModuleId) {
+        return createPluginBackendHomesModule();
       }
       return undefined;
     },

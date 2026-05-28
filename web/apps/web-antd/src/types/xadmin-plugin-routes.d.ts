@@ -35,3 +35,14 @@ declare module 'virtual:xadmin-plugin-auth-entries' {
 
   export default authEntries;
 }
+
+declare module 'virtual:xadmin-plugin-backend-homes' {
+  interface PluginBackendHomeEntry {
+    homePath: string;
+    routePrefix: string;
+  }
+
+  const backendHomes: PluginBackendHomeEntry[];
+
+  export default backendHomes;
+}
