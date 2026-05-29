@@ -48,13 +48,13 @@ use Library\Traits\ModelDeptTrait;
  * @property Carbon $created_at 创建时间
  * @property Carbon $updated_at 更新时间
  * @property string $deleted_at 删除时间
- * @property-read string $full_path
- * @property-read int $depth
- * @property-read null|SystemMenu $parent
- * @property-read null|Collection|SystemMenu[] $children
- * @property-read null|SystemNode $node
- * @property-read string $type_text
- * @property-read string $status_text
+ * @property string $full_path
+ * @property int $depth
+ * @property null|SystemMenu $parent
+ * @property null|Collection|SystemMenu[] $children
+ * @property null|SystemNode $node
+ * @property string $type_text
+ * @property string $status_text
  */
 final class SystemMenu extends CoreModel
 {

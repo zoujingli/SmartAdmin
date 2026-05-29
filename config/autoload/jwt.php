@@ -47,46 +47,12 @@ return [
     'asymmetric_algs' => ['RS256', 'RS384', 'RS512', 'ES256', 'ES384', 'ES512'], // 非对称算法列表
 
     // ==================== 场景配置 ====================
-    // 基于模型类名的多场景配置，每个场景可以有不同的密钥、过期时间等
+    // 根配置只声明系统用户场景；插件登录模型和开放接口场景由插件 Provider 自注册。
     'scene' => [
         // 系统用户模型 - 后台管理系统用户
         SystemUser::class => [
             'type' => 'mpop',                   // 多点登录，允许同时多个设备登录
             // 其他配置继承全局配置：secret、ttl、alg、blacklist_enabled等
         ],
-
-
-
-        // 微信用户模型（按需启用时取消注释）
-        // \Wechat\Model\WechatUser::class => [
-        //     'secret' => 'wechat-secret-key',   // 微信用户专用密钥
-        //     'ttl' => 86400,                    // 24小时过期，适合移动端
-        //     'type' => 'mpop',                  // 多点登录，允许同时多个设备登录
-        //     // 其他配置继承全局配置：alg、blacklist_enabled等
-        // ],
-
-        // API用户模型（按需启用时取消注释）
-        // \Api\Model\ApiUser::class => [
-        //     'secret' => 'api-secret-key',      // API用户专用密钥
-        //     'ttl' => 3600,                     // 1小时过期，适合API调用
-        //     'type' => 'mpop',                  // 多点登录，支持并发API调用
-        //     'blacklist_enabled' => false,      // 禁用黑名单，提高API性能
-        //     // 其他配置继承全局配置：alg等
-        // ],
-
-        // 管理用户模型（按需启用时取消注释）
-        // \Admin\Model\AdminUser::class => [
-        //     'secret' => 'admin-secret-key',    // 管理用户专用密钥
-        //     'type' => 'sso',                   // 单点登录，安全要求高
-        //     // 其他配置继承全局配置：ttl、alg、blacklist_enabled等
-        // ],
-
-        // 普通用户模型（按需启用时取消注释）
-        // \User\Model\User::class => [
-        //     'secret' => 'user-secret-key',     // 普通用户专用密钥
-        //     'ttl' => 86400,                    // 24小时过期，用户体验友好
-        //     'type' => 'mpop',                  // 多点登录，支持多设备
-        //     // 其他配置继承全局配置：alg、blacklist_enabled等
-        // ],
     ],
 ];

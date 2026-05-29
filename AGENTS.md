@@ -122,6 +122,7 @@
 - 列表和表格需要设置合理最小宽度，避免内容被挤压。
 - 所有 UI 必须适配亮色、暗色和主题色切换；自定义页面、卡片、空状态、图表、标签、悬浮层、边框、阴影、状态色等视觉样式优先使用 Ant Design/Vben 主题 token 或现有 CSS 变量（如 `--ant-colorText`、`--ant-colorBgContainer`、`--ant-colorBorderSecondary`、`--ant-colorPrimary` 及 `hsl(var(--...))` 兜底），不得写死只适配单一主题的颜色、背景、边框或阴影。
 - 所有存量和新增列表页、报表页、日志页、配置列表的搜索/筛选区必须统一使用 `#/components/crud-search-field.vue` 包裹 `Input`、`Select`、`DatePicker`、`RangePicker`、`InputNumber` 等控件；标签固定 4 个汉字并放在控件前缀视觉位。多筛选项页面使用 `<Row class="crud-search-grid">` 的统一宽度机制，按钮放入最后一个 `<Col class="crud-search-grid__actions">`，不使用 `block` 拉满，不再靠不同 `:xl` 人工拉长日期范围或关键字；下拉提示最小宽度保持输入框宽度，按内容自适应，最大不超过 2 倍输入框宽度。新增/编辑/详情表单仍使用 `FormItem label + 控件`。
+- 新增跨字段日期/时间范围请求参数统一使用 `start_date`、`after_date` 表示闭区间开始与结束边界；不要再为新接口新增 `end_date` 请求参数。字段级 `QueryHelper::dateBetween()` 存量格式可继续使用具体业务字段名承载范围字符串或数组。
 - 表格右侧操作列统一使用 `#/components/crud-table-actions.vue`，并用 `estimateVisibleActionColumnWidth()` 估算固定列宽；平行按钮最多 3 个，超过 3 个必须自动收纳为前 2 个操作 + `更多` 下拉，删除/彻底删除/取消等危险操作放在数组最后并保留二次确认。
 - 搜索、刷新、导出、保存、同步、删除、批量处理和登录等异步按钮必须有 `loading` / `confirm-loading` / pending 锁，防止重复点击；表格行异步操作必须让 `CrudTableActions` 等待 Promise，危险操作必须保留确认。
 - 前端权限码必须与后端 `#[Auth]` code 保持一致。

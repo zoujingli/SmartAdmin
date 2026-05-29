@@ -18,8 +18,21 @@
 - [编码规范](./编码规范.md)
 - [新模块开发](./新模块开发.md)
 - [插件开发](./插件开发.md)
+- [插件实战教程](./插件实战教程.md)
 - [智能通道标准化调用（会员授权）](./智能通道标准化调用.md)
 - [前端接入](./前端接入.md)
+
+推荐阅读顺序：先读 [新模块开发](./新模块开发.md) 理解 Controller、Service、Mapper、Model 分层，再读 [插件开发](./插件开发.md) 理解本地 path 包、Provider、`plugin.json`、菜单权限和 Web 编译期扫描机制，最后按 [插件实战教程](./插件实战教程.md) 从零完成一个 Todo 插件。
+
+## 开发分流
+
+| 开发目标 | 推荐入口 | 必须同步 |
+|----------|----------|----------|
+| 在现有插件内新增资源 | [新模块开发](./新模块开发.md) | Controller、Service、Mapper、Model、权限节点、前端页面、接口文档 |
+| 从零新增业务插件 | [插件开发](./插件开发.md) + [插件实战教程](./插件实战教程.md) | 根 `composer.json` path 包、插件 `composer.json`、Provider、`plugin.json`、迁移、view、菜单和节点 |
+| 新增插件前端页面 | [前端接入](./前端接入.md) | 页面、API service、`routes.ts`、`auth-entry.ts` 均放插件 `plugin.view_root`，不放 Web 通用壳 |
+| 接入 AI 辅助 | [智能通道标准化调用](./智能通道标准化调用.md) | AI 只返回候选内容，人工确认保存，不直接写库或自动发布 |
+| 调整接口合同 | [接口规范](./接口规范.md) + [接口文档规范](../文档维护/接口文档规范.md) | 请求/响应字段、JSONC 示例、`api-test` 调试块、错误边界和源码来源 |
 
 ## 推荐开发路径
 
@@ -45,6 +58,8 @@ flowchart LR
 - Mapper 负责查询、数据范围、分页、软删、状态和列表后处理。
 - Model 负责表映射、fillable、hidden、关联、转换器和审计规则。
 - 前端权限码、菜单 code 和后端 `#[Auth]` code 必须一致。
+- `plugin.json` 负责菜单、权限、view、语言包、迁移和资源根声明；`Provider.php` 只做运行期装配。
+- 源码/CI 可使用 `xadmin:plugin:*` 打包、安装、备份、移除和恢复插件；发布 Phar/SFX 二进制不注册这些动态插件命令。
 
 ## 模块接入清单
 
@@ -83,5 +98,6 @@ composer release:check
 - 不要依赖前端隐藏按钮作为安全边界。
 - 不要把密码、Token、Secret、Key 写入日志、响应、导出或文档。
 - 插件新增或升级走源码合并、菜单/节点同步和前端重新构建；需要 ZIP 分发时使用 SmartAdminLibrary 提供的 `xadmin:plugin:*` 源码命令，backup 默认只备份代码，`--with-data` 才包含插件自有表，已发布二进制不支持动态安装、更新或移除插件。
+- 不要把业务插件页面、API service、`routes.ts` 或 `auth-entry.ts` 写进 `web/apps/web-antd`；Web 只维护通用壳和公共组件。
 
-最后更新：2026-05-18
+最后更新：2026-05-29

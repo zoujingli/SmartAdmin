@@ -340,8 +340,8 @@ def version_highlights(repository: str, profile: RepositoryProfile, files: list[
         return ['- 本次发布主要用于刷新 Tag、Release 信息或重新上传资产，源码内容未检测到差异。']
 
     lines: list[str] = []
-    if has_path(files, 'bin/smart.php', 'bin/smart', 'composer.json', '.php-sfx-packer.php'):
-        lines.append('- 命令入口：源码命令统一到 `bin/smart.php`，旧 `bin/smart` 不再作为维护入口，Composer、CI、插件管理和发布构建脚本同步切换。')
+    if has_path(files, 'bin/smart.php', 'composer.json', '.php-sfx-packer.php'):
+        lines.append('- 命令入口：源码命令统一到 `bin/smart.php`，Composer、CI、插件管理和发布构建脚本保持同一入口。')
     if has_path(files, '.github/release/', '.github/workflows/release', '.github/tools/release/'):
         lines.append('- 发布自动化：Release 正文改为版本重点优先，并支持同名 Tag 替换时用旧 SHA 作为对比基线，减少重复仓库介绍和全量文件噪声。')
     if has_path(files, 'plugin/Library/Middleware/DemoMiddleware.php', '.env.example', 'config/autoload/cache.php', 'docs/index.html'):
@@ -372,7 +372,7 @@ def version_highlights(repository: str, profile: RepositoryProfile, files: list[
 
 def upgrade_notes(repository: str, files: list[str]) -> list[str]:
     lines: list[str] = []
-    if has_path(files, 'bin/smart.php', 'bin/smart', 'composer.json', '.php-sfx-packer.php'):
+    if has_path(files, 'bin/smart.php', 'composer.json', '.php-sfx-packer.php'):
         lines.append('- 源码命令请改用 `./bin/smart.php`；生产进程管理器必须显式执行 `./bin/smart.php start`，无参数入口只用于本地开发 watch。')
     if has_path(files, '.github/release/', '.github/workflows/release', '.github/tools/release/'):
         lines.append('- 维护者如需重跑同名版本 Release，可传入 `previous_ref` 或依赖 Tag push 的 before SHA 保持对比范围准确。')

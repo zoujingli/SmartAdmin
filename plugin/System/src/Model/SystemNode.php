@@ -29,7 +29,7 @@ use Library\CoreModel;
  * @property int $updated_by 更新者
  * @property Carbon $created_at 创建时间
  * @property Carbon $updated_at 更新时间
- * @property-read null|Collection|SystemRole[] $roles
+ * @property null|Collection|SystemRole[] $roles
  */
 final class SystemNode extends CoreModel
 {
