@@ -31,6 +31,12 @@ jobs:
           npm install -g pnpm@10.28.2
           pnpm --version
 
+      - name: Prefer GitHub package repositories
+        run: |
+          # 公开仓同步或替换 Tag 后，Packagist 元数据可能滞后；CI 必须直接按 GitHub Tag 解析基础包。
+          composer config --global repositories.smart-admin-library vcs https://github.com/zoujingli/SmartAdminLibrary.git
+          composer config --global repositories.smart-admin-builder vcs https://github.com/zoujingli/SmartAdminBuilder.git
+
       - name: Install backend dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader --ignore-platform-req=ext-opcache
 

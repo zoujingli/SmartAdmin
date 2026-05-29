@@ -12,6 +12,15 @@
 - 仓库与发布链仅使用 GitHub：`SmartAdminDeveloper` 为私有全量开发源，也是唯一生态维护入口；TAG Actions 自动同步 `SmartAdminLibrary`、`SmartAdminBuilder` 与 `SmartAdmin`；不得再配置其它代码托管地址或发布说明。普通用户只使用公开 `SmartAdmin` / `zoujingli/smartadmin` 运行和二次开发。
 - Composer 包名统一使用横线规则：主包为 `zoujingli/smartadmin`，基础库为 `zoujingli/smart-admin-library`，构建器为 `zoujingli/smart-admin-builder`，插件为 `zoujingli/smart-plugin-xxx`；私有/商用插件不发布 Composer 远程包，只通过 `xadmin:plugin:*` ZIP 分发，ZIP 内 `composer.json` 仅服务本地 path autoload。
 - AI 修改时优先复用现有基类和注册机制，不新增重复框架层。
+- 涉及 AI 编辑、AI 修正、AI 生成内容的功能必须坚持“AI 只返回候选内容，人工确认后再保存/发布/提交”；不得让 AI 接口直接写业务表、发布内容、改状态或绕过原有权限/审计链路。
+
+## AI 编辑规范
+
+- AI 修改代码前必须先判断影响面是否会进入 `SmartAdminDeveloper`、`SmartAdminLibrary`、`SmartAdminBuilder`、`SmartAdmin` 四仓同步链；涉及 Composer 包、公开导出、GitHub Actions、Release、Tag 的改动必须同时考虑目标仓 CI，而不能只看 Developer 仓本地测试。
+- 同一轮同步或替换 Tag 时，公开仓 CI 不得依赖 Packagist 或远程包缓存的即时刷新；基础库/构建器在发布工作流中应使用本次导出的 path 包，公开仓自身 CI 应优先使用 GitHub VCS 仓库解析 `smart-admin-library` 与 `smart-admin-builder`。
+- 修复同步/发布问题时必须补回归约束：工作流、导出脚本、Composer 仓库来源、公开仓过滤规则等都要有源码测试或脚本检查，避免后续 AI 编辑把稳定性修复改丢。
+- AI 不得为通过当前测试而删除目标仓必要校验；如果某项校验只适用于 Developer 私有仓，应在 workflow 或导出脚本中显式区分仓库边界，而不是让公开仓失败或静默跳过关键质量检查。
+- 提交前需要按改动范围运行验证；推送后如触发同步或发布，必须继续跟进 Developer 与公开目标仓 Actions，确认失败发生在哪个仓库、哪个 workflow、哪个步骤，再做源头修复。
 
 ## 分层标准
 
@@ -127,6 +136,7 @@
 - 搜索、刷新、导出、保存、同步、删除、批量处理和登录等异步按钮必须有 `loading` / `confirm-loading` / pending 锁，防止重复点击；表格行异步操作必须让 `CrudTableActions` 等待 Promise，危险操作必须保留确认。
 - 前端权限码必须与后端 `#[Auth]` code 保持一致。
 - 列表导出统一使用前端 `exportCrudXlsx()`：前端先弹出确认层，再按当前筛选条件分页调用现有列表接口取数，最后在浏览器生成 `.xlsx` 自动下载；后台只负责列表数据、权限、数据范围和租户隔离，不新增或恢复 `*/export` 后端导出接口。
+- AI 编辑入口必须展示候选内容、差异或可应用片段，由用户点击应用后再走原表单保存；不得在 AI 请求完成后自动触发保存、发布、状态变更或删除等写操作。AI 结果为空、格式错误或含不支持字段时，前端只能提示和保留原值。
 
 ## 代码规则
 
@@ -137,6 +147,8 @@
 - 只有在确实降低重复、隔离复杂分支或保护职责边界时，才允许新增辅助方法、类或抽象层。
 - 默认使用 ASCII；已有中文文档、注释、业务文案可以继续使用中文。
 - AI 新增代码，以及修改后新增或调整的关键逻辑，必须补充标准中文注释；说明职责、关键分支、边界条件、异常场景和业务约束，不重复代码字面意思。
+- AI 编辑服务必须把模型调用、结果清洗、候选内容生成和业务持久化拆开；Service 返回结构应明确标注候选字段、差异、风险提示和 usage，不得在同一方法内调用 `create()`、`update()`、`delete()`、`publish()` 等最终写入动作。
+- AI 生成内容进入富文本、Markdown、JSON 或结构化字段前必须做白名单过滤、长度限制和敏感信息裁剪；不能把 Token、Secret、Cookie、Authorization、数据库连接、租户上下文或完整用户资料发送给模型或写入 AI 日志。
 - 对外接口、结构化返回、缓存、权限、状态流转、金额计算、时间范围、兼容逻辑等易歧义代码，必须写清输入输出约束和业务语义。
 - 注释只解释业务约束或复杂逻辑，不写显而易见的注释。
 - 在兼容项目现状的前提下，优先使用 PHP 8.4 语法，但不得破坏既有风格和业务语义。
