@@ -69,7 +69,8 @@ final class MediaServiceTest extends TestCase
         $this->expectException(ErrorResponseException::class);
         $this->expectExceptionMessage('文件地址无法解析或不可访问');
 
-        $this->invokePrivate('assertPublicRemoteUrl', 'https://wechat-admin.invalid/media.png');
+        // 使用 DNS 语法无效的双点主机名，避免本地网络把 .invalid 泛解析到 198.18.0.0/15 后造成测试漂移。
+        $this->invokePrivate('assertPublicRemoteUrl', 'https://wechat-admin..invalid/media.png');
     }
 
     public function testAssertPublicRemoteUrlAllowsPublicIp(): void
