@@ -1,4 +1,4 @@
-import type { Router } from 'vue-router';
+import type { RouteLocationNormalized, Router } from 'vue-router';
 
 import backendPluginHomes from 'virtual:xadmin-plugin-backend-homes';
 
@@ -66,6 +66,8 @@ function setupCommonGuard(router: Router) {
  * @param router
  */
 function setupAccessGuard(router: Router) {
+  const accessRouteRebuildPaths = new Set<string>();
+
   function normalizeGuardPath(path?: string): string {
     const raw = String(path || '').split(/[?#]/)[0] || '';
 
@@ -125,6 +127,34 @@ function setupAccessGuard(router: Router) {
     }
 
     return getAuthEntryByRoutePath(path) === entry;
+  }
+
+  function isFallbackRoute(to: RouteLocationNormalized): boolean {
+    return to.name === 'FallbackNotFound'
+      || to.matched.some((route) => route.name === 'FallbackNotFound');
+  }
+
+  function shouldRebuildAccessRoutes(to: RouteLocationNormalized): boolean {
+    if (to.meta.ignoreAccess || coreRouteNames.includes(to.name as string)) {
+      return false;
+    }
+    if (!isFallbackRoute(to)) {
+      return false;
+    }
+
+    const entry = getAuthEntry();
+    return isPluginAuthEntry(entry)
+      ? pathBelongsToEntry(to.path, entry)
+      : isSystemPath(to.path);
+  }
+
+  function resetDynamicRoutesForRebuild() {
+    const accessStore = useAccessStore();
+    // 插件后台菜单可能在登录后同步或热更新；遇到已声明后台路径却命中 fallback 时，
+    // 只清理动态路由与菜单生成状态，让守卫重建一次，避免菜单点击落到空白页。
+    accessStore.setAccessMenus([]);
+    accessStore.setAccessRoutes([]);
+    accessStore.setIsAccessChecked(false);
   }
 
   function isSafeRedirectPath(path: string, entry: string): boolean {
@@ -285,6 +315,23 @@ function setupAccessGuard(router: Router) {
         const menus = generateMenus(accessStore.accessRoutes, router);
         accessStore.setAccessMenus(isPluginAuthEntry(entry) ? filterEntryTree(menus as any, entry) as any : menus);
       }
+      if (shouldRebuildAccessRoutes(to)) {
+        if (!accessRouteRebuildPaths.has(to.fullPath)) {
+          accessRouteRebuildPaths.add(to.fullPath);
+          resetDynamicRoutesForRebuild();
+
+          return {
+            hash: to.hash,
+            path: to.path,
+            query: to.query,
+            replace: true,
+          };
+        }
+
+        accessRouteRebuildPaths.delete(to.fullPath);
+        return true;
+      }
+      accessRouteRebuildPaths.delete(to.fullPath);
       return true;
     }
 
