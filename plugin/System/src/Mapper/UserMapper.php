@@ -23,6 +23,7 @@ use Library\Constants\System;
 use Library\CoreMapper;
 use Library\Events\Processor\ScopeProcessor;
 use Library\Interfaces\UserModelInterface;
+use Library\Support\TenantUserResolver;
 use System\Model\SystemDept;
 use System\Model\SystemPost;
 use System\Model\SystemRole;
@@ -40,15 +41,20 @@ final class UserMapper extends CoreMapper
     /**
      * 加载用户及其角色、部门、岗位关联信息。
      */
-    public function getUserWithRelations(int $id, bool $isScope = true): ?SystemUser
+    public function read(mixed $id, array $column = ['*'], bool $isScope = true): ?Model
+    {
+        return $this->maskTenantSuperAttribute(parent::read($id, $column, $isScope));
+    }
+
+    public function getUserWithRelations(int $id, bool $isScope = true, bool $revealTenantSuper = false): ?SystemUser
     {
         $query = $this->model::query()->select([
             'id', 'tenant_id', 'username', 'nickname', 'phone', 'email',
-            'avatar', 'signed', 'status', 'remark', 'extra',
+            'avatar', 'signed', 'super', 'status', 'remark', 'extra',
             'login_ip', 'login_time', 'created_at', 'updated_at',
         ]);
-        if (System::isPlatformTenant()) {
-            // 平台空间是管控面，用户详情需要能读取目标租户用户，再由数据范围限制可操作边界。
+        if (user(SystemUser::class)?->isSuper()) {
+            // 只有 APP_SUPER_USER 平台超级管理员可读取目标租户用户，普通租户管理员始终留在本租户范围。
             $query->withoutGlobalScope(DataField::TENANT);
         }
         if ($isScope) {
@@ -64,7 +70,7 @@ final class UserMapper extends CoreMapper
         $user->setRelation('depts', $this->makeUserDeptsQuery($id, $isScope)->get());
         $user->setRelation('posts', $this->makeUserPostsQuery($id, $isScope)->get());
 
-        return $user;
+        return $this->maskTenantSuperAttribute($user, $revealTenantSuper);
     }
 
     /**
@@ -112,6 +118,7 @@ final class UserMapper extends CoreMapper
         $limit = max(1, min((int)($params['limit'] ?? 20), 100));
         $query = $this->model::query()
             ->where('status', Status::ENABLED);
+        $query = $this->applyRequestedTenantScope($query, $params);
         $query = ScopeProcessor::applyScope($query, null, 'created_by');
 
         if ($keyword !== '') {
@@ -432,12 +439,17 @@ final class UserMapper extends CoreMapper
         $deptMap = $this->buildDeptMap($connection, $userIds);
         $postMap = $this->buildPostMap($connection, $userIds);
 
-        return array_map(static function ($item) use ($roleMap, $deptMap, $postMap): array {
+        $revealTenantSuper = $this->canRevealTenantSuperState();
+
+        return array_map(static function ($item) use ($roleMap, $deptMap, $postMap, $revealTenantSuper): array {
             $data = $item instanceof SystemUser ? $item->toArray() : (array)$item;
             $userId = (int)($data['id'] ?? 0);
             $roles = $roleMap[$userId] ?? [];
             $depts = $deptMap[$userId] ?? [];
             $posts = $postMap[$userId] ?? [];
+            if (!$revealTenantSuper) {
+                unset($data['super']);
+            }
 
             return array_merge($data, [
                 'roles' => $roles,
@@ -481,7 +493,7 @@ final class UserMapper extends CoreMapper
     protected function makeOperationQuery(array $ids = [], bool $withTrashed = false, bool $isScope = true): Builder
     {
         $query = parent::makeOperationQuery($ids, $withTrashed, $isScope);
-        if (System::isPlatformTenant()) {
+        if (user(SystemUser::class)?->isSuper()) {
             $query->withoutGlobalScope(DataField::TENANT);
         }
 
@@ -725,7 +737,7 @@ final class UserMapper extends CoreMapper
             ])
             ->orderBy('sort', 'desc')
             ->orderBy('id', 'desc');
-        if (System::isPlatformTenant()) {
+        if (user(SystemUser::class)?->isSuper()) {
             $query->withoutGlobalScope(DataField::TENANT);
         }
 
@@ -744,7 +756,7 @@ final class UserMapper extends CoreMapper
             ->select(['id', 'name', 'pid', 'status', 'created_by'])
             ->orderBy('sort', 'desc')
             ->orderBy('id', 'desc');
-        if (System::isPlatformTenant()) {
+        if (user(SystemUser::class)?->isSuper()) {
             $query->withoutGlobalScope(DataField::TENANT);
         }
 
@@ -763,7 +775,7 @@ final class UserMapper extends CoreMapper
             ->select(['id', 'name', 'code', 'status', 'created_by'])
             ->orderBy('sort', 'desc')
             ->orderBy('id', 'desc');
-        if (System::isPlatformTenant()) {
+        if (user(SystemUser::class)?->isSuper()) {
             $query->withoutGlobalScope(DataField::TENANT);
         }
 
@@ -834,17 +846,46 @@ final class UserMapper extends CoreMapper
     /**
      * 原生用户列表不会触发 CoreModel 的租户全局范围，必须在 SQL 层显式补齐租户边界。
      *
-     * 平台空间 tenant_id=0 允许看全量；租户空间即使角色数据范围是“全部数据”，也只能读取本租户用户。
+     * 平台代维护入口可跨租户读取用户；租户空间即使角色数据范围是“全部数据”，也只能读取本租户用户。
      */
     private function applyUserTenantScope(QueryBuilder $query, ?UserModelInterface $scopeUser = null): void
     {
         $tenantId = $scopeUser instanceof UserModelInterface
-            ? (int)($scopeUser->toArray()[DataField::TENANT] ?? System::getTenantId())
+            ? TenantUserResolver::tenantId($scopeUser)
             : System::getTenantId();
+
+        if ($scopeUser instanceof SystemUser && $scopeUser->isSuper()) {
+            return;
+        }
 
         if ($tenantId > 0) {
             $query->where('system_user.' . DataField::TENANT, $tenantId);
         }
+    }
+
+    /**
+     * 用户管理的 super 状态只对 APP_SUPER_USER 平台超级管理员可见；profile 会通过显式参数返回自身身份。
+     */
+    private function maskTenantSuperAttribute(?Model $user, bool $forceReveal = false): ?Model
+    {
+        if (!$user instanceof SystemUser || $forceReveal || $this->canRevealTenantSuperState()) {
+            return $user;
+        }
+
+        $user->makeHidden(['super']);
+
+        return $user;
+    }
+
+    private function canRevealTenantSuperState(): bool
+    {
+        try {
+            $currentUser = user(SystemUser::class);
+        } catch (\Throwable) {
+            $currentUser = null;
+        }
+
+        return $currentUser instanceof SystemUser && $currentUser->isSuper();
     }
 
     /**
@@ -893,7 +934,7 @@ final class UserMapper extends CoreMapper
             return null;
         }
 
-        // Token 兜底恢复发生在上下文异常路径，需绕过当前 TenantContext，避免租户用户被默认平台空间误过滤。
+        // Token 兜底恢复发生在上下文异常路径，需绕过当前 TenantContext，避免租户用户被空上下文误过滤。
         $fallbackUser = SystemUser::query()
             ->withoutGlobalScope(DataField::TENANT)
             ->find($userId);
@@ -924,7 +965,7 @@ final class UserMapper extends CoreMapper
         }
 
         $query = $modelClass::query()->whereIn('id', $ids);
-        if (System::isPlatformTenant()) {
+        if (user(SystemUser::class)?->isSuper()) {
             $query->withoutGlobalScope(DataField::TENANT);
         }
         $deptField = is_a($modelClass, SystemDept::class, true) ? 'id' : null;

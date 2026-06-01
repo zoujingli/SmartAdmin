@@ -17,6 +17,7 @@ use Library\Constants\Status;
 use Library\CoreService;
 use Library\Exception\ErrorResponseException;
 use Library\Helper\CoderHelper;
+use Library\Support\TenantContext;
 use Plugin\WechatClient\Mapper\WechatClientAccountMapper;
 use Plugin\WechatClient\Model\WechatClientAccount;
 use Plugin\WechatClient\Support\HyperfCacheStore;
@@ -152,6 +153,9 @@ final class WechatClientAccountService extends CoreService
      */
     protected function filterData(array &$data, array $exists = []): array
     {
+        // 微信接口账号由当前租户维护；回调查找使用 AppID 显式跨租户入口，表单写入不接受 tenant_id。
+        unset($data['tenant_id']);
+
         $secrets = [];
         foreach (self::SECRET_FIELDS as $field) {
             if (array_key_exists($field, $data)) {
@@ -160,8 +164,6 @@ final class WechatClientAccountService extends CoreService
         }
         $extra = $data['extra'] ?? null;
         $rules = [
-            'tenant_id.integer' => '租户 ID 必须为数字',
-            'tenant_id.min:0' => '租户 ID 不能小于 0',
             'appid.filled' => '微信 AppID 不能为空',
             'appid.max:64' => '微信 AppID 最多 64 位',
             'name.filled' => '账号名称不能为空',
@@ -173,7 +175,6 @@ final class WechatClientAccountService extends CoreService
             'status.in:1,0' => '状态值错误',
         ];
         if ($exists === []) {
-            $rules['tenant_id.default'] = tenant_id();
             $rules['appid.required'] = '微信 AppID 不能为空';
             $rules['name.required'] = '账号名称不能为空';
             $rules['account_type.default'] = 'official_account';
@@ -182,6 +183,9 @@ final class WechatClientAccountService extends CoreService
         }
 
         $data = _vali($rules, $data);
+        if ($exists === []) {
+            $data['tenant_id'] = TenantContext::requireTenantId();
+        }
         if (array_key_exists('appid', $data) && $this->mapper->existsByAppid((string)$data['appid'], (int)($exists['id'] ?? 0))) {
             throw new ErrorResponseException('微信 AppID 已存在');
         }

@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace System\Support;
 
 use Library\Constants\Status;
+use Library\Support\TenantContext;
 
 final class SystemBootstrapSeed
 {
@@ -27,7 +28,7 @@ final class SystemBootstrapSeed
 
         return [
             'id' => $userId,
-            'tenant_id' => 0,
+            'tenant_id' => TenantContext::DEFAULT_TENANT_ID,
             'username' => self::SUPER_USERNAME,
             'nickname' => '管理员',
             'phone' => '13800138000',
@@ -35,6 +36,7 @@ final class SystemBootstrapSeed
             'password' => password_hash(self::DEFAULT_PASSWORD, PASSWORD_DEFAULT),
             'avatar' => '',
             'signed' => '系统超级管理员',
+            'super' => 0,
             'status' => Status::ENABLED,
             'remark' => '初始化超级管理员账号',
             'login_ip' => '127.0.0.1',
@@ -54,7 +56,7 @@ final class SystemBootstrapSeed
 
         return [
             'id' => self::SUPER_ROLE_ID,
-            'tenant_id' => 0,
+            'tenant_id' => TenantContext::DEFAULT_TENANT_ID,
             'name' => '超级管理员',
             'scope' => 1,
             'remark' => '初始化超级管理员角色',
@@ -71,7 +73,7 @@ final class SystemBootstrapSeed
     public static function superAdminRoleBindingRow(int $userId, int $roleId = self::SUPER_ROLE_ID): array
     {
         return [
-            'tenant_id' => 0,
+            'tenant_id' => TenantContext::DEFAULT_TENANT_ID,
             'user_id' => $userId,
             'role_id' => $roleId,
         ];

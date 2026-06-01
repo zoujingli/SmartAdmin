@@ -17,7 +17,6 @@ use Library\CoreMapper;
 use System\Model\SystemData;
 use System\Model\SystemDept;
 use System\Model\SystemFile;
-use System\Model\SystemLogsAction;
 use System\Model\SystemMenu;
 use System\Model\SystemNode;
 use System\Model\SystemPost;
@@ -31,10 +30,12 @@ use System\Model\SystemUser;
 final class DataMapper extends CoreMapper
 {
     /**
+     * @param LogsActionMapper $logs 操作日志数据访问层
      * @param string $model 系统数据模型类
      */
     public function __construct(
-        protected string $model = SystemData::class
+        private LogsActionMapper $logs,
+        protected string $model = SystemData::class,
     ) {}
 
     /**
@@ -90,7 +91,7 @@ final class DataMapper extends CoreMapper
      */
     public function getLogCount(): int
     {
-        return (int)$this->scopedQuery(SystemLogsAction::class)->count();
+        return (int)$this->logs->makeLogQuery()->count();
     }
 
     /**
@@ -98,7 +99,7 @@ final class DataMapper extends CoreMapper
      */
     public function getTodayLogs(): int
     {
-        return (int)$this->scopedQuery(SystemLogsAction::class)
+        return (int)$this->logs->makeLogQuery()
             ->whereDate('created_at', date('Y-m-d'))
             ->count();
     }
@@ -108,7 +109,7 @@ final class DataMapper extends CoreMapper
      */
     public function getTodayServerErrorLogs(): int
     {
-        return (int)$this->scopedQuery(SystemLogsAction::class)
+        return (int)$this->logs->makeLogQuery()
             ->whereDate('created_at', date('Y-m-d'))
             ->where('response_code', 'like', '5%')
             ->count();
@@ -119,7 +120,7 @@ final class DataMapper extends CoreMapper
      */
     public function getTodayFailedLoginLogs(): int
     {
-        return (int)$this->scopedQuery(SystemLogsAction::class)
+        return (int)$this->logs->makeLogQuery()
             ->whereDate('created_at', date('Y-m-d'))
             ->where('name', '用户登录')
             ->where('response_code', '!=', '200')

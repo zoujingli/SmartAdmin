@@ -17,6 +17,7 @@ use Library\Constants\DataField;
 use Library\CoreService;
 use Library\Exception\ErrorResponseException;
 use Library\Helper\RequestHelper;
+use Library\Support\TenantContext;
 use System\Mapper\FileMapper;
 use System\Model\SystemFile;
 use System\Support\UploadDriver;
@@ -312,6 +313,9 @@ final class FileService extends CoreService
      */
     protected function filterData(array &$data, array $exists = []): array
     {
+        // 文件记录属于租户业务数据；上传服务会显式恢复租户写入，普通接口不接受请求体 tenant_id。
+        unset($data['tenant_id']);
+
         foreach (['scene', 'driver', 'url', 'hash', 'suffix', 'origin_name', 'object_name', 'storage_path', 'mime_type', 'size_info', 'remark'] as $field) {
             if (array_key_exists($field, $data) && is_string($data[$field])) {
                 $data[$field] = trim($data[$field]);
@@ -319,7 +323,6 @@ final class FileService extends CoreService
         }
 
         $data = _vali([
-            'tenant_id',
             'scene',
             'driver',
             'url',
@@ -335,8 +338,6 @@ final class FileService extends CoreService
             'remark',
             'created_by',
             'updated_by',
-            'tenant_id.integer' => '租户 ID 必须为数字',
-            'tenant_id.min:0' => '租户 ID 不能小于 0',
             'scene.max:20' => '上传场景最多 20 位',
             'driver.max:20' => '上传通道最多 20 位',
             'url.max:255' => '文件地址最多 255 位',
@@ -357,6 +358,9 @@ final class FileService extends CoreService
             'updated_by.integer' => '更新者必须为数字',
             'updated_by.min:0' => '更新者不能小于 0',
         ], $data);
+        if ($exists === []) {
+            $data['tenant_id'] = TenantContext::requireTenantId();
+        }
 
         foreach (['tenant_id', 'storage_mode', 'size_byte', 'created_by', 'updated_by'] as $field) {
             if (array_key_exists($field, $data)) {

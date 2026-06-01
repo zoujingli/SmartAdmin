@@ -47,6 +47,7 @@ final class WechatClientUserMapper extends CoreMapper
             ->withoutGlobalScope(DataField::TENANT)
             ->where('appid', $appid)
             ->where('openid', $openid)
+            ->where('tenant_id', '>', 0)
             ->first();
         if ($user instanceof WechatClientUser) {
             // appid + openid 是全局唯一键，回调/同步时需跨租户定位旧记录并按当前账号租户修正，避免唯一索引冲突。
@@ -78,7 +79,7 @@ final class WechatClientUserMapper extends CoreMapper
     {
         return _query($query, $params)
             ->like('nickname,openid,unionid')
-            ->equal('tenant_id,account_id,appid,subscribe,status')
+            ->equal('account_id,appid,subscribe,status')
             ->dateBetween('created_at')
             ->getQuery();
     }

@@ -18,6 +18,9 @@ use Library\Exception\ErrorResponseException;
 use Library\Exception\NotAllowResponseException;
 use Library\Exception\UnauthorizedResponseException;
 use Library\Helper\CoderHelper;
+use Library\Interfaces\UserModelInterface;
+use Library\Support\TenantContext;
+use Library\Support\TenantUserResolver;
 use System\Contract\MultipartUploadStorageInterface;
 use System\Model\SystemFile;
 use System\Support\UploadDriver;
@@ -54,6 +57,7 @@ final class FileUploadService
         $size = (int)($payload['size'] ?? 0);
         $mimeType = trim((string)($payload['mime_type'] ?? $payload['type'] ?? 'application/octet-stream'));
         $hash = strtolower(trim((string)($payload['hash'] ?? '')));
+        $principal = $this->currentUploadPrincipal();
 
         if ($originName === '' || $size <= 0) {
             throw new ErrorResponseException('上传文件元数据不完整');
@@ -83,7 +87,7 @@ final class FileUploadService
         [$storagePath, $objectName] = $this->makeObjectLocation($originName, $suffix, $hash, $nameType);
 
         if ($nameType === UploadDriver::NAME_TYPE_HASH) {
-            $instantAsset = $this->tryFastUpload($driver, $hash, $originName, $category);
+            $instantAsset = $this->tryFastUpload($driver, $hash, $originName, $category, $principal);
             if ($instantAsset !== null) {
                 return [
                     'completed' => true,
@@ -116,7 +120,9 @@ final class FileUploadService
             'upload_id' => '',
             'complete_token' => bin2hex(random_bytes(16)),
             'expires_at' => time() + 3600,
-            'created_by' => $this->currentUserId(),
+            'tenant_id' => $principal['tenant_id'],
+            'auth_user_model' => $principal['auth_user_model'],
+            'created_by' => $principal['uid'],
         ];
 
         $response = [
@@ -140,6 +146,7 @@ final class FileUploadService
                 'expires' => 3600,
             ]);
             if (!(bool)($signed['supported'] ?? false)) {
+                // 驱动声明支持直传但运行时签名失败时，退回服务端中转；同一会话继续绑定原租户和文件元数据。
                 $session['transport'] = $transport = UploadDriver::TRANSPORT_RELAY_SINGLE;
                 $response['transport'] = $transport;
             } else {
@@ -149,6 +156,7 @@ final class FileUploadService
 
         if ($transport === UploadDriver::TRANSPORT_DIRECT_MULTIPART) {
             if (!$storage instanceof MultipartUploadStorageInterface) {
+                // 分片直传需要驱动同时实现分片接口；未实现时改用服务端分块，避免前端拿到不可完成的上传会话。
                 $session['transport'] = $transport = UploadDriver::TRANSPORT_RELAY_CHUNK;
                 $response['transport'] = $transport;
                 $response['part_size'] = $partSizeBytes = $this->resolvePartSizeBytes($transport, $common);
@@ -174,7 +182,8 @@ final class FileUploadService
      */
     public function handleRelayUpload(string $sessionId, UploadedFile $file): array
     {
-        $session = $this->getSession($sessionId, [UploadDriver::TRANSPORT_RELAY_SINGLE]);
+        // 浏览器直传可能被 OSS/COS Bucket CORS 策略拦截；同一会话允许退回服务端中转，仍复用预检阶段的租户与文件元数据。
+        $session = $this->getSession($sessionId, [UploadDriver::TRANSPORT_RELAY_SINGLE, UploadDriver::TRANSPORT_DIRECT_SINGLE]);
         $tempPath = $file->getPathname();
         if (!is_file($tempPath)) {
             throw new ErrorResponseException('上传文件不存在');
@@ -255,6 +264,7 @@ final class FileUploadService
                 fclose($source);
             }
         } finally {
+            // 合并失败也必须关闭目标句柄，后续 catch 会清理会话和临时目录。
             fclose($target);
         }
 
@@ -351,6 +361,7 @@ final class FileUploadService
                     'ETag' => trim((string)($part['etag'] ?? '')),
                 ];
             }
+            // 对象存储要求按 PartNumber 顺序完成分片；前端并发上传后返回顺序不可信。
             usort($parts, static fn (array $left, array $right): int => $left['PartNumber'] <=> $right['PartNumber']);
 
             $storage->completeMultipartUpload($objectKey, (string)$session['upload_id'], $parts);
@@ -391,9 +402,10 @@ final class FileUploadService
     /**
      * 尝试基于 hash 秒传复用已有对象。
      *
+     * @param array{tenant_id:int,auth_user_model:string,uid:int} $principal
      * @return null|array<string, mixed>
      */
-    private function tryFastUpload(string $driver, string $hash, string $originName, string $category): ?array
+    private function tryFastUpload(string $driver, string $hash, string $originName, string $category, array $principal): ?array
     {
         if (!preg_match('/^[a-f0-9]{32}$/', $hash)) {
             throw new ErrorResponseException('哈希命名模式要求传入合法的 MD5 值');
@@ -405,7 +417,7 @@ final class FileUploadService
             ->where('hash', $hash)
             ->orderByDesc('id');
         // 秒传只能复用当前操作者数据范围内的文件；范围外 hash 命中退回正常上传，避免猜 hash 复用不可见对象。
-        ScopeProcessor::applyScope($query, null, 'created_by');
+        ScopeProcessor::applyScope($query, $this->currentUploadUser($principal), 'created_by');
 
         /** @var null|SystemFile $existing */
         $existing = $query->first();
@@ -414,7 +426,13 @@ final class FileUploadService
             return null;
         }
 
-        $file = SystemFile::query()->create([
+        $tenantId = (int)$principal['tenant_id'];
+        if ($tenantId <= TenantContext::UNSET_TENANT_ID) {
+            throw new UnauthorizedResponseException('上传租户上下文无效');
+        }
+
+        $file = $this->createSystemFileForTenant($tenantId, [
+            'tenant_id' => $principal['tenant_id'],
             'scene' => $category,
             'driver' => $driver,
             'url' => $this->config->buildPublicUrl($driver, (string)$existing->storage_path, (string)$existing->object_name),
@@ -428,8 +446,8 @@ final class FileUploadService
             'size_byte' => $existing->size_byte,
             'size_info' => $existing->size_info,
             'remark' => '',
-            'created_by' => $this->currentUserId(),
-            'updated_by' => $this->currentUserId(),
+            'created_by' => $principal['uid'],
+            'updated_by' => $principal['uid'],
         ]);
 
         return $this->files->formatFileRecord($file->fresh()?->toArray() ?? $file->toArray());
@@ -465,7 +483,18 @@ final class FileUploadService
     private function createFileRecord(array $session, int $sizeByte, string $mimeType, string $hash): array
     {
         $driver = (string)$session['driver'];
-        $file = SystemFile::query()->create([
+        $tenantId = (int)($session['tenant_id'] ?? TenantContext::UNSET_TENANT_ID);
+        if ($tenantId <= TenantContext::UNSET_TENANT_ID) {
+            throw new UnauthorizedResponseException('上传会话租户无效');
+        }
+
+        $operatorId = (int)($session['created_by'] ?? 0);
+        if ($operatorId <= 0) {
+            throw new UnauthorizedResponseException('上传会话创建人无效');
+        }
+
+        $file = $this->createSystemFileForTenant($tenantId, [
+            'tenant_id' => $tenantId,
             'scene' => (string)$session['scene'],
             'driver' => $driver,
             'url' => $this->config->buildPublicUrl($driver, (string)$session['storage_path'], (string)$session['object_name']),
@@ -479,11 +508,34 @@ final class FileUploadService
             'size_byte' => $sizeByte,
             'size_info' => $this->formatBytes($sizeByte),
             'remark' => '',
-            'created_by' => $this->currentUserId(),
-            'updated_by' => $this->currentUserId(),
+            'created_by' => $operatorId,
+            'updated_by' => $operatorId,
         ]);
 
         return $this->files->formatFileRecord($file->fresh()?->toArray() ?? $file->toArray());
+    }
+
+    /**
+     * 系统文件是租户业务数据，落库时必须同时恢复租户上下文并显式写入目标租户，避免异步上传完成阶段退回 tenant_id=0。
+     *
+     * @param array<string, mixed> $payload
+     */
+    private function createSystemFileForTenant(int $tenantId, array $payload): SystemFile
+    {
+        if ($tenantId <= TenantContext::UNSET_TENANT_ID) {
+            throw new UnauthorizedResponseException('上传租户上下文无效');
+        }
+
+        $payload['tenant_id'] = $tenantId;
+
+        return TenantContext::withTenant($tenantId, function () use ($payload): SystemFile {
+            return TenantContext::withExplicitTenantWrite(function () use ($payload): SystemFile {
+                /** @var SystemFile $file */
+                $file = SystemFile::query()->create($payload);
+
+                return $file;
+            });
+        });
     }
 
     /**
@@ -507,8 +559,13 @@ final class FileUploadService
             throw new ErrorResponseException('上传会话状态与当前操作不匹配');
         }
 
-        $currentUserId = $this->currentUserId();
-        if ((int)($session['created_by'] ?? 0) !== $currentUserId) {
+        $principal = $this->currentUploadPrincipal();
+        // 上传会话服务于 System 后台、Project 前台等多个登录模型；必须同时绑定租户、模型和用户 ID。
+        if (
+            (int)($session['tenant_id'] ?? 0) !== $principal['tenant_id']
+            || (string)($session['auth_user_model'] ?? '') !== $principal['auth_user_model']
+            || (int)($session['created_by'] ?? 0) !== $principal['uid']
+        ) {
             throw new NotAllowResponseException('无权操作该上传会话');
         }
 
@@ -732,6 +789,7 @@ final class FileUploadService
         }
 
         if ($deleteRemoteObject && in_array($transport, [UploadDriver::TRANSPORT_DIRECT_SINGLE, UploadDriver::TRANSPORT_DIRECT_MULTIPART], true) && $objectKey !== '') {
+            // 只有用户主动中止或回收会话时才删除远端对象；普通完成失败不删除已入库对象，避免误删复用文件。
             $storage->del($objectKey);
         }
 
@@ -778,15 +836,62 @@ final class FileUploadService
     }
 
     /**
-     * 获取当前登录用户 ID。
+     * 获取当前上传主体。
+     *
+     * @return array{tenant_id:int,auth_user_model:string,uid:int}
      */
-    private function currentUserId(): int
+    private function currentUploadPrincipal(): array
     {
-        $userId = (int)(auth_claims()['uid'] ?? 0);
+        $claims = auth_claims();
+        $userId = (int)($claims['uid'] ?? 0);
+        $authUserModel = trim((string)($claims['class'] ?? ''));
         if ($userId <= 0) {
             throw new UnauthorizedResponseException('未登录或登录状态已失效');
         }
+        if ($authUserModel === '' || !class_exists($authUserModel) || !is_a($authUserModel, UserModelInterface::class, true)) {
+            throw new UnauthorizedResponseException('登录用户模型无效');
+        }
 
-        return $userId;
+        // 上传入口同时服务后台用户和插件前台账号；先按 Token 声明的模型恢复登录态，
+        // 再读取租户上下文，避免 AOP、日志或复用服务调用时上下文尚未建立导致误判。
+        $user = $this->currentUploadUser([
+            'tenant_id' => 0,
+            'auth_user_model' => $authUserModel,
+            'uid' => $userId,
+        ]);
+        $tenantId = $this->tenantIdFromUser($user);
+        if ($tenantId <= 0) {
+            throw new UnauthorizedResponseException('租户上下文无效，请重新登录');
+        }
+        TenantContext::set($tenantId);
+
+        return [
+            'tenant_id' => $tenantId,
+            'auth_user_model' => $authUserModel,
+            'uid' => $userId,
+        ];
+    }
+
+    /**
+     * 按 Token 中的登录模型恢复当前上传用户，避免 Project 前台账号被默认 SystemUser 解析为空。
+     *
+     * @param array{tenant_id:int,auth_user_model:string,uid:int} $principal
+     */
+    private function currentUploadUser(array $principal): UserModelInterface
+    {
+        $user = user($principal['auth_user_model']);
+        if (!$user instanceof UserModelInterface || $user->getId() !== $principal['uid']) {
+            throw new UnauthorizedResponseException('未登录或登录状态已失效');
+        }
+
+        return $user;
+    }
+
+    /**
+     * 从登录用户原始属性解析租户，避免 toArray() 触发角色、权限等依赖租户上下文的附加查询。
+     */
+    private function tenantIdFromUser(UserModelInterface $user): int
+    {
+        return TenantUserResolver::tenantId($user);
     }
 }

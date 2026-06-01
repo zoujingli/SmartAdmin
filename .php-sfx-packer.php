@@ -153,8 +153,6 @@ function runReleaseBuild(string $baseDir): void
         cleanReleaseArtifacts();
         echo '[build] 审计发布包' . PHP_EOL;
         runBuildAudit('build/system');
-        echo '[build] 同步一键升级目录' . PHP_EOL;
-        syncUpgradeDirectory();
     } catch (Throwable $throwable) {
         $buildFailure = $throwable;
     } finally {
@@ -281,21 +279,6 @@ function cleanReleaseArtifacts(): void
         copyFileAtomic('.env.example', 'build/.env.example');
     }
     removePaths(['build/.env', 'build/.DS_Store', 'build/public']);
-}
-
-/**
- * 同步面向一键升级模板的 Linux 交付文件；模板脚本本身需要保留在 build/upgrade，不能随构建清理删除。
- */
-function syncUpgradeDirectory(): void
-{
-    if (!is_dir('build/upgrade')) {
-        return;
-    }
-
-    foreach (['system', 'system-linux-x64', 'system-linux-a64'] as $filename) {
-        copyFileAtomic('build/' . $filename, 'build/upgrade/' . $filename);
-        chmod('build/upgrade/' . $filename, 0755);
-    }
 }
 
 /**

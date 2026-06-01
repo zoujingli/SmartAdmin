@@ -14,6 +14,7 @@ namespace Tests\Unit\System\Service;
 use GuzzleHttp\Psr7\ServerRequest;
 use Hyperf\Context\Context;
 use Hyperf\Contract\ConfigInterface;
+use Library\Support\TenantContext;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -85,6 +86,29 @@ final class UploadConfigServiceTest extends TestCase
         );
 
         $this->assertSame('http://alist.example.com:5244/d/upload/ab/cdef.png', $url);
+    }
+
+    public function testUploadConfigIsTenantScopedAndRejectsMissingTenantContext(): void
+    {
+        $service = $this->makeService();
+        $reflection = new \ReflectionClass($service);
+        $method = $reflection->getMethod('currentTenantId');
+        $method->setAccessible(true);
+
+        TenantContext::clear();
+        $this->expectExceptionMessage('租户上下文无效，无法读取上传配置');
+        $method->invoke($service);
+    }
+
+    public function testUploadConfigServiceUsesTenantModelInsteadOfGlobalSystemData(): void
+    {
+        $source = (string)file_get_contents(dirname(__DIR__, 4) . '/plugin/System/src/Service/UploadConfigService.php');
+
+        $this->assertStringContainsString('SystemUploadConfig::query()', $source);
+        $this->assertStringContainsString("['tenant_id' => \$tenantId]", $source);
+        $this->assertStringContainsString('currentTenantId()', $source);
+        $this->assertStringNotContainsString('SystemData::query()', $source);
+        $this->assertStringNotContainsString("['name' => 'config_upload']", $source);
     }
 
     #[DataProvider('remoteDriverProvider')]

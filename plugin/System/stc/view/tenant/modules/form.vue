@@ -11,12 +11,12 @@
       <Row :gutter="[16, 0]">
         <Col :span="12">
           <FormItem label="租户编码" name="code">
-            <Input v-model:value="formData.code" placeholder="请输入租户编码" />
+            <Input v-model:value="formData.code" :disabled="isDefaultTenant" placeholder="请输入租户编码" />
           </FormItem>
         </Col>
         <Col :span="12">
           <FormItem label="租户名称" name="name">
-            <Input v-model:value="formData.name" placeholder="请输入租户名称" />
+            <Input v-model:value="formData.name" :disabled="isDefaultTenant" placeholder="请输入租户名称" />
           </FormItem>
         </Col>
 
@@ -38,18 +38,18 @@
         </Col>
         <Col :span="12">
           <FormItem label="套餐编码" name="package_code">
-            <Input v-model:value="formData.package_code" placeholder="请输入套餐编码" />
+            <Input v-model:value="formData.package_code" :disabled="isDefaultTenant" placeholder="请输入套餐编码" />
           </FormItem>
         </Col>
 
         <Col :span="12">
           <FormItem label="到期时间" name="expired_at">
-            <Input v-model:value="formData.expired_at" placeholder="请输入到期时间，例如 2026-12-31 23:59:59" />
+            <Input v-model:value="formData.expired_at" :disabled="isDefaultTenant" placeholder="请输入到期时间，例如 2026-12-31 23:59:59" />
           </FormItem>
         </Col>
         <Col :span="12">
           <FormItem label="状态" name="status">
-            <RadioGroup v-model:value="formData.status" :options="statusOptions" option-type="button" />
+            <RadioGroup v-model:value="formData.status" :disabled="isDefaultTenant" :options="statusOptions" option-type="button" />
           </FormItem>
         </Col>
 
@@ -88,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { Col, Form, FormItem, Input, message, RadioGroup, Row } from 'ant-design-vue';
 
 import { tenantApiService } from '#/api/system/tenant';
@@ -133,6 +133,7 @@ const statusOptions = [
   { label: '启用', value: 1 },
   { label: '禁用', value: 0 },
 ];
+const isDefaultTenant = computed(() => Number(formData.id || 0) === 1);
 
 const formRules: any = {
   code: [
@@ -191,7 +192,12 @@ const handleOk = async () => {
   try {
     await formRef.value?.validate();
 
-    const submitData: any = {
+    const submitData: any = isDefaultTenant.value ? {
+      contact_name: formData.contact_name,
+      contact_phone: formData.contact_phone,
+      contact_email: formData.contact_email,
+      remark: formData.remark,
+    } : {
       code: formData.code,
       name: formData.name,
       contact_name: formData.contact_name,

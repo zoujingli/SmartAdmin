@@ -17,6 +17,7 @@ use Library\CoreService;
 use Library\Exception\ErrorResponseException;
 use Library\Exception\NotAllowResponseException;
 use Library\Support\ModelChangeLog;
+use Library\Support\TenantContext;
 use System\Mapper\NoticeMapper;
 use System\Mapper\UserMapper;
 use System\Model\SystemNotice;
@@ -196,6 +197,9 @@ final class NoticeService extends CoreService
      */
     protected function filterData(array &$data, array $exists = []): array
     {
+        // 普通公告维护的租户归属只来自登录态，禁止请求体切换 tenant_id。
+        unset($data['tenant_id']);
+
         foreach (['title', 'content', 'link', 'level'] as $field) {
             if (array_key_exists($field, $data) && is_string($data[$field])) {
                 $data[$field] = trim($data[$field]);
@@ -212,8 +216,6 @@ final class NoticeService extends CoreService
         }
 
         $rules = [
-            'tenant_id.integer' => '租户 ID 必须为数字',
-            'tenant_id.min:0' => '租户 ID 不能小于 0',
             'title.filled' => '公告标题不能为空',
             'title.max:120' => '公告标题最多 120 位',
             'content.max:20000' => '公告内容最多 20000 位',
@@ -233,6 +235,9 @@ final class NoticeService extends CoreService
         }
 
         $data = _vali($rules, $data);
+        if ($exists === []) {
+            $data['tenant_id'] = TenantContext::requireTenantId();
+        }
         foreach (['tenant_id', 'status'] as $field) {
             if (array_key_exists($field, $data)) {
                 $data[$field] = (int)$data[$field];

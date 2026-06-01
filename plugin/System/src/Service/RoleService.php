@@ -18,6 +18,7 @@ use Library\CoreService;
 use Library\Exception\ErrorResponseException;
 use Library\Exception\NotAllowResponseException;
 use Library\Support\ModelChangeLog;
+use Library\Support\TenantContext;
 use System\Mapper\RoleMapper;
 use System\Mapper\UserMapper;
 use System\Model\SystemRole;
@@ -221,6 +222,9 @@ final class RoleService extends CoreService
      */
     protected function filterData(array &$data, array $exists = []): array
     {
+        // 普通角色维护的租户归属只来自登录态，禁止请求体切换 tenant_id。
+        unset($data['tenant_id']);
+
         foreach (['name', 'remark'] as $field) {
             if (array_key_exists($field, $data) && is_string($data[$field])) {
                 $data[$field] = trim($data[$field]);
@@ -228,8 +232,6 @@ final class RoleService extends CoreService
         }
 
         $rules = [
-            'tenant_id.integer' => '租户 ID 必须为数字',
-            'tenant_id.min:0' => '租户 ID 不能小于 0',
             'name.filled' => '角色名称不能为空',
             'name.max:100' => '角色名称最多 100 位',
             'scope.integer' => '数据范围必须为数字',
@@ -247,6 +249,9 @@ final class RoleService extends CoreService
         }
 
         $data = _vali($rules, $data);
+        if ($exists === []) {
+            $data['tenant_id'] = TenantContext::requireTenantId();
+        }
         foreach (['tenant_id', 'scope', 'sort', 'status'] as $field) {
             if (array_key_exists($field, $data)) {
                 $data[$field] = (int)$data[$field];

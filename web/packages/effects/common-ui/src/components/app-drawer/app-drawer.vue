@@ -225,7 +225,7 @@ function handleOk() {
 .app-drawer__footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 12px;
   min-height: 32px;
 }
@@ -243,8 +243,7 @@ function handleOk() {
 }
 
 .app-drawer__footer-actions {
-  margin-left: auto;
-  justify-content: flex-end;
+  justify-content: center;
 }
 
 @media (max-width: 640px) {

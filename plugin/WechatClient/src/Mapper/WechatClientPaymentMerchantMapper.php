@@ -44,6 +44,7 @@ final class WechatClientPaymentMerchantMapper extends CoreMapper
         return $this->model::query()
             ->withoutGlobalScope(DataField::TENANT)
             ->where('id', $id)
+            ->where('tenant_id', '>', 0)
             ->first();
     }
 
@@ -57,6 +58,7 @@ final class WechatClientPaymentMerchantMapper extends CoreMapper
         $query = $this->model::withTrashed()
             ->withoutGlobalScope(DataField::TENANT)
             ->where('mch_id', $mchId);
+        $query->where('tenant_id', '>', 0);
         if ($ignoreId > 0) {
             $query->where('id', '!=', $ignoreId);
         }
@@ -79,7 +81,7 @@ final class WechatClientPaymentMerchantMapper extends CoreMapper
     {
         return _query($query, $params)
             ->like('name,appid,mch_id')
-            ->equal('tenant_id,account_id,status')
+            ->equal('account_id,status')
             ->dateBetween('created_at')
             ->getQuery();
     }

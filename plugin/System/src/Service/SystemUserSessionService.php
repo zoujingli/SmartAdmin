@@ -21,6 +21,7 @@ use Library\Exception\ErrorResponseException;
 use Library\Interfaces\UserModelInterface;
 use Library\Service\LoginService;
 use Library\Support\TenantContext;
+use Library\Support\TenantUserResolver;
 use System\Model\SystemUser;
 
 /**
@@ -145,6 +146,10 @@ final class SystemUserSessionService
         Context::set($this->getUserContextCacheKey($userId), null);
         Context::set("user_with_relations_{$userId}_0", null);
         Context::set("user_with_relations_{$userId}_1", null);
+        Context::set("user_with_relations_{$userId}_0_0", null);
+        Context::set("user_with_relations_{$userId}_0_1", null);
+        Context::set("user_with_relations_{$userId}_1_0", null);
+        Context::set("user_with_relations_{$userId}_1_1", null);
     }
 
     /**
@@ -161,6 +166,15 @@ final class SystemUserSessionService
     private function loadSystemUser(int $userId): ?UserModelInterface
     {
         /* @var null|UserModelInterface $user */
+        $user = SystemUser::query()
+            ->withoutGlobalScope(DataField::TENANT)
+            ->find($userId);
+        if (!$user instanceof UserModelInterface) {
+            return null;
+        }
+
+        $this->applyTenantContext($user);
+
         return SystemUser::query()
             ->withoutGlobalScope(DataField::TENANT)
             ->with(['roles', 'depts', 'posts'])
@@ -205,7 +219,7 @@ final class SystemUserSessionService
      */
     private function applyTenantContext(UserModelInterface $user): void
     {
-        $tenantId = (int)($user->toArray()[DataField::TENANT] ?? TenantContext::PLATFORM_TENANT_ID);
+        $tenantId = TenantUserResolver::tenantId($user);
         TenantContext::set($tenantId);
     }
 
@@ -214,11 +228,7 @@ final class SystemUserSessionService
      */
     private function assertUserTenantAvailable(UserModelInterface $user): void
     {
-        $tenantId = (int)($user->toArray()[DataField::TENANT] ?? TenantContext::PLATFORM_TENANT_ID);
-        if ($tenantId <= 0) {
-            return;
-        }
-
+        $tenantId = TenantUserResolver::tenantId($user);
         $this->tenants->assertTenantAvailable($tenantId);
     }
 }

@@ -20,7 +20,7 @@ import {
   WorkbenchTrends,
 } from '@vben/common-ui';
 import { preferences } from '@vben/preferences';
-import { useUserStore } from '@vben/stores';
+import { useAccessStore, useUserStore } from '@vben/stores';
 import { openWindow } from '@vben/utils';
 
 import { message } from 'ant-design-vue';
@@ -30,6 +30,7 @@ import { dataApiService, logsActionApiService, tenantApiService } from '#/api';
 import AnalyticsVisitsSource from '../analytics/analytics-visits-source.vue';
 
 const userStore = useUserStore();
+const accessStore = useAccessStore();
 const router = useRouter();
 const { hasAccessByCodes } = useAccess();
 
@@ -54,7 +55,7 @@ const summary = ref({
 
 const canAccessSystemData = computed(() => hasAccessByCodes(['system.data.index']));
 const canAccessActionLogs = computed(() => hasAccessByCodes(['system.logs.action.index']));
-const canAccessTenants = computed(() => hasAccessByCodes(['system.tenant.index']));
+const canAccessTenants = computed(() => accessStore.accessCodes.includes('*'));
 
 const quickNavSource: QuickNavConfig[] = [
   { code: 'dashboard.workspace', color: '#1fdaca', icon: 'ion:home-outline', title: '工作台', url: '/dashboard/workspace' },

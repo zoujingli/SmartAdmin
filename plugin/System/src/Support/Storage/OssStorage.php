@@ -187,13 +187,10 @@ final class OssStorage extends AbstractRemoteStorage implements MultipartUploadS
         $key = $this->normalizeKey((string)($context['name'] ?? ''));
         $mimeType = trim((string)($context['mime_type'] ?? 'application/octet-stream'));
         $expires = max(60, (int)($context['expires'] ?? 3600));
+        // 浏览器直传只返回签名真正需要的请求头；下载文件名由系统下载地址处理，避免 OSS CORS 额外放行 Content-Disposition。
         $headers = [
             'Content-Type' => $mimeType,
         ];
-        $downloadName = trim((string)($context['download_name'] ?? ''));
-        if ($downloadName !== '') {
-            $headers['Content-Disposition'] = $this->buildAttachmentDisposition($downloadName);
-        }
 
         return [
             'supported' => true,

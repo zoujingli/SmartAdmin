@@ -4,7 +4,8 @@ import type { UserType } from '../types';
 import { computed, nextTick, reactive, ref, watch } from 'vue';
 
 import { useAccess } from '@vben/access';
-import { Button, Col, Form, FormItem, Input, InputPassword, message, RadioGroup, Row, Select, Textarea, TreeSelect } from 'ant-design-vue';
+import { useAccessStore, useUserStore } from '@vben/stores';
+import { Button, Col, Form, FormItem, Input, InputPassword, message, RadioGroup, Row, Select, Switch, Textarea, TreeSelect } from 'ant-design-vue';
 
 import { deptApiService, postApiService, roleApiService, tenantApiService, userApiService } from '#/api';
 import AppDrawer from '#/components/app-drawer.vue';
@@ -17,6 +18,7 @@ const visible = ref(false);
 const createInitialFormData = (): UserType => ({
   id: 0,
   tenant_id: 0,
+  super: 0,
   username: '',
   nickname: '',
   email: '',
@@ -34,6 +36,7 @@ const normalizeFormData = (data?: Partial<UserType>): UserType => ({
   ...data,
   roleIds: (data?.roleIds || []).map((id: any) => Number(id)),
   postIds: (data?.postIds || []).map((id: any) => Number(id)),
+  super: Number(data?.super || 0),
   deptId: data?.deptId || null,
   password: data?.password || '',
 });
@@ -48,11 +51,26 @@ const tenantOptions = ref<any[]>([]);
 const optionsLoaded = ref(false);
 const relationOptionsTenantId = ref<number | null>(null);
 const { hasAccessByCodes } = useAccess();
-const canAccessTenantOptions = computed(() => hasAccessByCodes(['system.tenant.index']));
+const userStore = useUserStore();
+const accessStore = useAccessStore();
+const currentTenantId = computed(() => {
+  const userInfo = userStore.userInfo as any;
+  const value = userInfo?.tenant_id ?? userInfo?.profile?.tenant_id;
+
+  return value === undefined || value === null ? -1 : Number(value);
+});
+const canManageSuper = computed(() => accessStore.accessCodes.includes('*'));
+const canAccessTenantOptions = computed(() => currentTenantId.value > 0 && canManageSuper.value);
 const canAccessDeptOptions = computed(() => hasAccessByCodes(['system.dept.index']));
 const canAccessRoleOptions = computed(() => hasAccessByCodes(['system.role.index']));
 const canAccessPostOptions = computed(() => hasAccessByCodes(['system.post.index']));
 const getTitle = computed(() => (formData.id ? '编辑用户' : '新增用户'));
+const superSwitchValue = computed<boolean>({
+  get: () => Number(formData.super || 0) === 1,
+  set: (value) => {
+    formData.super = value ? 1 : 0;
+  },
+});
 
 const resetFormData = (data?: Partial<UserType>) => {
   const nextData = normalizeFormData(data);
@@ -79,7 +97,7 @@ const getRelationOptionParams = (tenantId = normalizeTenantId(formData.tenant_id
 
 const loadTenantOptions = async () => {
   const tenants = canAccessTenantOptions.value ? await tenantApiService.getTenantOptions() : [];
-  tenantOptions.value = [{ label: '平台空间', value: 0 }, ...(tenants || []).map((tenant: any) => ({ label: tenant.label || tenant.name, value: Number(tenant.id) }))];
+  tenantOptions.value = (tenants || []).map((tenant: any) => ({ label: tenant.label || tenant.name, value: Number(tenant.id) }));
 };
 
 const loadRelationOptions = async (tenantId = normalizeTenantId(formData.tenant_id)) => {
@@ -115,7 +133,11 @@ const buildSubmitData = (values: any) => {
   };
 
   if (canAccessTenantOptions.value) {
-    payload.tenant_id = Number(values.tenant_id || 0);
+    payload.tenant_id = Number(values.tenant_id || currentTenantId.value);
+  }
+
+  if (canManageSuper.value) {
+    payload.super = values.super ? 1 : 0;
   }
 
   if (canAccessDeptOptions.value) {
@@ -264,6 +286,12 @@ watch(
         <Col v-if="canAccessTenantOptions" :span="12">
           <FormItem label="所属租户" name="tenant_id">
             <Select v-model:value="formData.tenant_id" class="w-full" placeholder="请选择所属租户" :options="tenantOptions" />
+          </FormItem>
+        </Col>
+
+        <Col v-if="canManageSuper" :span="12">
+          <FormItem label="子超管" name="super">
+            <Switch v-model:checked="superSwitchValue" />
           </FormItem>
         </Col>
 

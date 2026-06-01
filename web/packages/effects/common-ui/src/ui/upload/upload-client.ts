@@ -256,6 +256,34 @@ function openUploadErrorNotification(key: string, fileName: string, error: unkno
   });
 }
 
+function openUploadFallbackNotification(key: string, fileName: string) {
+  notification.open({
+    key,
+    duration: 0,
+    message: '上传中',
+    placement: 'topRight',
+    description: buildUploadNotificationDescription(fileName, '直传不可用，已切换为服务端中转上传'),
+  });
+}
+
+async function uploadRelaySingle(
+  uploadSessionId: string,
+  file: File,
+  reportProgress: (percent: number) => void,
+): Promise<UploadAsset> {
+  const form = new FormData();
+  form.append('upload_session_id', uploadSessionId);
+  form.append('file', file);
+
+  return requestFormByXhr<UploadAsset>('/system/file/upload/relay', form, {
+    onProgress: (loaded, total) => {
+      if (total > 0) {
+        reportProgress(Math.min(99, Math.round((loaded / total) * 100)));
+      }
+    },
+  });
+}
+
 export async function getUploadRuntimeConfig(force = false) {
   if (!force && uploadRuntimeCache) {
     return uploadRuntimeCache;
@@ -319,16 +347,7 @@ export async function uploadFile(
 
   try {
     if (prepare.transport === 'relay-single') {
-      const form = new FormData();
-      form.append('upload_session_id', prepare.upload_session_id);
-      form.append('file', file);
-      const asset = await requestFormByXhr<UploadAsset>('/system/file/upload/relay', form, {
-        onProgress: (loaded, total) => {
-          if (total > 0) {
-            reportProgress(Math.min(99, Math.round((loaded / total) * 100)));
-          }
-        },
-      });
+      const asset = await uploadRelaySingle(prepare.upload_session_id, file, reportProgress);
       options.onProgress?.(100);
       openUploadSuccessNotification(noticeKey, file.name, asset.url);
       return asset;
@@ -375,17 +394,27 @@ export async function uploadFile(
         throw new Error('缺少直传地址');
       }
 
-      await uploadByXhr(prepare.upload_url, file, {
-        fileField: prepare.file_field,
-        formFields: prepare.form_fields,
-        headers: prepare.headers,
-        method: prepare.method || 'PUT',
-        onProgress: (loaded, total) => {
-          if (total > 0) {
-            reportProgress(Math.min(99, Math.round((loaded / total) * 100)));
-          }
-        },
-      });
+      try {
+        await uploadByXhr(prepare.upload_url, file, {
+          fileField: prepare.file_field,
+          formFields: prepare.form_fields,
+          headers: prepare.headers,
+          method: prepare.method || 'PUT',
+          onProgress: (loaded, total) => {
+            if (total > 0) {
+              reportProgress(Math.min(99, Math.round((loaded / total) * 100)));
+            }
+          },
+        });
+      } catch (error) {
+        // 浏览器直传失败多数来自 Bucket CORS 或临时网络策略；后端同一会话允许切换中转，前端不重新预检以保留原租户和文件校验。
+        openUploadFallbackNotification(noticeKey, file.name);
+        const asset = await uploadRelaySingle(prepare.upload_session_id, file, reportProgress);
+        options.onProgress?.(100);
+        openUploadSuccessNotification(noticeKey, file.name, asset.url);
+        return asset;
+      }
+
       const asset = await request<UploadAsset>('POST', '/system/file/upload/complete', {
         complete_token: prepare.complete_token,
         upload_session_id: prepare.upload_session_id,
@@ -401,6 +430,7 @@ export async function uploadFile(
       const parts: Array<{ etag: string; part_number: number }> = [];
       let uploadedBytes = 0;
 
+      // 分片直传逐片签名，避免一次性暴露整批长期有效签名；完成时再把 ETag 列表交给后端闭合会话。
       for (let partNumber = 1; partNumber <= partCount; partNumber += 1) {
         const start = (partNumber - 1) * partSize;
         const end = Math.min(start + partSize, file.size);
@@ -446,6 +476,7 @@ export async function uploadFile(
 
     throw new Error(`不支持的上传方式: ${prepare.transport}`);
   } catch (error) {
+    // 失败时通知后端清理上传会话和可能存在的远端分片，清理失败不覆盖真正的上传错误。
     await request('POST', '/system/file/upload/abort', {
       upload_session_id: prepare.upload_session_id,
     }).catch(() => undefined);

@@ -49,7 +49,7 @@ final class WechatClientMenuMapper extends CoreMapper
     {
         return _query($query, $params)
             ->like('name')
-            ->equal('tenant_id,account_id,status')
+            ->equal('account_id,status')
             ->dateBetween('created_at')
             ->getQuery();
     }

@@ -49,7 +49,7 @@ final class WechatClientPaymentRefundMapper extends CoreMapper
     {
         return _query($query, $params)
             ->like('order_no,out_trade_no,out_refund_no,refund_id,reason')
-            ->equal('tenant_id,merchant_id,order_id,refund_status,status')
+            ->equal('merchant_id,order_id,refund_status,status')
             ->dateBetween('created_at')
             ->getQuery();
     }

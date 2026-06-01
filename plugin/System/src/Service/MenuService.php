@@ -417,13 +417,7 @@ final class MenuService extends CoreService implements NodeNameResolverInterface
      */
     private function getEnabledFrontendRows(): array
     {
-        return SystemMenu::query()
-            ->where('status', Status::ENABLED)
-            ->whereNotIn('type', MenuType::getQueryValues(MenuType::BUTTON))
-            ->orderBy('sort', 'desc')
-            ->orderBy('id', 'asc')
-            ->get()
-            ->toArray();
+        return $this->mapper->getEnabledFrontendMenus();
     }
 
     /**
@@ -438,6 +432,8 @@ final class MenuService extends CoreService implements NodeNameResolverInterface
 
         if ($user->isSuper()) {
             $rows = $this->getEnabledFrontendRows();
+        } elseif ($user->isTenantSuper()) {
+            $rows = $this->mapper->getMenusByPermissionCodes($user->getPermissions());
         } else {
             $rows = $this->mapper->getMenusByUser((int)$user->id);
         }
@@ -479,7 +475,11 @@ final class MenuService extends CoreService implements NodeNameResolverInterface
             $menu['children'] = $children;
 
             if (MenuType::normalize($menu['type'] ?? MenuType::MENU) === MenuType::PATH) {
-                $menu['redirect'] = $this->resolvePreferredRedirect($children);
+                // plugin.json 或后台菜单里显式配置的目录 redirect 是业务入口约定；
+                // 只有未配置时才按可见子菜单推导，避免插件首页被第一个子菜单覆盖。
+                $menu['redirect'] = trim((string)($menu['redirect'] ?? '')) !== ''
+                    ? trim((string)$menu['redirect'])
+                    : $this->resolvePreferredRedirect($children);
             }
 
             return $menu;

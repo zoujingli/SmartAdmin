@@ -6,7 +6,7 @@
           <Button
             v-if="canDeleteTenants"
             danger
-            :disabled="selectedRowKeys.length === 0"
+            :disabled="selectedNonDefaultRowKeys.length === 0"
             @click="handleBatchDelete"
           >
             <span class="i-lucide-trash-2" />
@@ -18,7 +18,7 @@
         </template>
         <template v-else>
           <Button v-if="canRecoveryTenants" :disabled="selectedRecycleRowKeys.length === 0" @click="handleBatchRecovery">批量恢复</Button>
-          <Button v-if="canRealDeleteTenants" danger :disabled="selectedRecycleRowKeys.length === 0" @click="handleBatchRealDelete">批量彻底删除</Button>
+          <Button v-if="canRealDeleteTenants" danger :disabled="selectedNonDefaultRecycleRowKeys.length === 0" @click="handleBatchRealDelete">批量彻底删除</Button>
         </template>
       </Space>
     </template>
@@ -74,7 +74,7 @@
                 <template v-if="column.key === 'status'">
                   <Switch
                     :checked="record.status === 1"
-                    :disabled="!canUpdateTenants"
+                    :disabled="!canUpdateTenants || Number(record.id) === 1"
                     @change="(checked) => handleStatusChange(record as TenantType, Boolean(checked))"
                   />
                 </template>
@@ -256,6 +256,9 @@ const canDeleteTenants = computed(() => hasAccessByCodes(['system.tenant.delete'
 const canExportTenants = computed(() => hasAccessByCodes(['system.tenant.export']));
 const canRecoveryTenants = computed(() => hasAccessByCodes(['system.tenant.recovery']));
 const canRealDeleteTenants = computed(() => hasAccessByCodes(['system.tenant.real-delete']));
+const selectableTenantData = computed(() => tenantData.value.filter((tenant) => Number(tenant.id) !== 1));
+const selectedNonDefaultRowKeys = computed(() => selectedRowKeys.value.filter((id) => Number(id) !== 1));
+const selectedNonDefaultRecycleRowKeys = computed(() => selectedRecycleRowKeys.value.filter((id) => Number(id) !== 1));
 const summaryCards = computed(() => [
   {
     desc: '当前租户列表中的有效租户数量。',
@@ -331,17 +334,21 @@ const recycleTableScrollX = computed(() => buildTableScrollX(recycleColumns.valu
 }));
 
 function tenantActions(record: TenantType) {
+  const isDefaultTenant = Number(record.id) === 1;
+
   return [
     { label: '编辑', visible: canUpdateTenants.value, onClick: () => handleEdit(record) },
     { label: '查看', onClick: () => handleView(record) },
-    { label: '删除', visible: canDeleteTenants.value, danger: true, onClick: () => handleDelete(record) },
+    { label: '删除', visible: canDeleteTenants.value && !isDefaultTenant, danger: true, onClick: () => handleDelete(record) },
   ];
 }
 
 function tenantRecycleActions(record: TenantType) {
+  const isDefaultTenant = Number(record.id) === 1;
+
   return [
     { label: '恢复', visible: canRecoveryTenants.value, onClick: () => handleRecovery(record) },
-    { label: '彻底删除', visible: canRealDeleteTenants.value, danger: true, onClick: () => handleRealDelete(record) },
+    { label: '彻底删除', visible: canRealDeleteTenants.value && !isDefaultTenant, danger: true, onClick: () => handleRealDelete(record) },
   ];
 }
 
@@ -398,8 +405,9 @@ const rowSelection = computed(() => {
 
   return {
     selectedRowKeys: selectedRowKeys.value,
+    getCheckboxProps: (record: TenantType) => ({ disabled: Number(record.id) === 1 }),
     onChange: (keys: (number | string)[]) => {
-      selectedRowKeys.value = keys.map((key) => Number(key));
+      selectedRowKeys.value = keys.map((key) => Number(key)).filter((id) => id !== 1);
     },
   };
 });
@@ -411,8 +419,9 @@ const recycleRowSelection = computed(() => {
 
   return {
     selectedRowKeys: selectedRecycleRowKeys.value,
+    getCheckboxProps: (record: TenantType) => ({ disabled: Number(record.id) === 1 }),
     onChange: (keys: (number | string)[]) => {
-      selectedRecycleRowKeys.value = keys.map((key) => Number(key));
+      selectedRecycleRowKeys.value = keys.map((key) => Number(key)).filter((id) => id !== 1);
     },
   };
 });
@@ -538,21 +547,21 @@ const handleDelete = (record: TenantType) => {
 };
 
 const handleBatchDelete = () => {
-  if (selectedRowKeys.value.length === 0) {
+  if (selectedNonDefaultRowKeys.value.length === 0) {
     message.warning('请选择要删除的租户');
     return;
   }
 
-  const selectedTenants = tenantData.value.filter((tenant) => selectedRowKeys.value.includes(tenant.id));
+  const selectedTenants = selectableTenantData.value.filter((tenant) => selectedNonDefaultRowKeys.value.includes(tenant.id));
   const tenantNames = selectedTenants.map((tenant) => tenant.name).join('、');
 
   Modal.confirm({
     title: '确认批量删除',
-    content: `确定要删除选中的 ${selectedRowKeys.value.length} 个租户吗？\n\n租户列表：${tenantNames}`,
+    content: `确定要删除选中的 ${selectedNonDefaultRowKeys.value.length} 个租户吗？\n\n租户列表：${tenantNames}`,
     okType: 'danger',
     onOk: async () => {
-      await tenantApiService.batchDeleteTenants(selectedRowKeys.value);
-      message.success(`成功删除 ${selectedRowKeys.value.length} 个租户`);
+      await tenantApiService.batchDeleteTenants(selectedNonDefaultRowKeys.value);
+      message.success(`成功删除 ${selectedNonDefaultRowKeys.value.length} 个租户`);
       selectedRowKeys.value = [];
       Promise.all([loadTenantList(), loadRecycleList()]);
     },
@@ -603,18 +612,18 @@ const handleBatchRecovery = () => {
 };
 
 const handleBatchRealDelete = () => {
-  if (selectedRecycleRowKeys.value.length === 0) {
+  if (selectedNonDefaultRecycleRowKeys.value.length === 0) {
     message.warning('请选择要彻底删除的租户');
     return;
   }
 
   Modal.confirm({
     title: '确认批量彻底删除',
-    content: `确定要彻底删除选中的 ${selectedRecycleRowKeys.value.length} 个租户吗？此操作不可恢复。`,
+    content: `确定要彻底删除选中的 ${selectedNonDefaultRecycleRowKeys.value.length} 个租户吗？此操作不可恢复。`,
     okType: 'danger',
     onOk: async () => {
-      await tenantApiService.realDeleteTenants(selectedRecycleRowKeys.value);
-      message.success(`成功彻底删除 ${selectedRecycleRowKeys.value.length} 个租户`);
+      await tenantApiService.realDeleteTenants(selectedNonDefaultRecycleRowKeys.value);
+      message.success(`成功彻底删除 ${selectedNonDefaultRecycleRowKeys.value.length} 个租户`);
       selectedRecycleRowKeys.value = [];
       loadRecycleList();
     },

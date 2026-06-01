@@ -13,6 +13,7 @@ namespace System\Service;
 
 use Hyperf\Database\Model\Model;
 use Library\Constants\DataField;
+use Library\Constants\Status;
 use Library\Constants\System;
 use Library\Events\Processor\ScopeProcessor;
 use Library\Exception\ErrorResponseException;
@@ -46,6 +47,61 @@ final class UserAuthorizationBoundaryService
             }
 
             throw new ErrorResponseException(sprintf('超级管理员账号不允许%s', $action));
+        }
+    }
+
+    /**
+     * 只有平台超级管理员可以配置 SaaS 子超管状态。
+     */
+    public function assertCanManageTenantSuperStatus(): void
+    {
+        $currentUser = user(SystemUser::class);
+        if (!$currentUser || !$currentUser->isSuper()) {
+            throw new NotAllowResponseException('只有超级管理员可以配置子超管');
+        }
+    }
+
+    /**
+     * 非平台超级管理员只能管理本租户普通用户，不能通过禁用、删除、重置密码等动作间接接管子超管账号。
+     *
+     * @param array<int|string, mixed> $ids
+     */
+    public function assertTenantSuperUserOperationAllowed(array $ids, string $action): void
+    {
+        $currentUser = user(SystemUser::class);
+        if ($currentUser?->isSuper()) {
+            return;
+        }
+
+        $currentTenantId = (int)($currentUser?->tenant_id ?? 0);
+        foreach ($ids as $id) {
+            $user = $this->findUserWithoutTenantScope($id, true);
+            if (!$user instanceof SystemUser || !$user->isTenantSuper()) {
+                continue;
+            }
+
+            if ($currentTenantId > 0 && (int)$user->tenant_id === $currentTenantId) {
+                throw new NotAllowResponseException(sprintf('只有超级管理员可以%s子超管账号', $action));
+            }
+        }
+    }
+
+    /**
+     * 取消子超管、禁用或删除用户前，保护租户内最后一个可用子超管。
+     *
+     * @param array<int|string, mixed> $ids
+     */
+    public function assertTenantSuperProtected(array $ids, string $action): void
+    {
+        foreach ($ids as $id) {
+            $user = $this->findUserWithoutTenantScope($id, true);
+            if (!$user instanceof SystemUser || !$user->isTenantSuper() || !Status::isEnabled((int)$user->status) || (string)($user->deleted_at ?? '') !== '') {
+                continue;
+            }
+
+            if ($this->enabledTenantSuperCount((int)$user->tenant_id, (int)$user->id) <= 0) {
+                throw new ErrorResponseException(sprintf('租户最后一个子超管不允许%s', $action));
+            }
         }
     }
 
@@ -89,8 +145,8 @@ final class UserAuthorizationBoundaryService
         $query = SystemRole::query()
             ->with('nodes')
             ->whereIn('id', $roleIds);
-        if (System::isPlatformTenant()) {
-            // 平台用户给目标租户账号分配角色时，需要跳出平台空间租户范围，再用数据范围与授权节点校验兜底。
+        if ($currentUser instanceof SystemUser && $currentUser->isSuper()) {
+            // 平台超级管理员给目标租户账号分配角色时，需要显式跳出当前租户范围，再用数据范围与授权节点校验兜底。
             $query->withoutGlobalScope(DataField::TENANT);
         }
         ScopeProcessor::applyScope($query, $currentUser, 'created_by');
@@ -146,5 +202,45 @@ final class UserAuthorizationBoundaryService
         }
 
         return is_numeric($id) && (int)$id === $superId;
+    }
+
+    private function findUserWithoutTenantScope(mixed $id, bool $withTrashed = false): ?SystemUser
+    {
+        if ($id instanceof SystemUser) {
+            return $id;
+        }
+
+        if (!is_numeric($id)) {
+            return null;
+        }
+
+        $query = SystemUser::query()->withoutGlobalScope(DataField::TENANT);
+        if ($withTrashed) {
+            $query->withTrashed();
+        }
+
+        $user = $query->find((int)$id);
+
+        return $user instanceof SystemUser ? $user : null;
+    }
+
+    private function enabledTenantSuperCount(int $tenantId, int $excludeUserId = 0): int
+    {
+        if ($tenantId <= 0) {
+            return 0;
+        }
+
+        $query = SystemUser::query()
+            ->withoutGlobalScope(DataField::TENANT)
+            ->where(DataField::TENANT, $tenantId)
+            ->where('super', 1)
+            ->where('status', Status::ENABLED)
+            ->whereNull('deleted_at');
+
+        if ($excludeUserId > 0) {
+            $query->where('id', '!=', $excludeUserId);
+        }
+
+        return (int)$query->count();
     }
 }

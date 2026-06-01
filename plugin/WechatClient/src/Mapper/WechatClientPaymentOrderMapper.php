@@ -49,7 +49,7 @@ final class WechatClientPaymentOrderMapper extends CoreMapper
     {
         return _query($query, $params)
             ->like('order_no,out_trade_no,transaction_id,description,payer_openid')
-            ->equal('tenant_id,merchant_id,appid,mch_id,trade_type,trade_state,status')
+            ->equal('merchant_id,appid,mch_id,trade_type,trade_state,status')
             ->dateBetween('created_at')
             ->getQuery();
     }

@@ -44,6 +44,7 @@ final class WechatClientAccountMapper extends CoreMapper
         return $this->model::query()
             ->withoutGlobalScope(DataField::TENANT)
             ->where('appid', $appid)
+            ->where('tenant_id', '>', 0)
             ->first();
     }
 
@@ -57,6 +58,7 @@ final class WechatClientAccountMapper extends CoreMapper
         $query = $this->model::withTrashed()
             ->withoutGlobalScope(DataField::TENANT)
             ->where('appid', $appid);
+        $query->where('tenant_id', '>', 0);
         if ($ignoreId > 0) {
             $query->where('id', '!=', $ignoreId);
         }
@@ -77,11 +79,9 @@ final class WechatClientAccountMapper extends CoreMapper
      */
     protected function handleSearch(Builder $query, array $params): Builder
     {
-        $query = $this->applyRequestedTenantScope($query, $params);
-
         return _query($query, $params)
             ->like('name,appid')
-            ->equal('tenant_id,account_type,service_mode,status')
+            ->equal('account_type,service_mode,status')
             ->dateBetween('created_at')
             ->getQuery();
     }

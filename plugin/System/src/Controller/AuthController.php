@@ -99,12 +99,13 @@ final class AuthController extends CoreController
             throw new ErrorResponseException('用户已被禁用');
         }
 
-        // 登录 IP 统一读取代理头，避免 Nginx 反代后落库为 127.0.0.1。
+        $token = $this->user->login($user)->toString();
+        // 登录成功后认证服务已建立租户上下文，再写最后登录信息，避免租户全局范围 fail closed。
         $this->user->updateLastLogin($user->id, RequestHelper::getClientIp($request));
         $user->load(['roles', 'depts', 'posts']);
 
         $this->success('登录成功', [
-            'token' => $this->user->login($user)->toString(),
+            'token' => $token,
             'user' => $user->toArray(),
             'auth_user_model' => SystemUser::class,
         ]);
@@ -221,6 +222,7 @@ final class AuthController extends CoreController
      * 用户退出登录。
      */
     #[PostMapping(path: 'logout')]
+    #[Auth(name: '用户登出', type: Auth::LOGIN)]
     #[Logger(name: '用户登出', remark: '用户登出接口')]
     public function logout(): array
     {
@@ -236,7 +238,7 @@ final class AuthController extends CoreController
      */
     private function composeProfileData(int $userId): array
     {
-        $profile = $this->user->getUserWithRelations($userId, false);
+        $profile = $this->user->getUserWithRelations($userId, false, true);
         $roles = array_values(array_filter(array_unique(array_map(
             static fn (array $role): string => (string)($role['name'] ?? ''),
             $profile['roles'] ?? []
@@ -247,6 +249,9 @@ final class AuthController extends CoreController
             'username' => (string)($profile['username'] ?? ''),
             'realName' => (string)($profile['nickname'] ?? $profile['username'] ?? ''),
             'avatar' => (string)($profile['avatar'] ?? ''),
+            'tenant_id' => (int)($profile['tenant_id'] ?? 0),
+            'super' => (int)($profile['super'] ?? 0),
+            'tenant_super' => (int)($profile['super'] ?? 0) === 1 && (int)($profile['tenant_id'] ?? 0) > 0,
             'roles' => $roles,
             'desc' => (string)($profile['signed'] ?? ''),
             'homePath' => $this->menus->getUserHomePath(),
@@ -280,6 +285,8 @@ final class AuthController extends CoreController
         return [
             'id' => (int)($user['id'] ?? 0),
             'tenant_id' => (int)($user['tenant_id'] ?? 0),
+            'super' => (int)($user['super'] ?? 0),
+            'tenant_super' => (int)($user['super'] ?? 0) === 1 && (int)($user['tenant_id'] ?? 0) > 0,
             'username' => (string)($user['username'] ?? ''),
             'nickname' => (string)($user['nickname'] ?? ''),
             'phone' => (string)($user['phone'] ?? ''),

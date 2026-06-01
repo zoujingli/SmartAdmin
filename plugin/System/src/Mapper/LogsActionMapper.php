@@ -15,6 +15,7 @@ use Hyperf\Database\Model\Builder;
 use Hyperf\Database\Model\Model;
 use Library\CoreMapper;
 use System\Model\SystemLogsAction;
+use System\Support\AuditLogScope;
 
 final class LogsActionMapper extends CoreMapper
 {
@@ -136,9 +137,31 @@ final class LogsActionMapper extends CoreMapper
      */
     public function getQuery(bool $isScope = true): Builder
     {
-        $query = $this->model::query();
+        $query = AuditLogScope::apply($this->model::query(), $isScope);
 
         return $isScope ? $this->applyDataScope($query, 'created_by') : $query;
+    }
+
+    /**
+     * 详情、删除、恢复等按 ID 操作与列表保持同一平台日志可见性。
+     */
+    protected function applyOperationScope(Builder $query): Builder
+    {
+        return $this->applyDataScope(AuditLogScope::apply($query, true), 'created_by');
+    }
+
+    /**
+     * 日志列表、统计和扩展数据也必须复用平台日志可见性；CoreMapper 默认入口不会调用 getQuery()。
+     */
+    protected function makeFilteredQuery(?array $params, bool $isScope): Builder
+    {
+        $params ??= [];
+        $modelClass = $this->model;
+        $query = ($params['recycle'] ?? false) === true ? $modelClass::onlyTrashed() : $modelClass::query();
+        $query = AuditLogScope::apply($query, $isScope);
+        $isScope && ($query = $this->applyDataScope($query, 'created_by'));
+
+        return $this->handleSearch($query, $params);
     }
 
     /**

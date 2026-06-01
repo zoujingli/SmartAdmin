@@ -15,6 +15,7 @@ use Hyperf\Database\Model\Builder;
 use Hyperf\Database\Model\Model;
 use Library\CoreMapper;
 use System\Model\SystemLogsChange;
+use System\Support\AuditLogScope;
 
 final class LogsChangeMapper extends CoreMapper
 {
@@ -91,8 +92,31 @@ final class LogsChangeMapper extends CoreMapper
     {
         $modelClass = $this->model;
         $query = $withTrashed ? $modelClass::withTrashed() : $modelClass::query();
+        $query = AuditLogScope::apply($query, $isScope);
 
         return $isScope ? $this->applyDataScope($query, 'created_by') : $query;
+    }
+
+    /**
+     * 变更日志与操作日志共同构成审计链，按主键读取也必须复用同一平台审计可见性。
+     */
+    protected function applyOperationScope(Builder $query): Builder
+    {
+        return $this->applyDataScope(AuditLogScope::apply($query, true), 'created_by');
+    }
+
+    /**
+     * 变更日志列表、统计和详情与操作日志保持同一平台审计范围。
+     */
+    protected function makeFilteredQuery(?array $params, bool $isScope): Builder
+    {
+        $params ??= [];
+        $modelClass = $this->model;
+        $query = ($params['recycle'] ?? false) === true ? $modelClass::onlyTrashed() : $modelClass::query();
+        $query = AuditLogScope::apply($query, $isScope);
+        $isScope && ($query = $this->applyDataScope($query, 'created_by'));
+
+        return $this->handleSearch($query, $params);
     }
 
     /**

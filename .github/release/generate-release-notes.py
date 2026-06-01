@@ -340,6 +340,7 @@ def version_highlights(repository: str, profile: RepositoryProfile, files: list[
         return ['- 本次发布主要用于刷新 Tag、Release 信息或重新上传资产，源码内容未检测到差异。']
 
     lines: list[str] = []
+    # 版本重点优先使用文件路径识别真实影响面；同步仓提交标题可能相似，不能只靠 commit subject 生成千篇一律的正文。
     if has_path(files, 'bin/smart.php', 'composer.json', '.php-sfx-packer.php'):
         lines.append('- 命令入口：源码命令统一到 `bin/smart.php`，Composer、CI、插件管理和发布构建脚本保持同一入口。')
     if has_path(files, '.github/release/', '.github/workflows/release', '.github/tools/release/'):
@@ -528,6 +529,7 @@ def build_notes(repository: str, current_tag: str, previous_ref: str) -> str:
     grouped: dict[str, list[str]] = {key: [] for key in GROUPS}
     for sha, subject in rows:
         group, title = normalize_commit(subject)
+        # 这里保留真实提交标题和 SHA，Release 正文只压缩分组，不替换维护者写下的变更语义。
         grouped[group].append(f'- {title} ({sha[:8]})')
 
     previous_label = short_ref(previous_ref)

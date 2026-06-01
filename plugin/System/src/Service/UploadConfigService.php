@@ -12,11 +12,12 @@ declare(strict_types=1);
 namespace System\Service;
 
 use Hyperf\Contract\ConfigInterface;
+use Library\Constants\System;
 use Library\Exception\ErrorResponseException;
 use Library\Helper\CoderHelper;
 use Library\Helper\RequestHelper;
 use Library\Support\ModelChangeLog;
-use System\Model\SystemData;
+use System\Model\SystemUploadConfig;
 use System\Support\Storage\AlistStorage;
 use System\Support\Storage\CosStorage;
 use System\Support\Storage\LocalStorage;
@@ -80,9 +81,12 @@ final class UploadConfigService
         $merged = $this->applySensitiveFields($merged, $input, $existing);
         $validated = $this->validator->validate($merged);
 
-        SystemData::query()->updateOrCreate(
-            ['name' => 'config_upload'],
+        $tenantId = $this->currentTenantId();
+        // 上传配置是租户级资源，只允许覆盖当前租户的一份配置；平台代维护也必须先切换租户上下文。
+        SystemUploadConfig::query()->updateOrCreate(
+            ['tenant_id' => $tenantId],
             [
+                'tenant_id' => $tenantId,
                 'value' => $validated,
                 'remark' => '上传通道配置',
             ]
@@ -100,16 +104,19 @@ final class UploadConfigService
     public function getRawConfig(): array
     {
         $defaults = UploadDriver::defaultConfig();
-        /** @var null|SystemData $record */
-        $record = SystemData::query()
-            ->where('name', 'config_upload')
+        $tenantId = $this->currentTenantId();
+        /** @var null|SystemUploadConfig $record */
+        $record = SystemUploadConfig::query()
+            ->where('tenant_id', $tenantId)
             ->whereNull('deleted_at')
             ->first();
 
         if (!$record) {
-            SystemData::query()->updateOrCreate(
-                ['name' => 'config_upload'],
+            // 首次访问即落一份默认配置，保证后续配置审计、发布修复和后台展示都有明确的租户行。
+            SystemUploadConfig::query()->updateOrCreate(
+                ['tenant_id' => $tenantId],
                 [
+                    'tenant_id' => $tenantId,
                     'value' => $defaults,
                     'remark' => '上传通道配置',
                 ]
@@ -283,6 +290,7 @@ final class UploadConfigService
                 return $this->buildAbsoluteUrlFromDomain($domain, $protocol, $localRelative);
             }
 
+            // CLI、异步任务等无请求上下文场景不能猜测站点域名；完整链接模式必须显式配置本地域名。
             $origin = RequestHelper::getOrigin();
             if ($origin === null) {
                 throw new ErrorResponseException('本地存储完整链接缺少访问域名配置，且当前请求上下文不可用');
@@ -306,6 +314,7 @@ final class UploadConfigService
                 return $this->buildAbsoluteUrlFromDomain($domain, $protocol, $publicRelative);
             }
 
+            // AList 未配置公开域名时只允许从 endpoint 推导 origin，避免把后台内部路径拼进公开访问地址。
             $origin = $this->resolveEndpointOrigin((string)($driverConfig['endpoint'] ?? ''));
             if ($origin === null) {
                 throw new ErrorResponseException('AList 完整链接缺少访问域名或服务地址配置');
@@ -397,6 +406,7 @@ final class UploadConfigService
                 $encryptedField = UploadDriver::encryptedField($field);
                 $clearField = 'clear_' . $field;
 
+                // 密钥输入框留空表示保留原密文；只有显式清除或传入新明文时才改写密钥字段。
                 $merged['drivers'][$driver][$encryptedField] = (string)($existingDriver[$encryptedField] ?? '');
                 if (($inputDriver[$clearField] ?? false) === true) {
                     $merged['drivers'][$driver][$encryptedField] = '';
@@ -610,6 +620,19 @@ final class UploadConfigService
     }
 
     /**
+     * 上传配置是租户级能力，必须依赖已建立的当前租户上下文，不从请求体选择目标租户。
+     */
+    private function currentTenantId(): int
+    {
+        $tenantId = System::getTenantId();
+        if ($tenantId <= 0) {
+            throw new ErrorResponseException('租户上下文无效，无法读取上传配置');
+        }
+
+        return $tenantId;
+    }
+
+    /**
      * 上传通道配置包含密钥密文，变更日志只保存脱敏后的配置摘要。
      *
      * @param array<string, mixed> $oldValue
@@ -617,9 +640,9 @@ final class UploadConfigService
      */
     private function recordUploadConfigChange(array $oldValue, array $newValue): void
     {
-        /** @var null|SystemData $record */
-        $record = SystemData::query()
-            ->where('name', 'config_upload')
+        /** @var null|SystemUploadConfig $record */
+        $record = SystemUploadConfig::query()
+            ->where('tenant_id', $this->currentTenantId())
             ->whereNull('deleted_at')
             ->first();
         if (!$record) {
@@ -648,6 +671,7 @@ final class UploadConfigService
 
             foreach (UploadDriver::driverSecretFields($driver) as $field) {
                 $encryptedField = UploadDriver::encryptedField($field);
+                // 变更日志只记录密钥是否已配置，不落明文，也不落可被离线破解的密文。
                 $drivers[$driver][$field . '_configured'] = trim((string)($drivers[$driver][$encryptedField] ?? '')) !== '';
                 unset($drivers[$driver][$field], $drivers[$driver][$encryptedField]);
             }

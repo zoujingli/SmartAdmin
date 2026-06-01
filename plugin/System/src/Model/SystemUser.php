@@ -23,6 +23,7 @@ use Library\Interfaces\UserModelInterface;
 use Library\Service\ScopeService;
 use Psr\SimpleCache\CacheInterface;
 use System\Service\AuthCacheService;
+use System\Support\TenantSuperPermission;
 
 use function Hyperf\Config\config;
 
@@ -35,6 +36,7 @@ use function Hyperf\Config\config;
  * @property string $email 邮箱地址
  * @property string $avatar 用户头像
  * @property string $signed 个性签名
+ * @property int $super SaaS子超管(1是,0否)
  * @property int $status 状态(1启用,0禁用)
  * @property string $remark 备注
  * @property string $login_ip 最后登录IP
@@ -56,7 +58,7 @@ final class SystemUser extends CoreModel implements UserModelInterface
 
     protected array $hidden = ['password'];
 
-    protected array $fillable = ['id', 'tenant_id', 'username', 'nickname', 'phone', 'email', 'password', 'avatar', 'signed', 'status', 'remark', 'login_ip', 'login_time', 'extra', 'created_by', 'updated_by', 'created_at', 'updated_at', 'deleted_at'];
+    protected array $fillable = ['id', 'tenant_id', 'username', 'nickname', 'phone', 'email', 'password', 'avatar', 'signed', 'super', 'status', 'remark', 'login_ip', 'login_time', 'extra', 'created_by', 'updated_by', 'created_at', 'updated_at', 'deleted_at'];
 
     protected array $logRules = [
         'name' => '系统用户',
@@ -69,6 +71,7 @@ final class SystemUser extends CoreModel implements UserModelInterface
             'email' => '邮箱地址',
             'avatar' => '头像',
             'signed' => '个性签名',
+            'super' => ['name' => '子超管', 'values' => [0 => '否', 1 => '是']],
             'status' => ['name' => '状态', 'values' => [Status::DISABLED => '禁用', Status::ENABLED => '启用']],
             'remark' => '备注',
         ],
@@ -155,6 +158,16 @@ final class SystemUser extends CoreModel implements UserModelInterface
     }
 
     /**
+     * 判断是否为当前租户内的 SaaS 子超管。
+     */
+    public function isTenantSuper(): bool
+    {
+        return !$this->isSuper()
+            && (int)($this->super ?? 0) === 1
+            && (int)($this->tenant_id ?? 0) > 0;
+    }
+
+    /**
      * 获取用户权限节点集合。
      *
      * 优先读取请求上下文与缓存，未命中时按角色关联回源计算。
@@ -167,6 +180,10 @@ final class SystemUser extends CoreModel implements UserModelInterface
 
         if ($this->isSuper()) {
             return ['*'];
+        }
+
+        if ($this->isTenantSuper()) {
+            return TenantSuperPermission::codes();
         }
 
         $ckey = 'system_user_permissions_' . $this->id;

@@ -17,6 +17,7 @@ use Library\Constants\System;
 use System\Mapper\UserMapper;
 use System\Model\SystemNode;
 use System\Model\SystemUser;
+use System\Support\TenantSuperPermission;
 
 /**
  * System 后台用户权限码查询服务。
@@ -32,7 +33,7 @@ final class UserAccessCodeService
     /**
      * 获取用户可访问权限码集合。
      *
-     * 超级管理员返回 `*`，普通用户按启用角色与启用节点汇总。
+     * 超级管理员返回 `*`；租户子超管返回全部非平台保留权限；普通用户按启用角色与启用节点汇总。
      *
      * @return array<int, string>
      */
@@ -55,9 +56,16 @@ final class UserAccessCodeService
         if (!$user instanceof SystemUser) {
             return [];
         }
-        $user->load('roles');
 
         $baseCodes = ['user:profile'];
+        if ($user->isTenantSuper()) {
+            $codes = array_values(array_unique(array_merge($baseCodes, TenantSuperPermission::codes())));
+            Context::set($cacheKey, $codes);
+
+            return $codes;
+        }
+        $user->load('roles');
+
         $roleIds = $user->roles()
             ->where('system_role.status', Status::ENABLED)
             ->pluck('system_role.id')

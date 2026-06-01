@@ -9,6 +9,7 @@ import {
   AnalysisChartsTabs,
   CrudStatCards,
 } from '@vben/common-ui';
+import { useAccessStore } from '@vben/stores';
 
 import { message } from 'ant-design-vue';
 
@@ -21,6 +22,7 @@ import AnalyticsVisitsSource from './analytics-visits-source.vue';
 import AnalyticsVisits from './analytics-visits.vue';
 
 const { hasAccessByCodes } = useAccess();
+const accessStore = useAccessStore();
 const summaryCards = ref<Array<{ desc: string; icon: string; label: string; value: string }>>([]);
 const trendLabels = ref<string[]>([]);
 const trendSeries = ref<Array<{ name: string; data: number[]; color?: string }>>([]);
@@ -33,7 +35,7 @@ const radarSeries = ref<Array<{ name: string; value: number[]; color?: string }>
 const RADAR_SPLIT_NUMBER = 6;
 const canAccessSystemData = () => hasAccessByCodes(['system.data.index']);
 const canAccessActionLogs = () => hasAccessByCodes(['system.logs.action.index']);
-const canAccessTenants = () => hasAccessByCodes(['system.tenant.index']);
+const canAccessTenants = () => accessStore.accessCodes.includes('*');
 
 const chartTabs: TabOption[] = [
   {

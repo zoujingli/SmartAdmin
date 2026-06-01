@@ -12,10 +12,10 @@ declare(strict_types=1);
 namespace Plugin\WechatClient\Service;
 
 use Hyperf\Database\Exception\QueryException;
-use Library\Constants\System;
 use Library\CoreService;
 use Library\Exception\ErrorResponseException;
 use Library\Helper\RequestHelper;
+use Library\Support\TenantContext;
 use Plugin\WechatClient\Event\WechatClientPaymentOrderPaid;
 use Plugin\WechatClient\Event\WechatClientPaymentOrderStateChanged;
 use Plugin\WechatClient\Mapper\WechatClientPaymentOrderMapper;
@@ -135,27 +135,27 @@ final class WechatClientPaymentOrderService extends CoreService
     public function handleNotification(int $merchantId, array $headers, string $rawBody, array $body): array
     {
         $merchant = $this->merchants->requireMerchantForCallback($merchantId);
-        // 支付平台回调没有登录态，先按商户归属租户恢复上下文，再执行后续验签和订单幂等写入。
-        System::setTenantId((int)$merchant->tenant_id);
-        $data = $this->merchants->paymentRequest($merchant, 'decrypt_notification', [], 'POST', [
-            'headers' => $headers,
-            'raw_body' => $rawBody,
-            'body' => $body,
-        ]);
-        $amount = is_array($data['amount'] ?? null) ? $data['amount'] : [];
-        $data['amount_total'] = (int)($amount['total'] ?? 0);
-        $this->assertNotificationMerchant($merchant, $data);
-        $order = $this->findByPaymentNo((string)($data['out_trade_no'] ?? ''));
-        if (!$order instanceof WechatClientPaymentOrder) {
-            throw new ErrorResponseException('支付订单不存在');
-        }
-        if ((int)$order->merchant_id !== (int)$merchant->id) {
-            throw new ErrorResponseException('支付通知商户与本地订单不一致');
-        }
+        return TenantContext::withTenant((int)$merchant->tenant_id, function () use ($merchant, $headers, $rawBody, $body): array {
+            $data = $this->merchants->paymentRequest($merchant, 'decrypt_notification', [], 'POST', [
+                'headers' => $headers,
+                'raw_body' => $rawBody,
+                'body' => $body,
+            ]);
+            $amount = is_array($data['amount'] ?? null) ? $data['amount'] : [];
+            $data['amount_total'] = (int)($amount['total'] ?? 0);
+            $this->assertNotificationMerchant($merchant, $data);
+            $order = $this->findByPaymentNo((string)($data['out_trade_no'] ?? ''));
+            if (!$order instanceof WechatClientPaymentOrder) {
+                throw new ErrorResponseException('支付订单不存在');
+            }
+            if ((int)$order->merchant_id !== (int)$merchant->id) {
+                throw new ErrorResponseException('支付通知商户与本地订单不一致');
+            }
 
-        $this->applyPaymentData($order, $data);
+            $this->applyPaymentData($order, $data);
 
-        return $data;
+            return $data;
+        });
     }
 
     /**

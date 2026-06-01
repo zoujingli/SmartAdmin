@@ -53,6 +53,7 @@ final class NoticeMapper extends CoreMapper
         return SystemNoticeUser::query()
             ->withoutGlobalScope(DataField::TENANT)
             ->where('notice_id', $noticeId)
+            ->where(DataField::TENANT, '>', 0)
             ->orderBy('user_id', 'asc')
             ->pluck('user_id')
             ->map(static fn ($id): int => (int)$id)
@@ -73,6 +74,7 @@ final class NoticeMapper extends CoreMapper
         SystemNoticeUser::query()
             ->withoutGlobalScope(DataField::TENANT)
             ->where('notice_id', $noticeId)
+            ->where(DataField::TENANT, '>', 0)
             ->delete();
 
         if ($userIds === []) {

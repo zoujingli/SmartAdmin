@@ -63,7 +63,7 @@ final class StorageUploadMetadataTest extends TestCase
         $this->assertSame('image/png', $history[0]['request']->getHeaderLine('Content-Type'));
     }
 
-    public function testOssDirectUploadSignatureReturnsContentDispositionHeader(): void
+    public function testOssDirectUploadSignatureOnlyRequiresSignedContentTypeHeader(): void
     {
         $storage = new OssStorage([
             'domain' => 'bucket.oss-cn-shanghai.aliyuncs.com',
@@ -82,10 +82,8 @@ final class StorageUploadMetadataTest extends TestCase
             'mime_type' => 'image/png',
         ]);
 
-        $this->assertSame(
-            'attachment; filename="demo_file.png"; filename*=UTF-8\'\'demo%20file.png',
-            $signed['headers']['Content-Disposition'] ?? null
-        );
+        $this->assertSame('image/png', $signed['headers']['Content-Type'] ?? null);
+        $this->assertArrayNotHasKey('Content-Disposition', $signed['headers']);
     }
 
     public function testOssMultipartInitiationWritesContentDispositionHeader(): void

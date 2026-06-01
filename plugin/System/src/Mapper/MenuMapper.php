@@ -95,6 +95,30 @@ final class MenuMapper extends CoreMapper
     }
 
     /**
+     * 按权限码集合获取菜单；用于租户子超管等运行时权限，不依赖角色手工绑定菜单。
+     *
+     * @param array<int, string> $permissions
+     */
+    public function getMenusByPermissionCodes(array $permissions): array
+    {
+        return $this->getMenusByPermissions($permissions);
+    }
+
+    /**
+     * 获取启用前端菜单；由 Service 根据平台超级管理员或租户子超管身份决定是否全量取菜单再裁剪。
+     */
+    public function getEnabledFrontendMenus(): array
+    {
+        return $this->model::query()
+            ->where('status', Status::ENABLED)
+            ->whereNotIn('type', MenuType::getQueryValues(MenuType::BUTTON))
+            ->orderBy('sort', 'desc')
+            ->orderBy('id', 'asc')
+            ->get()
+            ->toArray();
+    }
+
+    /**
      * 获取菜单树。
      */
     public function getTree(array $conditions = []): array

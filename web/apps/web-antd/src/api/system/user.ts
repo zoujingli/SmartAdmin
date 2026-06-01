@@ -11,6 +11,8 @@ export namespace UserApi {
   export interface UserInfo {
     id: number;
     tenant_id: number;
+    super?: number;
+    tenant_super?: boolean;
     username: string;
     nickname: string;
     phone: string;
@@ -70,6 +72,7 @@ export namespace UserApi {
   export interface UserFormData {
     id?: number;
     tenant_id?: number;
+    super?: number;
     username: string;
     nickname: string;
     email: string;

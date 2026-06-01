@@ -17,12 +17,13 @@ use Library\Constants\DataScope;
 use Library\Constants\Status;
 use Library\CoreService;
 use Library\Exception\ErrorResponseException;
+use Library\Support\TenantContext;
 use System\Mapper\TenantMapper;
 use System\Model\SystemDept;
-use System\Model\SystemNode;
 use System\Model\SystemRole;
 use System\Model\SystemTenant;
 use System\Model\SystemUser;
+use System\Support\TenantSuperPermission;
 
 final class TenantService extends CoreService
 {
@@ -33,7 +34,7 @@ final class TenantService extends CoreService
     /**
      * 创建租户并同步开通默认组织、管理员角色和管理员账号。
      *
-     * 租户档案保留在平台空间；租户工作区数据写入新租户 ID，避免后续依赖当前平台上下文误落到 tenant_id=0。
+     * 租户档案是全局管控数据；租户工作区数据写入新租户 ID，避免依赖数据库默认值落到未归属租户 0。
      */
     public function create(array $data): ?Model
     {
@@ -43,7 +44,7 @@ final class TenantService extends CoreService
         try {
             /** @var SystemTenant $tenant */
             $tenant = $this->mapper->create($this->filterData($data));
-            $this->provisionTenantWorkspace($tenant, $admin);
+            TenantContext::withTenant((int)$tenant->id, fn () => TenantContext::withExplicitTenantWrite(fn () => $this->provisionTenantWorkspace($tenant, $admin)));
             Db::commit();
 
             return $tenant;
@@ -68,6 +69,8 @@ final class TenantService extends CoreService
      */
     public function changeStatus(int $id, mixed $status): bool
     {
+        $this->assertDefaultTenantMutable($id, '禁用');
+
         $status = (int)_vali([
             'status.value' => $status,
             'status.integer' => '状态值必须为数字',
@@ -78,11 +81,15 @@ final class TenantService extends CoreService
     }
 
     /**
-     * 校验租户运行状态；平台用户 tenant_id=0 直接通过。
+     * 校验租户运行状态；tenant_id=0 仅表示未建立上下文，不能作为有效业务租户。
      */
     public function assertTenantAvailable(int $tenantId): void
     {
         if ($tenantId <= 0) {
+            throw new ErrorResponseException('租户上下文无效');
+        }
+
+        if ($tenantId === TenantContext::DEFAULT_TENANT_ID) {
             return;
         }
 
@@ -104,10 +111,16 @@ final class TenantService extends CoreService
 
     protected function filterData(array &$data, array $exists = []): array
     {
+        $isDefaultTenant = (int)($exists['id'] ?? 0) === TenantContext::DEFAULT_TENANT_ID;
         foreach (['code', 'name', 'contact_name', 'contact_phone', 'contact_email', 'package_code', 'remark'] as $field) {
             if (array_key_exists($field, $data) && is_string($data[$field])) {
                 $data[$field] = trim($data[$field]);
             }
+        }
+
+        if ($isDefaultTenant) {
+            // 默认租户是系统保留租户，只允许维护联系资料和备注，核心身份由安装/升级恢复流程固定。
+            $data = array_intersect_key($data, array_flip(['contact_name', 'contact_phone', 'contact_email', 'remark']));
         }
 
         if (array_key_exists('expired_at', $data) && $data['expired_at'] === '') {
@@ -146,6 +159,70 @@ final class TenantService extends CoreService
         $this->ensureUniqueField('name', $data, $exists, '租户名称已存在');
 
         return $data;
+    }
+
+    public function delete(array|int $ids): bool
+    {
+        $this->assertDefaultTenantIdsMutable(str2arr($ids), '删除');
+
+        return $this->mapper->delete(str2arr($ids));
+    }
+
+    public function delreal(array|int $ids): bool
+    {
+        $idArray = str2arr($ids);
+        $this->assertDefaultTenantIdsMutable($idArray, '彻底删除');
+        $this->assertTenantsHaveNoBusinessData($idArray);
+
+        return $this->mapper->delreal($idArray);
+    }
+
+    /**
+     * 租户彻底删除采用保守策略：只要任何 tenant_id 表仍存在该租户数据，就拒绝硬删并返回摘要。
+     *
+     * @param array<int|string, mixed> $ids
+     */
+    private function assertTenantsHaveNoBusinessData(array $ids): void
+    {
+        $tenantIds = array_values(array_unique(array_filter(array_map('intval', $ids), static fn (int $id): bool => $id > TenantContext::UNSET_TENANT_ID)));
+        if ($tenantIds === []) {
+            return;
+        }
+
+        $repair = new TenantRepairService();
+        $hits = [];
+        foreach ($tenantIds as $tenantId) {
+            foreach ($repair->tenantDeleteBusinessTables() as $table) {
+                if ($table === 'system_tenant') {
+                    continue;
+                }
+                $count = (int)Db::table($table)->where('tenant_id', $tenantId)->count();
+                if ($count > 0) {
+                    $hits[] = sprintf('tenant=%d %s:%d', $tenantId, $table, $count);
+                }
+                if (count($hits) >= 10) {
+                    break 2;
+                }
+            }
+        }
+
+        if ($hits !== []) {
+            throw new ErrorResponseException('租户存在业务数据，禁止彻底删除：' . implode('，', $hits));
+        }
+    }
+
+    private function assertDefaultTenantIdsMutable(array $ids, string $action): void
+    {
+        foreach ($ids as $id) {
+            $this->assertDefaultTenantMutable((int)$id, $action);
+        }
+    }
+
+    private function assertDefaultTenantMutable(int $id, string $action): void
+    {
+        if ($id === TenantContext::DEFAULT_TENANT_ID) {
+            throw new ErrorResponseException(sprintf('默认租户不允许%s', $action));
+        }
     }
 
     /**
@@ -242,6 +319,7 @@ final class TenantService extends CoreService
             'password' => $admin['password'],
             'avatar' => '',
             'signed' => '',
+            'super' => 1,
             'status' => Status::ENABLED,
             'remark' => '租户开通时自动创建的管理员账号',
             'login_ip' => '',
@@ -282,29 +360,6 @@ final class TenantService extends CoreService
      */
     private function defaultTenantAdminNodeIds(): array
     {
-        $blockedPrefixes = [
-            'system.tenant.',
-            'system.menu.',
-            'system.data.',
-            'system.setting.',
-        ];
-
-        return SystemNode::query()
-            ->where('status', Status::ENABLED)
-            ->where('node', '!=', '*')
-            ->get(['id', 'node'])
-            ->filter(static function (SystemNode $node) use ($blockedPrefixes): bool {
-                $code = (string)$node->node;
-                foreach ($blockedPrefixes as $prefix) {
-                    if (str_starts_with($code, $prefix)) {
-                        return false;
-                    }
-                }
-
-                return str_starts_with($code, 'system.');
-            })
-            ->pluck('id')
-            ->map(static fn (mixed $id): int => (int)$id)
-            ->toArray();
+        return TenantSuperPermission::nodeIds('system.');
     }
 }

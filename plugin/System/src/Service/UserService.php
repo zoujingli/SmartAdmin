@@ -17,7 +17,6 @@ use Hyperf\DbConnection\Db;
 use Lcobucci\JWT\Token as JwtToken;
 use Library\Constants\DataField;
 use Library\Constants\Status;
-use Library\Constants\System;
 use Library\CoreService;
 use Library\Exception\ErrorResponseException;
 use Library\Interfaces\UserModelInterface;
@@ -100,16 +99,16 @@ final class UserService extends CoreService
      *
      * 结果会写入协程上下文，避免同请求内重复查库。
      */
-    public function getUserWithRelations(int $userId, bool $isScope = true): array
+    public function getUserWithRelations(int $userId, bool $isScope = true, bool $revealTenantSuper = false): array
     {
-        $cacheKey = sprintf('user_with_relations_%d_%d', $userId, $isScope ? 1 : 0);
+        $cacheKey = sprintf('user_with_relations_%d_%d_%d', $userId, $isScope ? 1 : 0, $revealTenantSuper ? 1 : 0);
         $cached = Context::get($cacheKey);
         if ($cached !== null) {
             return $cached;
         }
 
         /** @phpstan-ignore-next-line */
-        $user = $this->mapper->getUserWithRelations($userId, $isScope);
+        $user = $this->mapper->getUserWithRelations($userId, $isScope, $revealTenantSuper);
         if (!$user) {
             throw new ErrorResponseException('用户不存在');
         }
@@ -211,13 +210,14 @@ final class UserService extends CoreService
 
         Db::beginTransaction();
         try {
-            $user = parent::create($data);
+            $user = $this->withPlatformTenantMaintenance(fn () => parent::create($data));
             if (!$user instanceof Model) {
                 Db::rollBack();
                 return null;
             }
 
             $this->relations->syncAfterCreate($user, $data);
+            $this->authCache->forgetUser((int)$user->getAttribute('id'));
 
             Db::commit();
         } catch (\Throwable $exception) {
@@ -239,18 +239,24 @@ final class UserService extends CoreService
         if (array_key_exists('status', $data) && Status::isDisabled((int)$data['status'])) {
             $this->boundary->assertSuperAdminProtected([$id], '禁用');
         }
+        $this->boundary->assertTenantSuperUserOperationAllowed([(int)$id], '编辑');
         $data = $this->passwords->normalizeUpdatePassword($data);
         $this->relations->assertRelationsForUpdate((int)$id, $data);
 
         Db::beginTransaction();
         try {
-            $result = parent::update($id, $data);
+            $result = $this->withPlatformTenantMaintenance(fn () => parent::update($id, $data));
             if (!$result) {
                 Db::rollBack();
                 return false;
             }
 
             $this->relations->syncAfterUpdate((int)$id, $data);
+            if (array_key_exists('super', $data)) {
+                // 子超管身份变更会改变运行时权限全集，必须立即清掉目标用户鉴权与请求态缓存。
+                $this->authCache->forgetUser((int)$id);
+                $this->forgetUserContextCache((int)$id);
+            }
 
             Db::commit();
         } catch (\Throwable $exception) {
@@ -270,6 +276,8 @@ final class UserService extends CoreService
     {
         $idArray = str2arr($ids);
         $this->boundary->assertSuperAdminProtected($idArray, '删除');
+        $this->boundary->assertTenantSuperUserOperationAllowed($idArray, '删除');
+        $this->boundary->assertTenantSuperProtected($idArray, '删除');
         $result = $this->mapper->delete($idArray);
         $this->listSnapshots->flush();
 
@@ -282,7 +290,8 @@ final class UserService extends CoreService
     public function recovery(array|int $ids): bool
     {
         $idArray = str2arr($ids);
-        $result = $this->mapper->recovery($idArray);
+        $this->boundary->assertTenantSuperUserOperationAllowed($idArray, '恢复');
+        $result = $this->withPlatformTenantMaintenance(fn () => $this->mapper->recovery($idArray));
         foreach ($idArray as $id) {
             $this->forgetUserContextCache((int)$id);
         }
@@ -298,6 +307,8 @@ final class UserService extends CoreService
     {
         $idArray = str2arr($ids);
         $this->boundary->assertSuperAdminProtected($idArray, '彻底删除');
+        $this->boundary->assertTenantSuperUserOperationAllowed($idArray, '彻底删除');
+        $this->boundary->assertTenantSuperProtected($idArray, '彻底删除');
         foreach ($idArray as $id) {
             $this->forgetUserContextCache((int)$id);
         }
@@ -313,7 +324,9 @@ final class UserService extends CoreService
      */
     public function changePassword(int $id, string $password): array
     {
-        $result = $this->passwords->resetPassword($id, $password);
+        $this->boundary->assertTenantSuperUserOperationAllowed([$id], '重置密码');
+        $result = $this->withPlatformTenantMaintenance(fn () => $this->passwords->resetPassword($id, $password));
+        $this->forgetUserContextCache($id);
         $this->listSnapshots->flush();
 
         return $result;
@@ -324,7 +337,8 @@ final class UserService extends CoreService
      */
     public function assignRoles(int $id, array $roleIds): array
     {
-        $roles = $this->relations->assignRoles($id, $roleIds);
+        $this->boundary->assertTenantSuperUserOperationAllowed([$id], '分配角色');
+        $roles = $this->withPlatformTenantMaintenance(fn () => $this->relations->assignRoles($id, $roleIds));
         $this->listSnapshots->flush();
 
         return $roles;
@@ -335,7 +349,8 @@ final class UserService extends CoreService
      */
     public function assignDepts(int $id, array $deptIds): array
     {
-        $depts = $this->relations->assignDepts($id, $deptIds);
+        $this->boundary->assertTenantSuperUserOperationAllowed([$id], '分配部门');
+        $depts = $this->withPlatformTenantMaintenance(fn () => $this->relations->assignDepts($id, $deptIds));
         $this->listSnapshots->flush();
 
         return $depts;
@@ -346,7 +361,8 @@ final class UserService extends CoreService
      */
     public function assignPosts(int $id, array $postIds): array
     {
-        $posts = $this->relations->assignPosts($id, $postIds);
+        $this->boundary->assertTenantSuperUserOperationAllowed([$id], '分配岗位');
+        $posts = $this->withPlatformTenantMaintenance(fn () => $this->relations->assignPosts($id, $postIds));
         $this->listSnapshots->flush();
 
         return $posts;
@@ -411,6 +427,8 @@ final class UserService extends CoreService
     {
         if (is_numeric($status) && (int)$status === Status::DISABLED) {
             $this->boundary->assertSuperAdminProtected([$id], '禁用');
+            $this->boundary->assertTenantSuperUserOperationAllowed([$id], '禁用');
+            $this->boundary->assertTenantSuperProtected([$id], '禁用');
         }
 
         $status = (int)_vali([
@@ -419,7 +437,7 @@ final class UserService extends CoreService
             'status.in:1,0' => '状态值错误',
         ])['status'];
 
-        $result = $this->mapper->changeStatus($id, $status);
+        $result = $this->withPlatformTenantMaintenance(fn () => $this->mapper->changeStatus($id, $status));
         $this->forgetUserContextCache($id);
         $this->authCache->forgetUser($id);
         if ($result && Status::isDisabled($status)) {
@@ -435,11 +453,12 @@ final class UserService extends CoreService
      */
     public function changeSort(int $id, mixed $sort): bool
     {
+        $this->boundary->assertTenantSuperUserOperationAllowed([$id], '排序');
         $sort = (int)_vali([
             'sort.value' => $sort,
             'sort.integer' => '排序值必须为数字',
         ])['sort'];
-        $result = $this->mapper->changeSort($id, $sort);
+        $result = $this->withPlatformTenantMaintenance(fn () => $this->mapper->changeSort($id, $sort));
         $this->listSnapshots->flush();
 
         return $result;
@@ -482,7 +501,7 @@ final class UserService extends CoreService
 
         $rules = [
             'tenant_id.integer' => '租户 ID 必须为数字',
-            'tenant_id.min:0' => '租户 ID 不能小于 0',
+            'tenant_id.min:1' => '租户 ID 必须大于 0',
             'username.filled' => '用户名不能为空',
             'username.max:20' => '用户名最多 20 位',
             'nickname.max:30' => '用户昵称最多 30 位',
@@ -491,6 +510,8 @@ final class UserService extends CoreService
             'password.max:255' => '密码格式错误',
             'avatar.max:255' => '头像地址最多 255 位',
             'signed.max:255' => '个性签名最多 255 位',
+            'super.integer' => '子超管状态必须为数字',
+            'super.in:1,0' => '子超管状态错误',
             'status.integer' => '状态值必须为数字',
             'status.in:1,0' => '状态值错误',
             'remark.max:255' => '备注最多 255 位',
@@ -504,6 +525,23 @@ final class UserService extends CoreService
         $data = _vali($rules, $data);
         if (array_key_exists('status', $data)) {
             $data['status'] = (int)$data['status'];
+        }
+        if (array_key_exists('super', $data)) {
+            if (user(SystemUser::class)?->isSuper()) {
+                $this->boundary->assertCanManageTenantSuperStatus();
+                if ($exists !== [] && (int)($exists['super'] ?? 0) === 1 && (int)$data['super'] === 0) {
+                    $this->boundary->assertTenantSuperProtected([(int)($exists['id'] ?? 0)], '取消');
+                }
+                $data['super'] = (int)$data['super'];
+            } else {
+                // SaaS 子超管可管理本租户普通用户，但不能通过请求体设置或取消子超管身份。
+                unset($data['super']);
+            }
+        }
+        if ($exists !== [] && array_key_exists('status', $data) && Status::isDisabled((int)$data['status'])) {
+            $this->boundary->assertSuperAdminProtected([(int)($exists['id'] ?? 0)], '禁用');
+            $this->boundary->assertTenantSuperUserOperationAllowed([(int)($exists['id'] ?? 0)], '禁用');
+            $this->boundary->assertTenantSuperProtected([(int)($exists['id'] ?? 0)], '禁用');
         }
 
         if (array_key_exists('username', $data) && $data['username'] !== null && $data['username'] !== '') {
@@ -520,8 +558,11 @@ final class UserService extends CoreService
             }
         }
 
-        if (System::isPlatformTenant()) {
-            $tenantId = (int)($data['tenant_id'] ?? $exists['tenant_id'] ?? TenantContext::PLATFORM_TENANT_ID);
+        if (user(SystemUser::class)?->isSuper()) {
+            // 只有 APP_SUPER_USER 平台超级管理员可代维护目标租户账号；编辑已有用户时只能保留原归属，禁止借更新迁移租户。
+            $tenantId = $exists === []
+                ? (int)($data['tenant_id'] ?? 0)
+                : (int)($exists['tenant_id'] ?? 0);
             $this->tenants->assertTenantAvailable($tenantId);
             $data['tenant_id'] = $tenantId;
         } else {
@@ -530,6 +571,18 @@ final class UserService extends CoreService
         }
 
         return $data;
+    }
+
+    /**
+     * 用户管理是平台代维护目标租户账号的显式入口，保存模型时需保留目标用户原租户。
+     */
+    private function withPlatformTenantMaintenance(callable $callback): mixed
+    {
+        if (!user(SystemUser::class)?->isSuper()) {
+            return $callback();
+        }
+
+        return TenantContext::withExplicitTenantWrite($callback);
     }
 
     /**

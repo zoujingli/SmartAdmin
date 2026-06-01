@@ -13,6 +13,7 @@ namespace Plugin\WechatClient\Service;
 
 use Library\CoreService;
 use Library\Exception\ErrorResponseException;
+use Library\Support\TenantContext;
 use Plugin\WechatClient\Mapper\WechatClientArticleMapper;
 use Plugin\WechatClient\Mapper\WechatClientMediaMapper;
 use Plugin\WechatClient\Mapper\WechatClientMenuMapper;
@@ -73,10 +74,12 @@ final class WechatClientMenuService extends CoreService
      */
     protected function filterData(array &$data, array $exists = []): array
     {
+        // 菜单方案归属跟随当前租户，禁止普通请求体切换 tenant_id。
+        unset($data['tenant_id']);
+
         $hasButtons = array_key_exists('buttons', $data);
         $buttons = $data['buttons'] ?? [];
         $rules = [
-            'tenant_id.integer' => '租户 ID 必须为数字',
             'account_id.integer' => '接口账号 ID 必须为数字',
             'account_id.min:1' => '接口账号不能为空',
             'name.filled' => '菜单方案名称不能为空',
@@ -85,13 +88,15 @@ final class WechatClientMenuService extends CoreService
             'status.in:1,0' => '状态值错误',
         ];
         if ($exists === []) {
-            $rules['tenant_id.default'] = tenant_id();
             $rules['account_id.required'] = '接口账号不能为空';
             $rules['name.required'] = '菜单方案名称不能为空';
             $rules['status.default'] = 1;
         }
 
         $data = _vali($rules, $data);
+        if ($exists === []) {
+            $data['tenant_id'] = TenantContext::requireTenantId();
+        }
         if ($hasButtons || $exists === []) {
             // 菜单按钮是完整设计器结构：创建时必须提交，更新时仅在请求显式携带 buttons 时覆盖，避免局部更新状态/名称误清空菜单。
             $data['buttons'] = $this->normalizeButtons($this->decodeButtons($buttons, '菜单按钮结构'));

@@ -14,6 +14,7 @@ namespace Plugin\WechatClient\Service;
 use Library\Constants\Status;
 use Library\CoreService;
 use Library\Exception\ErrorResponseException;
+use Library\Support\TenantContext;
 use Plugin\WechatClient\Mapper\WechatClientArticleMapper;
 use Plugin\WechatClient\Model\WechatClientArticle;
 
@@ -114,6 +115,9 @@ final class WechatClientArticleService extends CoreService
      */
     protected function filterData(array &$data, array $exists = []): array
     {
+        // 图文文章是当前租户资源，后台表单不接受 tenant_id 迁移或筛选写入。
+        unset($data['tenant_id']);
+
         foreach (['title', 'author', 'thumb_media_id', 'thumb_url', 'content', 'digest', 'content_source_url', 'draft_media_id', 'publish_id', 'publish_status'] as $field) {
             if (array_key_exists($field, $data) && is_string($data[$field])) {
                 $data[$field] = trim($data[$field]);
@@ -121,7 +125,6 @@ final class WechatClientArticleService extends CoreService
         }
 
         $rules = [
-            'tenant_id.integer' => '租户 ID 必须为数字',
             'account_id.integer' => '接口账号 ID 必须为数字',
             'account_id.min:1' => '接口账号不能为空',
             'title.filled' => '文章标题不能为空',
@@ -140,7 +143,6 @@ final class WechatClientArticleService extends CoreService
             'status.in:1,0' => '状态值错误',
         ];
         if ($exists === []) {
-            $rules['tenant_id.default'] = tenant_id();
             $rules['account_id.required'] = '接口账号不能为空';
             $rules['title.required'] = '文章标题不能为空';
             $rules['publish_status.default'] = 'draft';
@@ -148,6 +150,9 @@ final class WechatClientArticleService extends CoreService
         }
 
         $data = _vali($rules, $data);
+        if ($exists === []) {
+            $data['tenant_id'] = TenantContext::requireTenantId();
+        }
         foreach (['tenant_id', 'account_id', 'status'] as $field) {
             if (array_key_exists($field, $data)) {
                 $data[$field] = (int)$data[$field];

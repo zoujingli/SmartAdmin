@@ -130,6 +130,9 @@
                 <template v-else-if="column.key === 'roleNames'">
                   <CrudTagList :items="record.roleNames || []" color="blue" />
                 </template>
+                <template v-else-if="column.key === 'super'">
+                  <CrudStatusTag :value="Number(record.super || 0) === 1" true-text="是" false-text="否" />
+                </template>
                 <template v-else-if="column.key === 'postNames'">
                   <CrudTagList :items="record.postNames || []" color="purple" />
                 </template>
@@ -176,6 +179,9 @@
                 </template>
                 <template v-else-if="column.key === 'roleNames'">
                   <CrudTagList :items="record.roleNames || []" color="blue" />
+                </template>
+                <template v-else-if="column.key === 'super'">
+                  <CrudStatusTag :value="Number(record.super || 0) === 1" true-text="是" false-text="否" />
                 </template>
                 <template v-else-if="column.key === 'postNames'">
                   <CrudTagList :items="record.postNames || []" color="purple" />
@@ -224,6 +230,7 @@
           <DescriptionsItem label="手机">{{ currentUser.phone || '-' }}</DescriptionsItem>
           <DescriptionsItem label="状态">{{ userStatusText(currentUser.status) }}</DescriptionsItem>
           <DescriptionsItem label="创建时间">{{ currentUser.created_at || currentUser.createdAt || '-' }}</DescriptionsItem>
+          <DescriptionsItem v-if="canManageSuper" label="子超管">{{ Number(currentUser.super || 0) === 1 ? '是' : '否' }}</DescriptionsItem>
           <DescriptionsItem label="角色" :span="2">
             <CrudDetailTagList :items="currentUser.roleNames || []" />
           </DescriptionsItem>
@@ -241,6 +248,7 @@
 import { computed, h, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAccess } from '@vben/access';
+import { useAccessStore } from '@vben/stores';
 import {
   CrudDetailDescriptions,
   CrudDetailHero,
@@ -309,6 +317,7 @@ const currentUser = ref<UserType | null>(null);
 const detailOpen = ref(false);
 const deptTreeOptions = ref<any[]>([]);
 const { hasAccessByCodes } = useAccess();
+const accessStore = useAccessStore();
 const canCreateUsers = computed(() => hasAccessByCodes(['system.user.create']));
 const canUpdateUsers = computed(() => hasAccessByCodes(['system.user.update']));
 const canDeleteUsers = computed(() => hasAccessByCodes(['system.user.delete']));
@@ -317,6 +326,7 @@ const canExportUsers = computed(() => hasAccessByCodes(['system.user.export']));
 const canRecoveryUsers = computed(() => hasAccessByCodes(['system.user.recovery']));
 const canRealDeleteUsers = computed(() => hasAccessByCodes(['system.user.real-delete']));
 const canAccessDeptTree = computed(() => hasAccessByCodes(['system.dept.index']));
+const canManageSuper = computed(() => accessStore.accessCodes.includes('*'));
 
 const actionColumnWidth = computed(() => estimateVisibleActionColumnWidth([userActions({} as UserType)], { maxWidth: 220 }));
 const recycleActionColumnWidth = computed(() => estimateVisibleActionColumnWidth([userRecycleActions({} as UserType)], { maxWidth: 180 }));
@@ -328,6 +338,7 @@ const columns = computed(() => [
   { title: '手机', dataIndex: 'phone', key: 'phone' },
   { title: '部门', dataIndex: 'deptName', key: 'deptName', width: 140 },
   { title: '角色', dataIndex: 'roleNames', key: 'roleNames' },
+  ...(canManageSuper.value ? [{ title: '子超管', dataIndex: 'super', key: 'super', width: 90 }] : []),
   { title: '岗位', dataIndex: 'postNames', key: 'postNames' },
   { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
   { title: '创建时间', dataIndex: 'created_at', key: 'created_at', width: 180 },
@@ -340,6 +351,7 @@ const recycleColumns = computed(() => [
   { title: '昵称', dataIndex: 'nickname', key: 'nickname' },
   { title: '部门', dataIndex: 'deptName', key: 'deptName', width: 140 },
   { title: '角色', dataIndex: 'roleNames', key: 'roleNames' },
+  ...(canManageSuper.value ? [{ title: '子超管', dataIndex: 'super', key: 'super', width: 90 }] : []),
   { title: '岗位', dataIndex: 'postNames', key: 'postNames' },
   { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
   { title: '删除时间', dataIndex: 'deleted_at', key: 'deleted_at', width: 180 },
@@ -375,6 +387,7 @@ const exportColumns = [
   { key: 'phone', title: '手机', width: 140 },
   { key: 'deptName', title: '部门', width: 140 },
   { key: 'roleNames', title: '角色', width: 180, formatter: (record: UserType) => (record.roleNames || []).join(' / ') },
+  ...(canManageSuper.value ? [{ key: 'super', title: '子超管', width: 90, formatter: (record: UserType) => (Number(record.super || 0) === 1 ? '是' : '否') }] : []),
   { key: 'postNames', title: '岗位', width: 180, formatter: (record: UserType) => (record.postNames || []).join(' / ') },
   { key: 'status', title: '状态', width: 90, formatter: (record: UserType) => statusText(record.status) },
   { key: 'created_at', title: '创建时间', width: 180, formatter: (record: UserType) => record.created_at || record.createdAt || '' },

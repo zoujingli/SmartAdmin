@@ -14,6 +14,7 @@ namespace Plugin\WechatClient\Service;
 use Library\Constants\Status;
 use Library\CoreService;
 use Library\Exception\ErrorResponseException;
+use Library\Support\TenantContext;
 use Plugin\WechatClient\Mapper\WechatClientPaymentMerchantMapper;
 use Plugin\WechatClient\Model\WechatClientPaymentMerchant;
 use Plugin\WechatClient\Support\Secret;
@@ -119,7 +120,7 @@ final class WechatClientPaymentMerchantService extends CoreService
             return $this->requireMerchant($merchantId);
         }
         if (tenant_id() <= 0) {
-            // 未指定商户且没有明确租户上下文时必须拒绝，避免平台空间或 CLI 场景误取其它租户第一条商户发起真实扣款。
+            // 未指定商户且没有明确租户上下文时必须拒绝，避免空上下文或 CLI 场景误取其它租户第一条商户发起真实扣款。
             throw new ErrorResponseException('微信支付商户不可用');
         }
 
@@ -170,6 +171,9 @@ final class WechatClientPaymentMerchantService extends CoreService
      */
     protected function filterData(array &$data, array $exists = []): array
     {
+        // 支付商户配置归属由当前租户确定；支付通知按商户 ID 恢复租户上下文，不信任表单 tenant_id。
+        unset($data['tenant_id']);
+
         $secrets = [];
         foreach (self::SECRET_FIELDS as $field) {
             if (array_key_exists($field, $data)) {
@@ -177,8 +181,6 @@ final class WechatClientPaymentMerchantService extends CoreService
             }
         }
         $rules = [
-            'tenant_id.integer' => '租户 ID 必须为数字',
-            'tenant_id.min:0' => '租户 ID 不能小于 0',
             'account_id.integer' => '接口账号 ID 必须为数字',
             'appid.filled' => '支付 AppID 不能为空',
             'appid.max:64' => '支付 AppID 最多 64 位',
@@ -190,7 +192,6 @@ final class WechatClientPaymentMerchantService extends CoreService
             'status.in:1,0' => '状态值错误',
         ];
         if ($exists === []) {
-            $rules['tenant_id.default'] = tenant_id();
             $rules['appid.required'] = '支付 AppID 不能为空';
             $rules['mch_id.required'] = '商户号不能为空';
             $rules['name.required'] = '商户名称不能为空';
@@ -198,6 +199,9 @@ final class WechatClientPaymentMerchantService extends CoreService
         }
 
         $data = _vali($rules, $data);
+        if ($exists === []) {
+            $data['tenant_id'] = TenantContext::requireTenantId();
+        }
         if (array_key_exists('mch_id', $data) && $this->mapper->existsByMchId((string)$data['mch_id'], (int)($exists['id'] ?? 0))) {
             throw new ErrorResponseException('微信支付商户号已存在');
         }

@@ -13,6 +13,7 @@ namespace System\Service;
 
 use Hyperf\Database\Schema\Schema;
 use Hyperf\DbConnection\Db;
+use Library\Support\TenantContext;
 use System\Support\SystemAppMeta;
 use System\Support\SystemBootstrapSeed;
 use System\Support\SystemNodeRegistry;
@@ -33,6 +34,7 @@ final class SystemBootstrapService
      */
     public function syncWithReport(bool $dryRun = false): array
     {
+        $tenantRepair = (new TenantRepairService())->repair($dryRun);
         $superUserId = $this->syncSuperAdmin($dryRun);
         $menu = (new MenuSeedSyncService())->syncWithReport($dryRun);
         $auth = (new AuthRegistryService())->syncWithReport(true, true, $dryRun);
@@ -41,6 +43,7 @@ final class SystemBootstrapService
         $appMeta = $this->syncSystemAppMeta($dryRun);
 
         return [
+            'tenant_repair' => $tenantRepair,
             'super_user_id' => $superUserId,
             'menu' => $menu,
             'auth' => $auth,
@@ -79,6 +82,10 @@ final class SystemBootstrapService
             ->whereNull('deleted_at')
             ->first();
         if ($existingUser) {
+            if (Schema::hasColumn('system_user', 'super') && (int)($existingUser->super ?? 0) !== 0 && !$dryRun) {
+                Db::table('system_user')->where('id', (int)$existingUser->id)->update(['super' => 0, 'updated_at' => $now]);
+            }
+
             return (int)$existingUser->id;
         }
 
@@ -87,6 +94,10 @@ final class SystemBootstrapService
             ->whereNull('deleted_at')
             ->first();
         if ($existingUsername) {
+            if (Schema::hasColumn('system_user', 'super') && (int)($existingUsername->super ?? 0) !== 0 && !$dryRun) {
+                Db::table('system_user')->where('id', (int)$existingUsername->id)->update(['super' => 0, 'updated_at' => $now]);
+            }
+
             return (int)$existingUsername->id;
         }
 
@@ -104,9 +115,9 @@ final class SystemBootstrapService
             ->whereNull('deleted_at')
             ->first();
         if (!$existingRole) {
-            // 角色不再维护内部 code；历史库若超级管理员角色 ID 被调整，只按平台租户 + 角色名称兜底识别。
+            // 角色不再维护内部 code；历史库若超级管理员角色 ID 被调整，按默认租户 + 角色名称兜底识别。
             $existingRole = Db::table('system_role')
-                ->where('tenant_id', 0)
+                ->where('tenant_id', TenantContext::DEFAULT_TENANT_ID)
                 ->where('name', '超级管理员')
                 ->whereNull('deleted_at')
                 ->first();
@@ -153,9 +164,9 @@ final class SystemBootstrapService
             ->whereNull('deleted_at')
             ->first();
         if (!$superRole) {
-            // 无角色 code 后，通配授权兜底只能依赖平台超级管理员角色名称，避免新库访问不存在字段。
+            // 无角色 code 后，通配授权兜底只能依赖默认租户超级管理员角色名称，避免新库访问不存在字段。
             $superRole = Db::table('system_role')
-                ->where('tenant_id', 0)
+                ->where('tenant_id', TenantContext::DEFAULT_TENANT_ID)
                 ->where('name', '超级管理员')
                 ->whereNull('deleted_at')
                 ->first();
@@ -176,7 +187,7 @@ final class SystemBootstrapService
         if (!$dryRun) {
             $now = date('Y-m-d H:i:s');
             Db::table('system_role_node')->insert([
-                'tenant_id' => 0,
+                'tenant_id' => TenantContext::DEFAULT_TENANT_ID,
                 'role_id' => $roleId,
                 'node_id' => $nodeId,
                 'created_at' => $now,

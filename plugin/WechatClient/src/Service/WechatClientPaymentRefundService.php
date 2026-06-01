@@ -12,9 +12,9 @@ declare(strict_types=1);
 namespace Plugin\WechatClient\Service;
 
 use Hyperf\DbConnection\Db;
-use Library\Constants\System;
 use Library\CoreService;
 use Library\Exception\ErrorResponseException;
+use Library\Support\TenantContext;
 use Plugin\WechatClient\Event\WechatClientPaymentRefundStateChanged;
 use Plugin\WechatClient\Event\WechatClientPaymentRefundSucceeded;
 use Plugin\WechatClient\Mapper\WechatClientPaymentRefundMapper;
@@ -95,28 +95,28 @@ final class WechatClientPaymentRefundService extends CoreService
     public function handleNotification(int $merchantId, array $headers, string $rawBody, array $body): array
     {
         $merchant = $this->merchants->requireMerchantForCallback($merchantId);
-        // 退款通知同样没有登录态，先恢复商户所属租户，后续事件可直接感知租户上下文。
-        System::setTenantId((int)$merchant->tenant_id);
-        $data = $this->merchants->paymentRequest($merchant, 'decrypt_notification', [], 'POST', [
-            'headers' => $headers,
-            'raw_body' => $rawBody,
-            'body' => $body,
-        ]);
-        $amount = is_array($data['amount'] ?? null) ? $data['amount'] : [];
-        $data['amount_refund'] = (int)($amount['refund'] ?? 0);
-        $this->assertNotificationMerchant($merchant, $data);
+        return TenantContext::withTenant((int)$merchant->tenant_id, function () use ($merchant, $headers, $rawBody, $body): array {
+            $data = $this->merchants->paymentRequest($merchant, 'decrypt_notification', [], 'POST', [
+                'headers' => $headers,
+                'raw_body' => $rawBody,
+                'body' => $body,
+            ]);
+            $amount = is_array($data['amount'] ?? null) ? $data['amount'] : [];
+            $data['amount_refund'] = (int)($amount['refund'] ?? 0);
+            $this->assertNotificationMerchant($merchant, $data);
 
-        $refund = $this->findByRefundNo((string)($data['out_refund_no'] ?? ''));
-        if (!$refund instanceof WechatClientPaymentRefund) {
-            throw new ErrorResponseException('退款记录不存在');
-        }
-        if ((int)$refund->merchant_id !== (int)$merchant->id) {
-            throw new ErrorResponseException('退款通知商户与本地记录不一致');
-        }
+            $refund = $this->findByRefundNo((string)($data['out_refund_no'] ?? ''));
+            if (!$refund instanceof WechatClientPaymentRefund) {
+                throw new ErrorResponseException('退款记录不存在');
+            }
+            if ((int)$refund->merchant_id !== (int)$merchant->id) {
+                throw new ErrorResponseException('退款通知商户与本地记录不一致');
+            }
 
-        $this->applyRefundData($refund, $data);
+            $this->applyRefundData($refund, $data);
 
-        return $data;
+            return $data;
+        });
     }
 
     /**

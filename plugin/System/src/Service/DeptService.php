@@ -16,6 +16,7 @@ use Library\Constants\Status;
 use Library\CoreService;
 use Library\Exception\ErrorResponseException;
 use Library\Helper\HierarchyLevelHelper;
+use Library\Support\TenantContext;
 use System\Mapper\DeptMapper;
 use System\Mapper\UserMapper;
 use System\Model\SystemDept;
@@ -185,6 +186,9 @@ final class DeptService extends CoreService
      */
     protected function filterData(array &$data, array $exists = []): array
     {
+        // 普通部门维护的租户归属只来自登录态，禁止请求体切换 tenant_id。
+        unset($data['tenant_id']);
+
         foreach (['code', 'name', 'phone', 'email', 'level', 'leader', 'remark'] as $field) {
             if (array_key_exists($field, $data) && is_string($data[$field])) {
                 $data[$field] = trim($data[$field]);
@@ -192,8 +196,6 @@ final class DeptService extends CoreService
         }
 
         $rules = [
-            'tenant_id.integer' => '租户 ID 必须为数字',
-            'tenant_id.min:0' => '租户 ID 不能小于 0',
             'pid.integer' => '上级部门必须为数字',
             'pid.min:0' => '上级部门不能小于 0',
             'code.filled' => '部门编码不能为空',
@@ -218,6 +220,9 @@ final class DeptService extends CoreService
         }
 
         $data = _vali($rules, $data);
+        if ($exists === []) {
+            $data['tenant_id'] = TenantContext::requireTenantId();
+        }
         foreach (['tenant_id', 'pid', 'sort', 'status'] as $field) {
             if (array_key_exists($field, $data)) {
                 $data[$field] = (int)$data[$field];

@@ -15,6 +15,7 @@ use Hyperf\Coroutine\Coroutine;
 use Library\Constants\Status;
 use Library\CoreService;
 use Library\Exception\ErrorResponseException;
+use Library\Support\TenantContext;
 use Plugin\WechatClient\Mapper\WechatClientArticleMapper;
 use Plugin\WechatClient\Mapper\WechatClientMediaMapper;
 use Plugin\WechatClient\Mapper\WechatClientReplyRuleMapper;
@@ -66,6 +67,9 @@ final class WechatClientReplyRuleService extends CoreService
      */
     protected function filterData(array &$data, array $exists = []): array
     {
+        // 回复规则归属跟随当前租户上下文，普通表单不能通过请求体切换 tenant_id。
+        unset($data['tenant_id']);
+
         foreach (['rule_type', 'keyword', 'match_mode', 'reply_type'] as $field) {
             if (array_key_exists($field, $data) && is_string($data[$field])) {
                 $data[$field] = trim($data[$field]);
@@ -75,7 +79,6 @@ final class WechatClientReplyRuleService extends CoreService
         $replyContent = $data['reply_content'] ?? [];
 
         $rules = [
-            'tenant_id.integer' => '租户 ID 必须为数字',
             'account_id.integer' => '接口账号 ID 必须为数字',
             'account_id.min:1' => '接口账号不能为空',
             'rule_type.in:subscribe,default,keyword,menu_click' => '规则类型错误',
@@ -90,7 +93,6 @@ final class WechatClientReplyRuleService extends CoreService
             'status.in:1,0' => '状态值错误',
         ];
         if ($exists === []) {
-            $rules['tenant_id.default'] = tenant_id();
             $rules['account_id.required'] = '接口账号不能为空';
             $rules['rule_type.default'] = 'keyword';
             $rules['match_mode.default'] = 'contains';
@@ -101,6 +103,9 @@ final class WechatClientReplyRuleService extends CoreService
         }
 
         $data = _vali($rules, $data);
+        if ($exists === []) {
+            $data['tenant_id'] = TenantContext::requireTenantId();
+        }
         $replyType = (string)($data['reply_type'] ?? $exists['reply_type'] ?? 'text');
         if ($hasReplyContent || $exists === []) {
             // 回复内容决定微信端真实输出，创建必须校验，更新仅在显式提交 reply_content 时覆盖，避免局部更新误清空回复。

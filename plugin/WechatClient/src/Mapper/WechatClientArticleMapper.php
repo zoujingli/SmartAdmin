@@ -46,7 +46,7 @@ final class WechatClientArticleMapper extends CoreMapper
     {
         return _query($query, $params)
             ->like('title,author,draft_media_id,publish_id')
-            ->equal('tenant_id,account_id,publish_status,status')
+            ->equal('account_id,publish_status,status')
             ->dateBetween('created_at')
             ->getQuery();
     }

@@ -15,6 +15,18 @@ interface BasicUserInfo {
    */
   roles?: string[];
   /**
+   * 当前登录用户所属租户
+   */
+  tenant_id?: number;
+  /**
+   * SaaS 子超管标识，平台超级管理员仍由权限码 * 表示
+   */
+  super?: number;
+  /**
+   * 当前用户是否为租户内子超管
+   */
+  tenant_super?: boolean;
+  /**
    * 用户id
    */
   userId: string;

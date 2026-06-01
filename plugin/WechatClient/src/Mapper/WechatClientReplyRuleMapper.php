@@ -103,7 +103,7 @@ final class WechatClientReplyRuleMapper extends CoreMapper
     {
         return _query($query, $params)
             ->like('keyword')
-            ->equal('tenant_id,account_id,rule_type,match_mode,reply_type,status')
+            ->equal('account_id,rule_type,match_mode,reply_type,status')
             ->dateBetween('created_at')
             ->getQuery();
     }

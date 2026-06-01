@@ -1,4 +1,4 @@
-import type { RouteLocationNormalized, Router } from 'vue-router';
+import type { RouteLocationNormalized, RouteLocationRaw, Router } from 'vue-router';
 
 import backendPluginHomes from 'virtual:xadmin-plugin-backend-homes';
 
@@ -155,6 +155,19 @@ function setupAccessGuard(router: Router) {
     accessStore.setAccessMenus([]);
     accessStore.setAccessRoutes([]);
     accessStore.setIsAccessChecked(false);
+  }
+
+  function replaceByResolvedPath(target: string): RouteLocationRaw {
+    const resolved = router.resolve(target);
+
+    // 重新进入当前地址时只返回原始路由字段，不能把 router.resolve() 的 matched/meta 快照带回守卫；
+    // 动态路由刚重建时携带旧匹配结果会让 RouterView 继续渲染 fallback，出现首次点击空白、刷新才正常。
+    return {
+      hash: resolved.hash,
+      path: resolved.path,
+      query: resolved.query,
+      replace: true,
+    };
   }
 
   function isSafeRedirectPath(path: string, entry: string): boolean {
@@ -391,10 +404,7 @@ function setupAccessGuard(router: Router) {
       fallbackPath,
     );
 
-    return {
-      ...router.resolve(redirectPath),
-      replace: true,
-    };
+    return replaceByResolvedPath(redirectPath);
   });
 }
 

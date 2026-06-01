@@ -88,6 +88,18 @@ final class LogsActionServiceTest extends TestCase
         $this->assertNull($this->buildChangeRow(10, [], ['model' => 'SystemTenant', 'fields' => []]));
     }
 
+    public function testBuildChangeRowSkipsPlatformZeroTenantAction(): void
+    {
+        $this->assertNull($this->buildChangeRow(10, [
+            'tenant_id' => 0,
+            'username' => 'platform',
+        ], [
+            'model' => 'SystemLogsAction',
+            'table' => 'system_logs_action',
+            'fields' => [['field' => 'name', 'old' => '', 'new' => '平台事件']],
+        ]));
+    }
+
     public function testNormalizeCountMapKeepsStableNumericMap(): void
     {
         $this->assertSame([
@@ -111,6 +123,37 @@ final class LogsActionServiceTest extends TestCase
             '0' => '2',
             2 => 5,
         ], 0, 2));
+    }
+
+    public function testZeroTenantOperateLogIsKeptAsPlatformLogContract(): void
+    {
+        $service = $this->source('plugin/System/src/Service/LogsActionService.php');
+        $mapper = $this->source('plugin/System/src/Mapper/LogsActionMapper.php');
+        $changeMapper = $this->source('plugin/System/src/Mapper/LogsChangeMapper.php');
+        $scope = $this->source('plugin/System/src/Support/AuditLogScope.php');
+        $listener = $this->source('plugin/Library/Events/Listener/ModelSavingListener.php');
+
+        $this->assertStringContainsString('操作日志是唯一允许 tenant_id=0 的租户表', $service);
+        $this->assertStringContainsString("\$data['tenant_id'] = max(0", $service);
+        $this->assertStringContainsString('authorizedActionIds', $service);
+        $this->assertStringContainsString('AuditLogScope::apply', $mapper);
+        $this->assertStringContainsString('makeFilteredQuery', $mapper);
+        $this->assertStringContainsString('AuditLogScope::apply', $changeMapper);
+        $this->assertStringContainsString('makeFilteredQuery', $changeMapper);
+        $this->assertStringContainsString('applyOperationScope', $changeMapper);
+        $this->assertStringContainsString('withoutGlobalScope(DataField::TENANT)', $scope);
+        $this->assertStringContainsString('isPlatformSuperUser', $scope);
+        $this->assertStringContainsString('SystemLogsAction', $listener);
+        $this->assertStringContainsString('操作日志允许 tenant_id=0 记录平台级或无可信租户事件', $listener);
+    }
+
+    public function testDashboardLogStatisticsReuseOperationLogScopeContract(): void
+    {
+        $mapper = $this->source('plugin/System/src/Mapper/DataMapper.php');
+
+        $this->assertStringContainsString('private LogsActionMapper $logs', $mapper);
+        $this->assertStringContainsString('$this->logs->makeLogQuery()', $mapper);
+        $this->assertStringNotContainsString('scopedQuery(SystemLogsAction::class)', $mapper);
     }
 
     /**
@@ -162,5 +205,29 @@ final class LogsActionServiceTest extends TestCase
         $method->setAccessible(true);
 
         return $method->invoke(null, $counts, $start, $end);
+    }
+
+    private function source(string $path): string
+    {
+        $root = dirname(__DIR__, 4);
+        $candidates = [$root . '/' . $path];
+
+        if (str_starts_with($path, 'plugin/Library/')) {
+            // Developer 仓使用 plugin/Library，公开 SmartAdmin 仓通过 Composer 安装到 vendor。
+            $candidates[] = $root . '/vendor/zoujingli/smart-admin-library/' . substr($path, strlen('plugin/Library/'));
+        }
+
+        foreach ($candidates as $candidate) {
+            if (!is_file($candidate)) {
+                continue;
+            }
+
+            $source = (string)file_get_contents($candidate);
+            if ($source !== '') {
+                return $source;
+            }
+        }
+
+        $this->fail(sprintf('Source file must be readable: %s', $path));
     }
 }

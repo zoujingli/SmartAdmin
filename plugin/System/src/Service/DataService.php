@@ -164,7 +164,7 @@ final class DataService extends CoreService
             ];
         }
 
-        if ($this->canAccessCode('system.tenant.index')) {
+        if (user()?->isSuper()) {
             $disabledTenants = $this->mapper->getDisabledTenantCount();
             $expiringTenants = $this->mapper->getExpiringTenantCount();
             $tenantIssueCount = $disabledTenants + $expiringTenants;

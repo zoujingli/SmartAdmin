@@ -31,7 +31,7 @@ final class LogsActionService extends CoreService implements OperateLogWriterInt
      */
     public function __construct(
         protected LogsActionMapper $mapper,
-        protected LogsChangeMapper $changeMapper
+        protected LogsChangeMapper $changeMapper,
     ) {}
 
     /**
@@ -39,6 +39,10 @@ final class LogsActionService extends CoreService implements OperateLogWriterInt
      */
     public function write(array $data): void
     {
+        // 操作日志是唯一允许 tenant_id=0 的租户表：无可信租户来源时作为平台日志入库，
+        // 仅 APP_SUPER_USER 平台超级管理员可见，不能归入默认租户 1。
+        $data['tenant_id'] = max(0, (int)($data['tenant_id'] ?? 0));
+
         $changePayload = is_array($data['change_payload'] ?? null) ? $data['change_payload'] : null;
         unset($data['change_payload']);
 
@@ -81,9 +85,10 @@ final class LogsActionService extends CoreService implements OperateLogWriterInt
     public function delete(array $ids): bool
     {
         return $this->transactionalBool(function () use ($ids): bool {
+            $authorizedIds = $this->authorizedActionIds($ids);
             $deleted = $this->mapper->delete($ids);
             if ($deleted) {
-                $this->changeMapper->softDeleteByActionIds($ids);
+                $this->changeMapper->softDeleteByActionIds($authorizedIds);
             }
 
             return $deleted;
@@ -96,9 +101,10 @@ final class LogsActionService extends CoreService implements OperateLogWriterInt
     public function delreal(array $ids): bool
     {
         return $this->transactionalBool(function () use ($ids): bool {
+            $authorizedIds = $this->authorizedActionIds($ids, true);
             $deleted = $this->mapper->delreal($ids);
             if ($deleted) {
-                $this->changeMapper->forceDeleteByActionIds($ids);
+                $this->changeMapper->forceDeleteByActionIds($authorizedIds);
             }
 
             return $deleted;
@@ -111,9 +117,10 @@ final class LogsActionService extends CoreService implements OperateLogWriterInt
     public function recovery(array $ids): bool
     {
         return $this->transactionalBool(function () use ($ids): bool {
+            $authorizedIds = $this->authorizedActionIds($ids, true);
             $restored = $this->mapper->recovery($ids);
             if ($restored) {
-                $this->changeMapper->restoreByActionIds($ids);
+                $this->changeMapper->restoreByActionIds($authorizedIds);
             }
 
             return $restored;
@@ -320,7 +327,6 @@ final class LogsActionService extends CoreService implements OperateLogWriterInt
             'updated_by.integer' => '更新者必须为数字',
             'updated_by.min:0' => '更新者不能小于 0',
         ], $data);
-
         foreach (['tenant_id', 'created_by', 'updated_by'] as $field) {
             if (array_key_exists($field, $data)) {
                 $data[$field] = (int)$data[$field];
@@ -414,6 +420,10 @@ final class LogsActionService extends CoreService implements OperateLogWriterInt
         if ($actionId <= 0) {
             return null;
         }
+        $tenantId = (int)($action['tenant_id'] ?? 0);
+        if ($tenantId <= 0) {
+            return null;
+        }
 
         $fields = $segment['fields'] ?? [];
         if (!is_array($fields) || $fields === []) {
@@ -422,7 +432,7 @@ final class LogsActionService extends CoreService implements OperateLogWriterInt
 
         $changeValues = json_encode($fields, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         return [
-            'tenant_id' => (int)($action['tenant_id'] ?? 0),
+            'tenant_id' => $tenantId,
             'action_id' => $actionId,
             'username' => self::limitString($action['username'] ?? '', 20),
             'model' => self::limitString($segment['model'] ?? '', 100),
@@ -492,6 +502,20 @@ final class LogsActionService extends CoreService implements OperateLogWriterInt
             Db::rollBack();
             throw $exception;
         }
+    }
+
+    /**
+     * 关联变更日志只能跟随当前已授权的操作日志范围处理，避免未来误用原始 ID 绕开 AuditLogScope。
+     *
+     * @param array<int|string, mixed> $ids
+     * @return array<int, int>
+     */
+    private function authorizedActionIds(array $ids, bool $withTrashed = false): array
+    {
+        return array_map(
+            static fn (Model $model): int => (int)$model->getKey(),
+            $this->mapper->getOperationModels($ids, $withTrashed)
+        );
     }
 
     /**

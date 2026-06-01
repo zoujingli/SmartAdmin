@@ -380,6 +380,7 @@ final class SmartWatchRunner
             $procManager->stop();
             Event::exit();
         });
+        Process::signal(SIGCHLD, static fn () => $procManager->handleChildSignal());
 
         Event::wait();
         return 0;
@@ -423,6 +424,8 @@ final class SmartWatchProcessManager
 {
     private ?Process $serve = null;
 
+    private ?int $restartTimerId = null;
+
     /**
      * @param string[] $workerStart
      */
@@ -436,14 +439,20 @@ final class SmartWatchProcessManager
 
     public function start(): void
     {
+        $this->clearRestartTimer();
         $this->terminateProcesses();
         SmartWatchLogger::info('🔄 Starting service...' . PHP_EOL);
 
-        $this->serve = new Process(fn (Process $process) => $process->exec($this->runner, $this->workerStart), true);
-        if (!$this->serve->start()) {
-            throw new RuntimeException('启动开发服务进程失败。');
+        $serve = new Process(fn (Process $process) => $process->exec($this->runner, $this->workerStart), true);
+        if ($serve->start() === false) {
+            // 本地开发入口不能因为一次 fork 失败直接退出；保留 watch 父进程并延迟重试，便于释放端口或修复环境后自动恢复。
+            SmartWatchLogger::error('启动开发服务进程失败，2 秒后重试。' . PHP_EOL);
+            $this->scheduleRestart(2000);
+            return;
         }
-        Event::add($this->serve->pipe, fn () => $this->output($this->serve?->read() ?: null));
+
+        $this->serve = $serve;
+        Event::add($serve->pipe, fn () => $this->output($serve->read() ?: null));
     }
 
     public function restart(): void
@@ -454,11 +463,69 @@ final class SmartWatchProcessManager
 
     public function stop(): void
     {
+        $this->clearRestartTimer();
         if ($this->serve?->pid) {
             @Process::kill($this->serve->pid);
             @Event::del($this->serve->pipe);
             $this->serve = null;
         }
+    }
+
+    public function handleChildSignal(): void
+    {
+        // watch 子进程可能因语法错误、端口占用、Fatal 或用户态异常退出；必须回收 SIGCHLD，
+        // 否则父进程无法准确判断服务已退出，开发时会表现为入口随机失效或残留僵尸进程。
+        while (($status = Process::wait(false)) !== false) {
+            $pid = (int)($status['pid'] ?? 0);
+            if ($this->serve === null || $pid !== $this->serve->pid) {
+                continue;
+            }
+
+            @Event::del($this->serve->pipe);
+            $this->serve = null;
+
+            $code = (int)($status['code'] ?? 0);
+            $signal = (int)($status['signal'] ?? 0);
+            SmartWatchLogger::warning(sprintf(
+                '⚠️ Service process exited (pid=%d, code=%d, signal=%d). Restarting in 1 second...%s',
+                $pid,
+                $code,
+                $signal,
+                PHP_EOL
+            ));
+            $this->scheduleRestart(1000);
+        }
+    }
+
+    private function scheduleRestart(int $delayMs): void
+    {
+        if ($this->restartTimerId !== null) {
+            return;
+        }
+
+        $timerId = Timer::after($delayMs, function (): void {
+            $this->restartTimerId = null;
+            if ($this->serve !== null) {
+                return;
+            }
+            $this->start();
+        });
+        if ($timerId === false) {
+            SmartWatchLogger::error('创建开发服务重启定时器失败，请手动重新执行 ./bin/smart.php。' . PHP_EOL);
+            return;
+        }
+
+        $this->restartTimerId = $timerId;
+    }
+
+    private function clearRestartTimer(): void
+    {
+        if ($this->restartTimerId === null) {
+            return;
+        }
+
+        Timer::clear($this->restartTimerId);
+        $this->restartTimerId = null;
     }
 
     private function terminateProcesses(): void

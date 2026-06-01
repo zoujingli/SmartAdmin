@@ -57,7 +57,7 @@ final class WechatClientMediaMapper extends CoreMapper
     {
         return _query($query, $params)
             ->like('name,media_id,url,file_url')
-            ->equal('tenant_id,account_id,media_type,status')
+            ->equal('account_id,media_type,status')
             ->dateBetween('created_at')
             ->getQuery();
     }

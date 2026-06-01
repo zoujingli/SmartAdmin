@@ -15,6 +15,7 @@ use GuzzleHttp\Client as GuzzleClient;
 use Library\Constants\Status;
 use Library\CoreService;
 use Library\Exception\ErrorResponseException;
+use Library\Support\TenantContext;
 use Plugin\WechatClient\Mapper\WechatClientMediaMapper;
 use Plugin\WechatClient\Model\WechatClientMedia;
 use System\Service\FileService;
@@ -148,6 +149,9 @@ final class WechatClientMediaService extends CoreService
      */
     protected function filterData(array &$data, array $exists = []): array
     {
+        // 素材归属只来自当前登录租户或官方同步账号，普通维护表单不信任请求 tenant_id。
+        unset($data['tenant_id']);
+
         foreach (['media_id', 'media_type', 'name', 'url', 'file_url'] as $field) {
             if (array_key_exists($field, $data) && is_string($data[$field])) {
                 $data[$field] = trim($data[$field]);
@@ -155,7 +159,6 @@ final class WechatClientMediaService extends CoreService
         }
 
         $rules = [
-            'tenant_id.integer' => '租户 ID 必须为数字',
             'account_id.integer' => '接口账号 ID 必须为数字',
             'account_id.min:1' => '接口账号不能为空',
             'media_id.max:180' => 'MediaID 最多 180 位',
@@ -170,7 +173,6 @@ final class WechatClientMediaService extends CoreService
             'status.in:1,0' => '状态值错误',
         ];
         if ($exists === []) {
-            $rules['tenant_id.default'] = tenant_id();
             $rules['account_id.required'] = '接口账号不能为空';
             $rules['media_type.default'] = 'image';
             $rules['name.required'] = '素材名称不能为空';
@@ -179,6 +181,9 @@ final class WechatClientMediaService extends CoreService
         }
 
         $data = _vali($rules, $data);
+        if ($exists === []) {
+            $data['tenant_id'] = TenantContext::requireTenantId();
+        }
         foreach (['tenant_id', 'account_id', 'file_id', 'status'] as $field) {
             if (array_key_exists($field, $data)) {
                 $data[$field] = (int)$data[$field];
