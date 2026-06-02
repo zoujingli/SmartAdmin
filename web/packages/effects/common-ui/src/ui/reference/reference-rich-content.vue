@@ -1,7 +1,7 @@
 <template>
   <div class="reference-rich-content-wrap">
     <div class="reference-rich-content" v-html="html" @click="handleClick" @keydown.enter="handleKeydown" @keydown.space="handleKeydown"></div>
-    <ReferenceDetailDrawer v-model:open="drawerOpen" :provider-key="providerKey" :reference="selectedReference" />
+    <ReferenceDetailDrawer v-model:open="drawerOpen" :mask-closable="maskClosable" :provider-key="providerKey" :reference="selectedReference" />
   </div>
 </template>
 
@@ -14,9 +14,11 @@ import ReferenceDetailDrawer from './reference-detail-drawer.vue';
 import { referenceFromDataset, renderReferenceHtml } from './reference-utils';
 
 const props = withDefaults(defineProps<{
+  maskClosable?: boolean;
   providerKey?: string;
   value?: string;
 }>(), {
+  maskClosable: true,
   providerKey: 'default',
   value: '',
 });

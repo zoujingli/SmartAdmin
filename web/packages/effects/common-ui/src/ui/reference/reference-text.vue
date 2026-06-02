@@ -14,7 +14,7 @@
       >{{ referenceClickableText(segment.reference) }}</span>
       <span v-if="segment.type === 'reference'">{{ referenceTrailingText(segment.reference) }}</span>
     </template>
-    <ReferenceDetailDrawer v-model:open="drawerOpen" :provider-key="providerKey" :reference="selectedReference" />
+    <ReferenceDetailDrawer v-model:open="drawerOpen" :mask-closable="maskClosable" :provider-key="providerKey" :reference="selectedReference" />
   </span>
 </template>
 
@@ -28,9 +28,11 @@ import { getReferenceProvider } from './registry';
 import { parseReferenceSegments, referenceClickableText, referenceTrailingText } from './reference-utils';
 
 const props = withDefaults(defineProps<{
+  maskClosable?: boolean;
   providerKey?: string;
   value?: number | string | null;
 }>(), {
+  maskClosable: true,
   providerKey: 'default',
   value: '',
 });

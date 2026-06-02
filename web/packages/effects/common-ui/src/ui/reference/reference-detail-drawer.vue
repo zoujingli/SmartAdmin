@@ -1,5 +1,5 @@
 <template>
-  <AppDrawer :open="open" :show-footer="false" :title="drawerTitle" width-size="xl" @close="close">
+  <AppDrawer :mask-closable="maskClosable" :open="open" :show-footer="false" :title="drawerTitle" width-size="xl" @close="close">
     <div v-if="loading" class="reference-detail-state"><Spin /> <span>正在读取引用数据...</span></div>
     <Alert v-else-if="error" show-icon type="warning" :message="error" />
     <div v-else-if="detail" class="reference-detail-panel">
@@ -174,10 +174,12 @@ import { getReferenceProvider } from './registry';
 import { parseReferenceSegments, referenceClickableText, referenceDisplayText, referenceFromDataset, referenceTrailingText, renderReferenceHtml } from './reference-utils';
 
 const props = withDefaults(defineProps<{
+  maskClosable?: boolean;
   open?: boolean;
   providerKey?: string;
   reference?: null | ReferenceItem;
 }>(), {
+  maskClosable: true,
   open: false,
   providerKey: 'default',
   reference: null,

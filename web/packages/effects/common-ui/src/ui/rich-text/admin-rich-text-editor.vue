@@ -20,7 +20,7 @@
     <div v-show="viewMode === 'visual'" class="admin-rich-text-editor__visual">
       <template v-if="editorMounted">
         <Toolbar
-          v-if="mediaToolbarKeys.length"
+          v-if="richEditorRef && mediaToolbarKeys.length"
           class="admin-rich-text-editor__toolbar"
           :default-config="toolbarConfig"
           :editor="richEditorRef"
@@ -80,7 +80,22 @@ type PasteResultSetter = (value: boolean) => void;
 
 const ATTACHMENT_MENU_KEY = 'uploadProjectAttachment';
 const ATTACHMENT_MENU_ICON = '<svg viewBox="0 0 1024 1024"><path d="M704 128a192 192 0 0 1 135.76 327.76L426.72 868.8a144 144 0 0 1-203.64-203.64l402.4-402.4a96 96 0 0 1 135.76 135.76l-393.04 393.04a32 32 0 1 1-45.28-45.28l393.04-393.04a32 32 0 0 0-45.28-45.28l-402.4 402.4a80 80 0 0 0 113.12 113.12l413.04-413.04A128 128 0 1 0 613.44 229.44L218.88 624a32 32 0 1 1-45.28-45.28l394.56-394.56A191.36 191.36 0 0 1 704 128z"/></svg>';
-const attachmentUploadHandlers = new WeakMap<IDomEditor, () => void>();
+type AttachmentUploadHandler = () => void;
+type RichTextGlobalObject = typeof globalThis & {
+  __SMART_ADMIN_RICH_ATTACHMENT_HANDLERS__?: WeakMap<IDomEditor, AttachmentUploadHandler>;
+  __SMART_ADMIN_RICH_ATTACHMENT_MENU__?: boolean;
+};
+
+function getRichTextGlobalObject() {
+  return globalThis as RichTextGlobalObject;
+}
+
+function getAttachmentUploadHandlers() {
+  const globalObject = getRichTextGlobalObject();
+  // wangEditor 菜单是全局注册的，handler 也必须全局共享，避免缓存或热更新后菜单闭包与组件实例不在同一模块作用域。
+  globalObject.__SMART_ADMIN_RICH_ATTACHMENT_HANDLERS__ ||= new WeakMap<IDomEditor, AttachmentUploadHandler>();
+  return globalObject.__SMART_ADMIN_RICH_ATTACHMENT_HANDLERS__;
+}
 
 class UploadAttachmentMenu implements IButtonMenu {
   readonly iconSvg = ATTACHMENT_MENU_ICON;
@@ -88,7 +103,7 @@ class UploadAttachmentMenu implements IButtonMenu {
   readonly title = '上传附件';
 
   exec(editor: IDomEditor): void {
-    const handler = attachmentUploadHandlers.get(editor);
+    const handler = getAttachmentUploadHandlers().get(editor);
     if (!handler) {
       message.warning('编辑器尚未初始化，请稍后再试');
       return;
@@ -110,7 +125,7 @@ class UploadAttachmentMenu implements IButtonMenu {
 }
 
 function registerAttachmentMenu() {
-  const globalObject = globalThis as typeof globalThis & { __SMART_ADMIN_RICH_ATTACHMENT_MENU__?: boolean };
+  const globalObject = getRichTextGlobalObject();
   if (globalObject.__SMART_ADMIN_RICH_ATTACHMENT_MENU__) {
     return;
   }
@@ -286,7 +301,7 @@ async function handleViewModeChange() {
 
 function handleEditorCreated(editor: IDomEditor) {
   richEditorRef.value = editor;
-  attachmentUploadHandlers.set(editor, openFilePicker);
+  getAttachmentUploadHandlers().set(editor, openFilePicker);
   editor.setHtml(contentValue.value || '');
 }
 
@@ -428,8 +443,15 @@ function buildVideoHtml(asset: UploadAsset, file: File) {
 function buildFileHtml(asset: UploadAsset, file: File) {
   const fileId = Number(asset.id || 0);
   if (fileId <= 0) return '';
+  const href = getFileAssetUrl(asset);
+  if (!href) return '';
   const fileName = asset.origin_name || file.name || `附件${fileId}`;
-  return `<p><a href="/project/file/download/${fileId}" title="下载附件：${escapeHtml(fileName)}" data-project-file="1" data-file-id="${fileId}" data-file-name="${escapeHtml(fileName)}" target="_blank" rel="noopener noreferrer" download>${escapeHtml(fileName)}</a></p>`;
+  return `<p><a href="${escapeHtml(href)}" title="下载附件：${escapeHtml(fileName)}" data-project-file="1" data-file-id="${fileId}" data-file-name="${escapeHtml(fileName)}" target="_blank" rel="noopener noreferrer" download>${escapeHtml(fileName)}</a></p>`;
+}
+
+function getFileAssetUrl(asset: UploadAsset) {
+  // 富文本正文应保存上传返回的文件公开地址；download_url 是短期签名下载链接，只作为无公开地址时的兜底。
+  return asset.url || asset.preview_url || asset.download_url || '';
 }
 
 function escapeHtml(value: string) {
@@ -456,7 +478,7 @@ async function mountEditor() {
 
 function destroyEditor() {
   if (richEditorRef.value) {
-    attachmentUploadHandlers.delete(richEditorRef.value);
+    getAttachmentUploadHandlers().delete(richEditorRef.value);
   }
   richEditorRef.value?.destroy();
   richEditorRef.value = undefined;

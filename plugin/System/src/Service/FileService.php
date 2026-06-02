@@ -105,7 +105,14 @@ final class FileService extends CoreService
             throw new ErrorResponseException('下载链接无效');
         }
 
-        return $this->buildDownloadTarget($this->findSignedFileOrFail($id), $attname);
+        $file = $this->findSignedFileOrFail($id);
+        $tenantId = (int)$file->tenant_id;
+        if ($tenantId <= 0) {
+            throw new ErrorResponseException('文件不存在');
+        }
+
+        // 签名链接已完成有效期和签名校验，公开入口无登录租户上下文；这里按文件所属租户临时恢复上传配置读取范围。
+        return TenantContext::withTenant($tenantId, fn (): array => $this->buildDownloadTarget($file, $attname));
     }
 
     /**
