@@ -23,9 +23,13 @@ jobs:
 
       - name: Prefer GitHub package repositories
         run: |
-          # 公开仓同步或替换 Tag 后，Packagist 元数据可能滞后；CI 必须直接按 GitHub Tag 解析基础包。
+          # 公开仓 master 由 Developer 同步生成，基础包 master 会同步更新但稳定 Tag 不一定同步移动。
+          # 分支 CI 必须临时使用 dev-master 校验同一轮同步结果；发布工作流仍使用本次导出的 Tag/path 包。
           composer config --global repositories.smart-admin-library vcs https://github.com/zoujingli/SmartAdminLibrary.git
           composer config --global repositories.smart-admin-builder vcs https://github.com/zoujingli/SmartAdminBuilder.git
+          if [[ "$GITHUB_REF" == refs/heads/* || "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            composer require --no-update 'zoujingli/smart-admin-library:dev-master as 1.0.99' 'zoujingli/smart-admin-builder:dev-master as 1.0.99'
+          fi
 
       - name: Install composer dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader --ignore-platform-req=ext-opcache
