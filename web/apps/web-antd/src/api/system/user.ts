@@ -113,6 +113,12 @@ export namespace UserApi {
     avatar: string;
     label: string;
   }
+
+  export interface RelationOptions {
+    depts: any[];
+    roles: Array<{ id: number; name: string }>;
+    posts: Array<{ id: number; name: string }>;
+  }
 }
 
 /**
@@ -212,6 +218,10 @@ class UserApiService extends SystemApiService {
 
   async getUserOptions(params: { keyword?: string; limit?: number } = {}) {
     return this.getOptions<UserApi.UserOption>('system/user/options', createSearchParams(params));
+  }
+
+  async getRelationOptions(params: { tenant_id?: number } = {}) {
+    return this.get<UserApi.RelationOptions>('system/user/relation-options', createSearchParams(params));
   }
 }
 

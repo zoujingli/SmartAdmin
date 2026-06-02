@@ -7,7 +7,7 @@ import { useAccess } from '@vben/access';
 import { useAccessStore, useUserStore } from '@vben/stores';
 import { Button, Col, Form, FormItem, Input, InputPassword, message, RadioGroup, Row, Select, Switch, Textarea, TreeSelect } from 'ant-design-vue';
 
-import { deptApiService, postApiService, roleApiService, tenantApiService, userApiService } from '#/api';
+import { tenantApiService, userApiService } from '#/api';
 import AppDrawer from '#/components/app-drawer.vue';
 
 const emit = defineEmits(['success']);
@@ -102,11 +102,10 @@ const loadTenantOptions = async () => {
 
 const loadRelationOptions = async (tenantId = normalizeTenantId(formData.tenant_id)) => {
   const params = getRelationOptionParams(tenantId);
-  const [deptTree, roles, posts] = await Promise.all([
-    canAccessDeptOptions.value ? deptApiService.getDeptTree(params) : Promise.resolve([]),
-    canAccessRoleOptions.value ? roleApiService.getRoleOptions(params) : Promise.resolve([]),
-    canAccessPostOptions.value ? postApiService.getPostOptions(params) : Promise.resolve([]),
-  ]);
+  const data = await userApiService.getRelationOptions(params);
+  const deptTree = canAccessDeptOptions.value ? data?.depts : [];
+  const roles = canAccessRoleOptions.value ? data?.roles : [];
+  const posts = canAccessPostOptions.value ? data?.posts : [];
 
   deptTreeOptions.value = Array.isArray(deptTree) ? deptTree : [];
   roleOptions.value = (roles || []).map((role: any) => ({ label: role.name, value: Number(role.id) }));

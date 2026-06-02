@@ -18,13 +18,13 @@ use Library\CoreModel;
 /**
  * @property int $id 主键ID
  * @property int $tenant_id 租户ID
- * @property array $value 上传通道配置
  * @property string $remark 备注
  * @property int $created_by 创建者
  * @property int $updated_by 更新者
  * @property Carbon $created_at 创建时间
  * @property Carbon $updated_at 更新时间
  * @property string $deleted_at 删除时间
+ * @property array $value 上传通道配置
  */
 final class SystemUploadConfig extends CoreModel
 {

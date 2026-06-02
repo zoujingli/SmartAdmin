@@ -68,6 +68,16 @@ final class UserController extends CoreController
     }
 
     /**
+     * 获取用户分配表单关联选项。
+     */
+    #[GetMapping(path: 'relation-options')]
+    #[Auth(name: '用户关联选项', type: Auth::CHECK, menu: false, code: 'system.user.index')]
+    public function relationOptions(RequestInterface $request): array
+    {
+        $this->success('获取成功', $this->service->getRelationOptions($request->all()));
+    }
+
+    /**
      * 创建用户。
      */
     #[PostMapping(path: 'create')]

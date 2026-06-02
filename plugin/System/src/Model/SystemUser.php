@@ -36,7 +36,6 @@ use function Hyperf\Config\config;
  * @property string $email 邮箱地址
  * @property string $avatar 用户头像
  * @property string $signed 个性签名
- * @property int $super SaaS子超管(1是,0否)
  * @property int $status 状态(1启用,0禁用)
  * @property string $remark 备注
  * @property string $login_ip 最后登录IP
@@ -46,6 +45,7 @@ use function Hyperf\Config\config;
  * @property Carbon $created_at 创建时间
  * @property Carbon $updated_at 更新时间
  * @property string $deleted_at 删除时间
+ * @property int $super SaaS子超管(1是,0否)
  * @property null|Collection|SystemRole[] $roles
  * @property null|Collection|SystemPost[] $posts
  * @property null|Collection|SystemDept[] $depts
@@ -58,7 +58,7 @@ final class SystemUser extends CoreModel implements UserModelInterface
 
     protected array $hidden = ['password'];
 
-    protected array $fillable = ['id', 'tenant_id', 'username', 'nickname', 'phone', 'email', 'password', 'avatar', 'signed', 'super', 'status', 'remark', 'login_ip', 'login_time', 'extra', 'created_by', 'updated_by', 'created_at', 'updated_at', 'deleted_at'];
+    protected array $fillable = ['id', 'tenant_id', 'username', 'nickname', 'phone', 'email', 'password', 'avatar', 'signed', 'status', 'remark', 'login_ip', 'login_time', 'extra', 'created_by', 'updated_by', 'created_at', 'updated_at', 'deleted_at', 'super'];
 
     protected array $logRules = [
         'name' => '系统用户',

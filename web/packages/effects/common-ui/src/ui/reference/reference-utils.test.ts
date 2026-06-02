@@ -38,6 +38,19 @@ describe('reference-utils', () => {
     expect(referenceDisplayText(segment.reference)).toBe('#P3 智慧厨房');
   });
 
+  it('renders project version labels without visible internal ids', () => {
+    for (const value of ['#v4[v3.0]', '#v4[V3.0]', '#v4[3.0]']) {
+      const segment = parseReferenceSegments(value)[0];
+      if (segment.type !== 'reference') throw new Error('reference expected');
+
+      expect(segment.reference.code).toBe('v');
+      expect(segment.reference.id).toBe(4);
+      expect(referenceDisplayText(segment.reference)).toBe('#V3.0');
+      expect(referenceClickableText(segment.reference)).toBe('#V3.0');
+      expect(referenceTrailingText(segment.reference)).toBe('');
+    }
+  });
+
   it('keeps chinese punctuation boundaries after hidden labels', () => {
     const segments = parseReferenceSegments('#s1[任务]，#t1[测试]');
 
@@ -85,6 +98,8 @@ describe('reference-utils', () => {
       expect(html).toContain('data-reference-code="p"');
       expect(html).toContain('data-reference-code="v"');
       expect(html).toContain('>#P3</span> 智慧厨房');
+      expect(html).toContain('>#V1.0</span>');
+      expect(html).not.toContain('#V4');
       expect(html).toContain('<code>#s2</code>');
     } finally {
       Object.defineProperty(document, 'createTreeWalker', { configurable: true, value: originalCreateTreeWalker });

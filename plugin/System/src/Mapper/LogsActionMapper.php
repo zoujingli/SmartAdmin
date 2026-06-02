@@ -143,6 +143,14 @@ final class LogsActionMapper extends CoreMapper
     }
 
     /**
+     * 构建日志统计查询入口。
+     */
+    public function makeLogQuery(array $params = [], bool $isScope = true): Builder
+    {
+        return $this->makeStatsQuery($params, $isScope);
+    }
+
+    /**
      * 详情、删除、恢复等按 ID 操作与列表保持同一平台日志可见性。
      */
     protected function applyOperationScope(Builder $query): Builder
@@ -162,14 +170,6 @@ final class LogsActionMapper extends CoreMapper
         $isScope && ($query = $this->applyDataScope($query, 'created_by'));
 
         return $this->handleSearch($query, $params);
-    }
-
-    /**
-     * 构建日志统计查询入口。
-     */
-    public function makeLogQuery(array $params = [], bool $isScope = true): Builder
-    {
-        return $this->makeStatsQuery($params, $isScope);
     }
 
     /**

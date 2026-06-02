@@ -39,6 +39,9 @@ export function hasReference(value: string) {
 
 export function referenceDisplayText(reference: ReferenceItem) {
   const label = normalizeReferenceLabel(reference.label || '');
+  if (isVersionReference(reference) && label) {
+    return versionReferenceDisplayText(reference);
+  }
   if (label) {
     return reference.prefix === '@' ? `@${label}` : `${referenceTokenText(reference)} ${label}`;
   }
@@ -53,11 +56,17 @@ export function referenceTokenText(reference: ReferenceItem) {
 }
 
 export function referenceClickableText(reference: ReferenceItem) {
+  if (isVersionReference(reference) && normalizeReferenceLabel(reference.label || '')) {
+    return versionReferenceDisplayText(reference);
+  }
+
   return reference.prefix === '#' ? referenceTokenText(reference) : referenceDisplayText(reference);
 }
 
 export function referenceTrailingText(reference: ReferenceItem) {
   if (reference.prefix !== '#') return '';
+  if (isVersionReference(reference) && normalizeReferenceLabel(reference.label || '')) return '';
+
   const label = normalizeReferenceLabel(reference.label || '');
 
   return label ? ` ${label}` : '';
@@ -201,4 +210,18 @@ export function referenceFromDataset(element: HTMLElement): ReferenceItem | null
 
 function normalizeReferenceLabel(value: string) {
   return String(value || '').replace(/\s+/gu, ' ').trim();
+}
+
+function isVersionReference(reference: ReferenceItem) {
+  return reference.prefix === '#' && reference.code.toLowerCase() === 'v';
+}
+
+function versionReferenceDisplayText(reference: ReferenceItem) {
+  const version = normalizeVersionReferenceLabel(reference.label || '');
+
+  return version !== '' ? `#V${version}` : referenceTokenText(reference);
+}
+
+function normalizeVersionReferenceLabel(value: string) {
+  return normalizeReferenceLabel(value).replace(/^v(?=\d)/iu, '');
 }

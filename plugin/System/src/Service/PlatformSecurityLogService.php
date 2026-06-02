@@ -34,8 +34,8 @@ final class PlatformSecurityLogService extends CoreService
      */
     public function write(array $data): void
     {
-        unset($data['tenant_id']);
-        unset($data['change_payload']);
+        unset($data['tenant_id'], $data['change_payload']);
+
         $this->logger->warning('platform-security', $data);
     }
 }

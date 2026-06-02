@@ -1,12 +1,22 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Tests\Unit\System\Service;
 
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * @internal
+ */
 #[CoversNothing]
 final class TenantSuperContractTest extends TestCase
 {
@@ -43,13 +53,27 @@ final class TenantSuperContractTest extends TestCase
     {
         $mapper = $this->source('plugin/System/src/Mapper/UserMapper.php');
         $service = $this->source('plugin/System/src/Service/UserService.php');
+        $controller = $this->source('plugin/System/src/Controller/UserController.php');
+        $form = $this->source('plugin/System/stc/view/user/modules/form-simple.vue');
+        $coreMapper = $this->source('plugin/Library/CoreMapper.php');
 
         $this->assertStringContainsString('$scopeUser instanceof SystemUser && $scopeUser->isSuper()', $mapper);
         $this->assertStringContainsString('return;', $mapper);
         $this->assertStringContainsString('user(SystemUser::class)?->isSuper()', $service);
         $this->assertStringContainsString('TenantContext::withExplicitTenantWrite($callback)', $service);
         $this->assertStringNotContainsString('System::isPlatformTenant()', $service);
-        $this->assertStringContainsString('applyRequestedTenantScope($query, $params)', $mapper);
+        $this->assertStringContainsString('getRelationOptions', $service);
+        $this->assertStringContainsString('CoreMapper::withSystemUserRelationTenantScope', $service);
+        foreach (['system.dept.index', 'system.role.index', 'system.post.index'] as $code) {
+            $this->assertStringContainsString("hasPermission('{$code}')", $service);
+        }
+        $this->assertStringContainsString("path: 'relation-options'", $controller);
+        $this->assertStringContainsString('userApiService.getRelationOptions(params)', $form);
+        $this->assertStringNotContainsString('roleApiService.getRoleOptions(params)', $form);
+        $this->assertStringNotContainsString('deptApiService.getDeptTree(params)', $form);
+        $this->assertStringNotContainsString('postApiService.getPostOptions(params)', $form);
+        $this->assertStringContainsString('REQUESTED_TENANT_SCOPE_CONTEXT', $coreMapper);
+        $this->assertStringContainsString('Context::get(self::REQUESTED_TENANT_SCOPE_CONTEXT)', $coreMapper);
     }
 
     public function testTenantSuperMenusDoNotDependOnManualRoleMenuBinding(): void
@@ -105,10 +129,24 @@ final class TenantSuperContractTest extends TestCase
     private function source(string $path): string
     {
         $root = dirname(__DIR__, 4);
-        $source = (string)file_get_contents($root . '/' . $path);
+        $candidates = [$root . '/' . $path];
 
-        $this->assertNotSame('', $source, sprintf('Source file must be readable: %s', $path));
+        if (str_starts_with($path, 'plugin/Library/')) {
+            // Developer 仓保留 plugin/Library；公开 SmartAdmin 仓通过 Composer path 包安装到 vendor。
+            $candidates[] = $root . '/vendor/zoujingli/smart-admin-library/' . substr($path, strlen('plugin/Library/'));
+        }
 
-        return $source;
+        foreach ($candidates as $candidate) {
+            if (!is_file($candidate)) {
+                continue;
+            }
+
+            $source = (string)file_get_contents($candidate);
+            if ($source !== '') {
+                return $source;
+            }
+        }
+
+        $this->fail(sprintf('Source file must be readable: %s', $path));
     }
 }

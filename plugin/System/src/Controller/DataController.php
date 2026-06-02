@@ -99,7 +99,7 @@ final class DataController extends CoreController
      * 清理系统业务缓存。
      */
     #[PostMapping(path: 'clear-cache')]
-    #[Auth(name: '清理业务缓存', type: Auth::CHECK, menu: false, code: 'system.data.clear-cache')]
+    #[Auth(name: '清理业务缓存', type: Auth::LOGIN, menu: false)]
     #[Logger(name: '清理业务缓存')]
     public function clearCache(): array
     {

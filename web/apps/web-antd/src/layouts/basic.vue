@@ -47,10 +47,7 @@ const currentEntry = computed(() => getAuthEntryByUserInfo(userStore.userInfo) |
 const currentEntryConfig = computed(() => getAuthEntryConfig(currentEntry.value));
 const isPluginClient = computed(() => isPluginAuthEntry(currentEntry.value));
 const showDot = computed(() => !isPluginClient.value && unreadCount.value > 0);
-const canClearBusinessCache = computed(() => !isPluginClient.value && (
-  accessStore.accessCodes.includes('*')
-  || accessStore.accessCodes.includes('system.data.clear-cache')
-));
+const canRefreshCache = computed(() => !isPluginClient.value && Boolean(accessStore.accessToken));
 
 function formatNoticeDate(value?: null | string) {
   return value || '刚刚';
@@ -103,12 +100,12 @@ const menus = computed(() => {
     },
   ];
 
-  if (canClearBusinessCache.value) {
+  if (canRefreshCache.value) {
+    const isSuper = accessStore.accessCodes.includes('*');
     items.push({
-      text: '清理缓存',
+      text: isSuper ? '清理缓存' : '刷新我的缓存',
       icon: 'lucide:brush-cleaning',
       handler: () => {
-        const isSuper = accessStore.accessCodes.includes('*');
         Modal.confirm({
           title: isSuper ? '确认清理全站业务缓存？' : '确认清理我的缓存？',
           content: isSuper

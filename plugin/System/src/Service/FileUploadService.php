@@ -530,10 +530,8 @@ final class FileUploadService
 
         return TenantContext::withTenant($tenantId, function () use ($payload): SystemFile {
             return TenantContext::withExplicitTenantWrite(function () use ($payload): SystemFile {
-                /** @var SystemFile $file */
-                $file = SystemFile::query()->create($payload);
-
-                return $file;
+                /* @var SystemFile $file */
+                return SystemFile::query()->create($payload);
             });
         });
     }

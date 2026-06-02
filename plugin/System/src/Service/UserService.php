@@ -17,6 +17,7 @@ use Hyperf\DbConnection\Db;
 use Lcobucci\JWT\Token as JwtToken;
 use Library\Constants\DataField;
 use Library\Constants\Status;
+use Library\CoreMapper;
 use Library\CoreService;
 use Library\Exception\ErrorResponseException;
 use Library\Interfaces\UserModelInterface;
@@ -40,6 +41,9 @@ final class UserService extends CoreService
         protected UserAuthorizationBoundaryService $boundary,
         protected UserRelationAssignmentService $relations,
         protected UserPasswordCredentialService $passwords,
+        protected DeptService $depts,
+        protected RoleService $roles,
+        protected PostService $posts,
     ) {}
 
     /**
@@ -117,6 +121,22 @@ final class UserService extends CoreService
         Context::set($cacheKey, $userData);
 
         return $userData;
+    }
+
+    /**
+     * 系统用户管理加载关联选项的唯一跨租户读取入口；目标租户只服务于用户分配表单，不开放给普通业务列表。
+     *
+     * @return array{depts:array<int,array<string,mixed>>,roles:array<int,array<string,mixed>>,posts:array<int,array<string,mixed>>}
+     */
+    public function getRelationOptions(array $params = []): array
+    {
+        $user = user(SystemUser::class);
+
+        return CoreMapper::withSystemUserRelationTenantScope(fn (): array => [
+            'depts' => $user instanceof SystemUser && $user->hasPermission('system.dept.index') ? $this->depts->getTree($params) : [],
+            'roles' => $user instanceof SystemUser && $user->hasPermission('system.role.index') ? $this->roles->getOptions($params) : [],
+            'posts' => $user instanceof SystemUser && $user->hasPermission('system.post.index') ? $this->posts->getOptions($params) : [],
+        ]);
     }
 
     /**

@@ -344,6 +344,11 @@ final class SmartEntrypoint
  */
 final class SmartWatchRunner
 {
+    /**
+     * @var null|resource
+     */
+    private mixed $watchLock = null;
+
     public function __construct(
         private readonly string $root,
         private readonly string $runner
@@ -358,6 +363,13 @@ final class SmartWatchRunner
         }
 
         $port = (int)($this->readEnv('APP_WORKER_PORT') ?: 9501);
+        if (!$this->terminateRunningWatchProcesses()) {
+            return 1;
+        }
+        if (!$this->acquireWatchLock()) {
+            return 0;
+        }
+
         $procManager = new SmartWatchProcessManager($this->runner, [$worker, 'start'], $worker, $port, $this->root);
         $fileWatcher = new SmartWatchFileWatcher($this->root, 'env,php', [
             '.git',
@@ -411,6 +423,126 @@ final class SmartWatchRunner
         }
 
         return null;
+    }
+
+    private function terminateRunningWatchProcesses(): bool
+    {
+        $currentPid = (int)getmypid();
+        $pids = [];
+        $output = [];
+        @exec('ps -eo pid=,command=', $output);
+        foreach ($output as $line) {
+            $line = trim((string)$line);
+            if ($line === '' || !preg_match('/^(\d+)\s+(.+)$/', $line, $matches)) {
+                continue;
+            }
+
+            $pid = (int)$matches[1];
+            $command = (string)$matches[2];
+            if ($pid === $currentPid || !str_contains($command, $this->root . '/bin/smart.php __watch')) {
+                continue;
+            }
+
+            $pids[] = $pid;
+        }
+
+        $pids = array_values(array_unique($pids));
+        if ($pids === []) {
+            return true;
+        }
+
+        // 新 watch 负责接管同仓库旧 watch：先让旧父进程走 SIGTERM 清理子服务，
+        // 超时仍未退出再升级 SIGKILL，避免多份 watch 互相清理同一个端口和 Worker。
+        SmartWatchLogger::warning(sprintf(
+            '⚠️ Stopping old SmartAdmin watch PIDS [%s]; current watch will take over.%s',
+            implode(',', $pids),
+            PHP_EOL
+        ));
+        foreach ($pids as $pid) {
+            @Process::kill($pid, SIGTERM);
+        }
+
+        $alive = $this->waitProcessesExit($pids, 5000);
+        if ($alive !== []) {
+            SmartWatchLogger::warning(sprintf(
+                '⚠️ Force killing old SmartAdmin watch PIDS [%s].%s',
+                implode(',', $alive),
+                PHP_EOL
+            ));
+            foreach ($alive as $pid) {
+                @Process::kill($pid, SIGKILL);
+            }
+            $alive = $this->waitProcessesExit($alive, 2000);
+        }
+
+        if ($alive !== []) {
+            SmartWatchLogger::error(sprintf(
+                '停止旧 watch 失败，仍在运行的 PIDS：[%s]。%s',
+                implode(',', $alive),
+                PHP_EOL
+            ));
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * @param int[] $pids
+     * @return int[]
+     */
+    private function waitProcessesExit(array $pids, int $timeoutMs): array
+    {
+        $deadline = microtime(true) + ($timeoutMs / 1000);
+        do {
+            $alive = array_values(array_filter($pids, static fn (int $pid): bool => @Process::kill($pid, 0)));
+            if ($alive === []) {
+                return [];
+            }
+            usleep(200000);
+        } while (microtime(true) < $deadline);
+
+        return array_values(array_filter($pids, static fn (int $pid): bool => @Process::kill($pid, 0)));
+    }
+
+    private function acquireWatchLock(): bool
+    {
+        $dir = $this->root . '/runtime';
+        if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
+            SmartWatchLogger::error('无法创建 watch 锁目录：' . $dir . PHP_EOL);
+            return false;
+        }
+
+        $lockFile = $dir . '/watch.lock';
+        $handle = @fopen($lockFile, 'c+');
+        if ($handle === false) {
+            SmartWatchLogger::error('无法创建 watch 锁文件：' . $lockFile . PHP_EOL);
+            return false;
+        }
+
+        if (!flock($handle, LOCK_EX | LOCK_NB)) {
+            rewind($handle);
+            $meta = json_decode((string)stream_get_contents($handle), true);
+            $pid = is_array($meta) ? (int)($meta['pid'] ?? 0) : 0;
+            SmartWatchLogger::warning(sprintf(
+                '⚠️ SmartAdmin watch 已在运行%s，当前 watch 未能获取接管锁，请稍后重试。%s',
+                $pid > 0 ? ' (pid=' . $pid . ')' : '',
+                PHP_EOL
+            ));
+            fclose($handle);
+            return false;
+        }
+
+        ftruncate($handle, 0);
+        rewind($handle);
+        fwrite($handle, json_encode([
+            'pid' => (int)getmypid(),
+            'root' => $this->root,
+            'started_at' => date('c'),
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . PHP_EOL);
+        fflush($handle);
+        $this->watchLock = $handle;
+        return true;
     }
 }
 

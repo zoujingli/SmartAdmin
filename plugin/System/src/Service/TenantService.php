@@ -109,6 +109,22 @@ final class TenantService extends CoreService
         }
     }
 
+    public function delete(array|int $ids): bool
+    {
+        $this->assertDefaultTenantIdsMutable(str2arr($ids), '删除');
+
+        return $this->mapper->delete(str2arr($ids));
+    }
+
+    public function delreal(array|int $ids): bool
+    {
+        $idArray = str2arr($ids);
+        $this->assertDefaultTenantIdsMutable($idArray, '彻底删除');
+        $this->assertTenantsHaveNoBusinessData($idArray);
+
+        return $this->mapper->delreal($idArray);
+    }
+
     protected function filterData(array &$data, array $exists = []): array
     {
         $isDefaultTenant = (int)($exists['id'] ?? 0) === TenantContext::DEFAULT_TENANT_ID;
@@ -159,22 +175,6 @@ final class TenantService extends CoreService
         $this->ensureUniqueField('name', $data, $exists, '租户名称已存在');
 
         return $data;
-    }
-
-    public function delete(array|int $ids): bool
-    {
-        $this->assertDefaultTenantIdsMutable(str2arr($ids), '删除');
-
-        return $this->mapper->delete(str2arr($ids));
-    }
-
-    public function delreal(array|int $ids): bool
-    {
-        $idArray = str2arr($ids);
-        $this->assertDefaultTenantIdsMutable($idArray, '彻底删除');
-        $this->assertTenantsHaveNoBusinessData($idArray);
-
-        return $this->mapper->delreal($idArray);
     }
 
     /**

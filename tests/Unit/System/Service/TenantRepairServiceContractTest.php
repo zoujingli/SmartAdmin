@@ -1,12 +1,22 @@
 <?php
 
 declare(strict_types=1);
+/**
+ * This file is part of SmartAdmin.
+ *
+ * @contact Anyon <zoujingli@qq.com>
+ * @license https://github.com/zoujingli/SmartAdmin/blob/master/LICENSE
+ * @document https://zoujingli.github.io/SmartAdmin
+ */
 
 namespace Tests\Unit\System\Service;
 
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * @internal
+ */
 #[CoversNothing]
 final class TenantRepairServiceContractTest extends TestCase
 {
@@ -42,8 +52,8 @@ final class TenantRepairServiceContractTest extends TestCase
         $this->assertStringContainsString('whereIn(\'id\', $deleteIds)->delete()', $repair);
         $this->assertStringContainsString("'kept_id' => \$keepId", $repair);
         $this->assertStringContainsString("'deleted_ids' => \$deleteIds", $repair);
-        $this->assertStringContainsString("kept_id=%d", $command);
-        $this->assertStringContainsString("deleted_ids=%s", $command);
+        $this->assertStringContainsString('kept_id=%d', $command);
+        $this->assertStringContainsString('deleted_ids=%s', $command);
         $this->assertStringContainsString('recent_id=%d recent_created_at=%s recent_updated_at=%s', $command);
         $this->assertStringContainsString('log router=%s code=%s username=%s rows=%d recent_id=%d recent_created_at=%s', $command);
         $this->assertStringContainsString('platform log rows', $command);
@@ -54,9 +64,9 @@ final class TenantRepairServiceContractTest extends TestCase
         $this->assertStringContainsString('getDoctrineSchemaManager()->listTableNames()', $repair);
         $this->assertStringContainsString('$table !== self::PLATFORM_LOG_TABLE', $repair);
         $this->assertStringContainsString("'system_logs_change'", $repair);
-        $this->assertMatchesRegularExpression('/tenant_rows[\\s\\S]+legacy_upload_config/', $repair);
+        $this->assertMatchesRegularExpression('/tenant_rows[\s\S]+legacy_upload_config/', $repair);
         $this->assertStringContainsString('TenantRepairService())->repair($dryRun)', $bootstrap);
-        $this->assertStringContainsString("xadmin:tenant:repair", $command);
+        $this->assertStringContainsString('xadmin:tenant:repair', $command);
         $this->assertStringContainsString("addOption('dry-run'", $command);
         $this->assertStringContainsString('withoutSqlConsoleNoise', $command);
         $this->assertStringContainsString('DbQueryListener::CONTEXT_SUPPRESS_SQL_LOG', $command);

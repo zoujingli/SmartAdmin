@@ -271,127 +271,6 @@ final class TenantRepairService extends CoreService
     }
 
     /**
-     * 上传配置按 tenant_id 唯一；历史 0/null 行需要先合并到默认租户，避免通用批量 update 撞唯一键。
-     *
-     * @return array{rows:int,kept_id:int,deleted_ids:list<int>}
-     */
-    private function repairUploadConfigZeroTenantRows(bool $dryRun): array
-    {
-        if (!Schema::hasTable('system_upload_config')) {
-            return ['rows' => 0, 'kept_id' => 0, 'deleted_ids' => []];
-        }
-
-        $dirtyQuery = Db::table('system_upload_config')
-            ->where(static function ($query): void {
-                $query->whereNull('tenant_id')->orWhere('tenant_id', '<=', TenantContext::UNSET_TENANT_ID);
-            });
-        $count = (int)$dirtyQuery->count();
-        if ($count <= 0) {
-            return ['rows' => 0, 'kept_id' => 0, 'deleted_ids' => []];
-        }
-
-        $defaultExists = Db::table('system_upload_config')
-            ->where('tenant_id', TenantContext::DEFAULT_TENANT_ID)
-            ->exists();
-        $dirtyRows = Db::table('system_upload_config')
-            ->where(static function ($query): void {
-                $query->whereNull('tenant_id')->orWhere('tenant_id', '<=', TenantContext::UNSET_TENANT_ID);
-            })
-            ->orderByDesc('updated_at')
-            ->orderByDesc('id')
-            ->get(['id'])
-            ->all();
-        if ($dirtyRows === []) {
-            return ['rows' => $count, 'kept_id' => 0, 'deleted_ids' => []];
-        }
-
-        $keepId = 0;
-        if (!$defaultExists) {
-            $keepId = (int)($dirtyRows[0]->id ?? 0);
-            if (!$dryRun && $keepId > 0) {
-                // 默认租户没有配置时保留最近更新的一条历史配置，其余脏行删除，避免唯一键冲突。
-                Db::table('system_upload_config')->where('id', $keepId)->update([
-                    'tenant_id' => TenantContext::DEFAULT_TENANT_ID,
-                    'deleted_at' => null,
-                    'updated_at' => date('Y-m-d H:i:s'),
-                ]);
-            }
-        }
-
-        $deleteIds = array_values(array_filter(array_map(
-            static fn (object $row): int => (int)($row->id ?? 0),
-            $dirtyRows
-        ), static fn (int $id): bool => $id > 0 && $id !== $keepId));
-        if (!$dryRun && $deleteIds !== []) {
-            Db::table('system_upload_config')->whereIn('id', $deleteIds)->delete();
-        }
-
-        return ['rows' => $count, 'kept_id' => $keepId, 'deleted_ids' => $deleteIds];
-    }
-
-    /**
-     * 为 tenant_id=0/null 修复报告提供只读摘要；摘要在真正 update 前生成，用于定位旧实例或异常入口。
-     *
-     * @return array{recent_id:int,recent_created_at:?string,recent_updated_at:?string,log_summary?:list<array{router:string,response_code:string,username:string,rows:int,recent_id:int,recent_created_at:?string}>}
-     */
-    private function tenantDirtyRowDiagnostics(string $table): array
-    {
-        $recent = Db::table($table)
-            ->where(static function ($query): void {
-                $query->whereNull('tenant_id')->orWhere('tenant_id', '<=', TenantContext::UNSET_TENANT_ID);
-            })
-            ->orderByDesc(Schema::hasColumn($table, 'id') ? 'id' : 'tenant_id')
-            ->first([
-                Schema::hasColumn($table, 'id') ? 'id' : Db::raw('0 as id'),
-                Schema::hasColumn($table, 'created_at') ? 'created_at' : Db::raw('NULL as created_at'),
-                Schema::hasColumn($table, 'updated_at') ? 'updated_at' : Db::raw('NULL as updated_at'),
-            ]);
-
-        $diagnostics = [
-            'recent_id' => (int)($recent->id ?? 0),
-            'recent_created_at' => $this->nullableDateString($recent->created_at ?? null),
-            'recent_updated_at' => $this->nullableDateString($recent->updated_at ?? null),
-        ];
-
-        if ($table === 'system_logs_action') {
-            $diagnostics['log_summary'] = array_map(
-                static fn (object $row): array => [
-                    'router' => (string)($row->router ?? ''),
-                    'response_code' => (string)($row->response_code ?? ''),
-                    'username' => (string)($row->username ?? ''),
-                    'rows' => (int)($row->rows ?? 0),
-                    'recent_id' => (int)($row->recent_id ?? 0),
-                    'recent_created_at' => isset($row->recent_created_at) ? (string)$row->recent_created_at : null,
-                ],
-                Db::table($table)
-                    ->select('router', 'response_code', 'username')
-                    ->selectRaw('COUNT(*) AS rows')
-                    ->selectRaw('MAX(id) AS recent_id')
-                    ->selectRaw('MAX(created_at) AS recent_created_at')
-                    ->where(static function ($query): void {
-                        $query->whereNull('tenant_id')->orWhere('tenant_id', '<=', TenantContext::UNSET_TENANT_ID);
-                    })
-                    ->groupBy('router', 'response_code', 'username')
-                    ->orderByDesc('recent_id')
-                    ->limit(10)
-                    ->get()
-                    ->all()
-            );
-        }
-
-        return $diagnostics;
-    }
-
-    private function nullableDateString(mixed $value): ?string
-    {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        return (string)$value;
-    }
-
-    /**
      * 将旧全局 system_data.config_upload 仅迁移到固定默认租户 1，其它租户后续使用内置默认配置自行维护。
      *
      * @return array{created:bool,updated:bool,skipped:bool}
@@ -592,6 +471,127 @@ final class TenantRepairService extends CoreService
             'legacy_upload_config' => $this->migrateLegacyUploadConfigToDefaultTenant($dryRun),
             'tenant_super_users' => $this->ensureTenantSuperUsers($dryRun),
         ];
+    }
+
+    /**
+     * 上传配置按 tenant_id 唯一；历史 0/null 行需要先合并到默认租户，避免通用批量 update 撞唯一键。
+     *
+     * @return array{rows:int,kept_id:int,deleted_ids:list<int>}
+     */
+    private function repairUploadConfigZeroTenantRows(bool $dryRun): array
+    {
+        if (!Schema::hasTable('system_upload_config')) {
+            return ['rows' => 0, 'kept_id' => 0, 'deleted_ids' => []];
+        }
+
+        $dirtyQuery = Db::table('system_upload_config')
+            ->where(static function ($query): void {
+                $query->whereNull('tenant_id')->orWhere('tenant_id', '<=', TenantContext::UNSET_TENANT_ID);
+            });
+        $count = (int)$dirtyQuery->count();
+        if ($count <= 0) {
+            return ['rows' => 0, 'kept_id' => 0, 'deleted_ids' => []];
+        }
+
+        $defaultExists = Db::table('system_upload_config')
+            ->where('tenant_id', TenantContext::DEFAULT_TENANT_ID)
+            ->exists();
+        $dirtyRows = Db::table('system_upload_config')
+            ->where(static function ($query): void {
+                $query->whereNull('tenant_id')->orWhere('tenant_id', '<=', TenantContext::UNSET_TENANT_ID);
+            })
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->get(['id'])
+            ->all();
+        if ($dirtyRows === []) {
+            return ['rows' => $count, 'kept_id' => 0, 'deleted_ids' => []];
+        }
+
+        $keepId = 0;
+        if (!$defaultExists) {
+            $keepId = (int)($dirtyRows[0]->id ?? 0);
+            if (!$dryRun && $keepId > 0) {
+                // 默认租户没有配置时保留最近更新的一条历史配置，其余脏行删除，避免唯一键冲突。
+                Db::table('system_upload_config')->where('id', $keepId)->update([
+                    'tenant_id' => TenantContext::DEFAULT_TENANT_ID,
+                    'deleted_at' => null,
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ]);
+            }
+        }
+
+        $deleteIds = array_values(array_filter(array_map(
+            static fn (object $row): int => (int)($row->id ?? 0),
+            $dirtyRows
+        ), static fn (int $id): bool => $id > 0 && $id !== $keepId));
+        if (!$dryRun && $deleteIds !== []) {
+            Db::table('system_upload_config')->whereIn('id', $deleteIds)->delete();
+        }
+
+        return ['rows' => $count, 'kept_id' => $keepId, 'deleted_ids' => $deleteIds];
+    }
+
+    /**
+     * 为 tenant_id=0/null 修复报告提供只读摘要；摘要在真正 update 前生成，用于定位旧实例或异常入口。
+     *
+     * @return array{recent_id:int,recent_created_at:?string,recent_updated_at:?string,log_summary?:list<array{router:string,response_code:string,username:string,rows:int,recent_id:int,recent_created_at:?string}>}
+     */
+    private function tenantDirtyRowDiagnostics(string $table): array
+    {
+        $recent = Db::table($table)
+            ->where(static function ($query): void {
+                $query->whereNull('tenant_id')->orWhere('tenant_id', '<=', TenantContext::UNSET_TENANT_ID);
+            })
+            ->orderByDesc(Schema::hasColumn($table, 'id') ? 'id' : 'tenant_id')
+            ->first([
+                Schema::hasColumn($table, 'id') ? 'id' : Db::raw('0 as id'),
+                Schema::hasColumn($table, 'created_at') ? 'created_at' : Db::raw('NULL as created_at'),
+                Schema::hasColumn($table, 'updated_at') ? 'updated_at' : Db::raw('NULL as updated_at'),
+            ]);
+
+        $diagnostics = [
+            'recent_id' => (int)($recent->id ?? 0),
+            'recent_created_at' => $this->nullableDateString($recent->created_at ?? null),
+            'recent_updated_at' => $this->nullableDateString($recent->updated_at ?? null),
+        ];
+
+        if ($table === 'system_logs_action') {
+            $diagnostics['log_summary'] = array_map(
+                static fn (object $row): array => [
+                    'router' => (string)($row->router ?? ''),
+                    'response_code' => (string)($row->response_code ?? ''),
+                    'username' => (string)($row->username ?? ''),
+                    'rows' => (int)($row->rows ?? 0),
+                    'recent_id' => (int)($row->recent_id ?? 0),
+                    'recent_created_at' => isset($row->recent_created_at) ? (string)$row->recent_created_at : null,
+                ],
+                Db::table($table)
+                    ->select('router', 'response_code', 'username')
+                    ->selectRaw('COUNT(*) AS rows')
+                    ->selectRaw('MAX(id) AS recent_id')
+                    ->selectRaw('MAX(created_at) AS recent_created_at')
+                    ->where(static function ($query): void {
+                        $query->whereNull('tenant_id')->orWhere('tenant_id', '<=', TenantContext::UNSET_TENANT_ID);
+                    })
+                    ->groupBy('router', 'response_code', 'username')
+                    ->orderByDesc('recent_id')
+                    ->limit(10)
+                    ->get()
+                    ->all()
+            );
+        }
+
+        return $diagnostics;
+    }
+
+    private function nullableDateString(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return (string)$value;
     }
 
     private function hasEnabledTenantSuperUser(int $tenantId): bool
