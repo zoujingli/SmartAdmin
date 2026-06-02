@@ -18,6 +18,8 @@
 
 - AI 修改代码前必须先判断影响面是否会进入 `SmartAdminDeveloper`、`SmartAdminLibrary`、`SmartAdminBuilder`、`SmartAdmin` 四仓同步链；涉及 Composer 包、公开导出、GitHub Actions、Release、Tag 的改动必须同时考虑目标仓 CI，而不能只看 Developer 仓本地测试。
 - 同一轮同步或替换 Tag 时，公开仓 CI 不得依赖 Packagist 或远程包缓存的即时刷新；基础库/构建器在发布工作流中应使用本次导出的 path 包，公开仓自身 CI 应优先使用 GitHub VCS 仓库解析 `smart-admin-library` 与 `smart-admin-builder`。
+- 修改 GitHub Actions 时必须显式区分仓库边界：只适用于公开 `zoujingli/SmartAdmin` 的 Composer 包源、别名版本或同步跳过逻辑必须使用 `GITHUB_REPOSITORY`、事件类型和分支/Tag 条件限制，不能影响 `SmartAdminDeveloper` 私有仓本地 path 包验证。
+- 公开 `SmartAdmin` 的分支/PR CI 应解析 `SmartAdminLibrary` 与 `SmartAdminBuilder` 的 `dev-master`，避免刚同步 master 后仍被旧 Tag 或 Packagist 元数据命中；Tag 发布和 Release 同步必须优先使用本次导出的源码或 path 包，不能把旧远程包当作发布依据。
 - 修复同步/发布问题时必须补回归约束：工作流、导出脚本、Composer 仓库来源、公开仓过滤规则等都要有源码测试或脚本检查，避免后续 AI 编辑把稳定性修复改丢。
 - AI 不得为通过当前测试而删除目标仓必要校验；如果某项校验只适用于 Developer 私有仓，应在 workflow 或导出脚本中显式区分仓库边界，而不是让公开仓失败或静默跳过关键质量检查。
 - 提交前需要按改动范围运行验证；推送后如触发同步或发布，必须继续跟进 Developer 与公开目标仓 Actions，确认失败发生在哪个仓库、哪个 workflow、哪个步骤，再做源头修复。
@@ -170,6 +172,7 @@
 ## 提交规则
 
 - 提交前运行与改动范围匹配的验证命令。
+- 修改 workflow、Composer 包源、公开导出规则、Release 脚本或同步脚本时，提交前必须至少运行对应源码约束测试和 `git diff --check`；能本地模拟公开仓 Composer 解析时，应确认 `smart-admin-library`、`smart-admin-builder` 没有落到旧 Tag。
 - 提交信息使用中文描述，并带模块前缀，例如 `发布: ...`、`权限: ...`、`前端: ...`、`文档: ...`。
 - 不同模块尽量拆分提交，避免把无关格式化、文档、前端、后端混在一个提交里。
 - 不提交 `runtime`、`vendor`、`public`、`build`、前端 `web/dist`、前端 `dist.zip`、本地 `.env` 和 IDE 文件。
