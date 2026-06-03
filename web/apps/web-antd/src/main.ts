@@ -1,3 +1,5 @@
+import './utils/browser-compat';
+
 import { initPreferences } from '@vben/preferences';
 import { unmountGlobalLoading } from '@vben/utils';
 

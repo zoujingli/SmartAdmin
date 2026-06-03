@@ -473,7 +473,7 @@ export class FormApi {
             return [];
           }
           // 处理复杂分隔符的情况
-          const escapedSeparator = sep.replaceAll(
+          const escapedSeparator = sep.replace(
             /[.*+?^${}()|[\]\\]/g,
             String.raw`\$&`,
           );

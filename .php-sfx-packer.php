@@ -190,7 +190,7 @@ function runReleaseBuild(string $baseDir): void
 /**
  * 发布构建直接复用现有 web/dist，避免 composer build 隐式触发前端编译。
  *
- * 前端产物应由独立流水线或人工执行 composer web:build 生成；这里仅校验入口文件存在且非空，
+ * 前端产物应由独立流水线或人工执行 composer web:build 生成；这里校验入口与 static 资源存在，
  * 防止误用产物清理后的空目录继续打包出不可访问的发布包。
  */
 function assertFrontendDistReady(): void
@@ -199,8 +199,29 @@ function assertFrontendDistReady(): void
     if (!is_file($index) || filesize($index) <= 0) {
         throw new RuntimeException('构建失败：缺少可打包的前端产物 web/dist/index.html，请先生成或放置 web/dist');
     }
+    if (!hasFrontendStaticFile('web/dist/static')) {
+        throw new RuntimeException('构建失败：缺少可打包的前端静态资源 web/dist/static，请先执行 composer web:build');
+    }
 
     echo '[build] 复用现有前端产物 web/dist' . PHP_EOL;
+}
+
+function hasFrontendStaticFile(string $path): bool
+{
+    if (!is_dir($path)) {
+        return false;
+    }
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::LEAVES_ONLY
+    );
+    foreach ($iterator as $fileInfo) {
+        if ($fileInfo instanceof SplFileInfo && $fileInfo->isFile()) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /**
@@ -866,7 +887,7 @@ function auditReleaseInstallPackage(string $pharFile): array
 }
 
 /**
- * 审计 Phar 内 web-dist.zip：必须包含 index.html，并排除动态配置、本机元数据和不安全路径。
+ * 审计 Phar 内 web-dist.zip：必须包含 index.html + static/，并排除动态配置、本机元数据和不安全路径。
  *
  * @return string[]
  */
@@ -892,6 +913,7 @@ function auditFrontendArchive(string $pharFile): array
         }
 
         $hasIndex = false;
+        $hasStatic = false;
         try {
             for ($index = 0; $index < $zip->numFiles; ++$index) {
                 $name = $zip->getNameIndex($index);
@@ -915,6 +937,11 @@ function auditFrontendArchive(string $pharFile): array
                 }
                 if ($relative === 'index.html') {
                     $hasIndex = true;
+                } elseif (!str_starts_with($relative, 'static/')) {
+                    $errors[] = "前端资源包包含非 static 根路径：{$relative}";
+                }
+                if (str_starts_with($relative, 'static/')) {
+                    $hasStatic = true;
                 }
             }
         } finally {
@@ -923,6 +950,9 @@ function auditFrontendArchive(string $pharFile): array
 
         if (!$hasIndex) {
             $errors[] = '前端资源包缺少入口页：index.html';
+        }
+        if (!$hasStatic) {
+            $errors[] = '前端资源包缺少静态目录：static';
         }
     } finally {
         @unlink($tmp);

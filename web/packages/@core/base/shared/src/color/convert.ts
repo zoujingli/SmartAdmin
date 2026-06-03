@@ -38,7 +38,7 @@ function convertToHslCssVar(color: string): string {
  * @returns 如果颜色值有效，则返回对应的RGB颜色字符串；如果无效，则返回rgb(0, 0, 0)
  */
 function convertToRgb(str: string): string {
-  return new TinyColor(str.replaceAll(/deg|grad|rad|turn/g, '')).toRgbString();
+  return new TinyColor(str.replace(/deg|grad|rad|turn/g, '')).toRgbString();
 }
 
 /**

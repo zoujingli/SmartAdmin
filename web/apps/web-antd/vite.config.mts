@@ -15,6 +15,7 @@ const projectRoot = path.resolve(__dirname, '../../..');
 const pluginRoot = path.resolve(projectRoot, 'plugin');
 const appSrcRoot = path.resolve(__dirname, 'src');
 const appNodeModules = path.resolve(__dirname, 'node_modules');
+const faviconFile = path.resolve(__dirname, 'public/favicon.ico');
 const accessEntry = path.resolve(
   __dirname,
   '../../packages/effects/access/src/index.ts',
@@ -450,6 +451,25 @@ function pluginPagesVirtualModule(): Plugin {
   };
 }
 
+function staticFaviconPlugin(): Plugin {
+  return {
+    apply: 'build',
+    generateBundle() {
+      if (!fs.existsSync(faviconFile) || !fs.statSync(faviconFile).isFile()) {
+        return;
+      }
+
+      // 生产包只保留 index.html + static/，favicon 也作为前端静态资源收进 static。
+      this.emitFile({
+        fileName: 'static/favicon.ico',
+        source: fs.readFileSync(faviconFile),
+        type: 'asset',
+      });
+    },
+    name: 'xadmin-static-favicon',
+  };
+}
+
 function getPluginViewRoots(): string[] {
   if (!fs.existsSync(pluginRoot)) {
     return [];
@@ -491,6 +511,7 @@ function isPluginViewFile(file: string): boolean {
 
 const configure: DefineApplicationOptions = async (config?: ConfigEnv) => {
   const mode = config?.mode ?? 'development';
+  const isBuild = config?.command === 'build';
   const env = loadEnv(mode, process.cwd(), '');
   const proxyTarget = normalizeBackendUrl(
     env.VITE_PROXY_TARGET || 'http://127.0.0.1:9501',
@@ -522,14 +543,18 @@ const configure: DefineApplicationOptions = async (config?: ConfigEnv) => {
       : {};
 
   return {
-    application: {},
+    application: {
+      archiver: false,
+      extraAppConfigEmitFile: false,
+    },
     vite: {
       ...(Object.keys(devDefine).length > 0 ? { define: devDefine } : {}),
-      plugins: [pluginPagesVirtualModule()],
+      plugins: [pluginPagesVirtualModule(), staticFaviconPlugin()],
       build: {
         outDir: websiteOutDir,
         emptyOutDir: true,
       },
+      ...(isBuild ? { publicDir: false } : {}),
       resolve: {
         alias: [
           // 插件前端文件位于项目根 plugin/*/<plugin.view_root>，不在当前 app 包目录下。

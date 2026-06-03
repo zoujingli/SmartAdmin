@@ -110,7 +110,7 @@ function sortTree<T extends Record<string, any>>(
     childProps: 'children',
   };
 
-  return treeData.toSorted(sortFunction).map((item) => {
+  return [...treeData].sort(sortFunction).map((item) => {
     const children = item[childProps];
     if (children && Array.isArray(children) && children.length > 0) {
       return {

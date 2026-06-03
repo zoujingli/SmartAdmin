@@ -214,6 +214,12 @@ interface ApplicationPluginOptions extends CommonPluginOptions {
    */
   extraAppConfig?: boolean;
   /**
+   * 是否输出运行时配置文件
+   * @default true
+   * @description 关闭后仅向 HTML 注入运行时配置地址，由后端动态生成配置内容
+   */
+  extraAppConfigEmitFile?: boolean;
+  /**
    * 是否开启 HTML 插件
    * @default true
    */

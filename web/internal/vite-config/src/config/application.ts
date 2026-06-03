@@ -60,9 +60,31 @@ function defineApplicationConfig(userConfigPromise?: DefineApplicationOptions) {
       build: {
         rollupOptions: {
           output: {
-            assetFileNames: '[ext]/[name]-[hash].[ext]',
-            chunkFileNames: 'js/[name]-[hash].js',
-            entryFileNames: 'jse/index-[name]-[hash].js',
+            assetFileNames: (assetInfo) => {
+              const name = assetInfo.name ?? '';
+              const ext = path.extname(name).slice(1).toLowerCase();
+              const dir =
+                ext === 'css'
+                  ? 'css'
+                  : ['eot', 'otf', 'ttf', 'woff', 'woff2'].includes(ext)
+                    ? 'fonts'
+                    : [
+                          'avif',
+                          'gif',
+                          'ico',
+                          'jpg',
+                          'jpeg',
+                          'png',
+                          'svg',
+                          'webp',
+                        ].includes(ext)
+                      ? 'img'
+                      : ext || 'assets';
+
+              return `static/${dir}/[name]-[hash][extname]`;
+            },
+            chunkFileNames: 'static/js/[name]-[hash].js',
+            entryFileNames: 'static/js/index-[name]-[hash].js',
           },
         },
         target: 'es2015',

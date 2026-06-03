@@ -96,6 +96,7 @@ async function loadApplicationPlugins(
     compress,
     compressTypes,
     extraAppConfig,
+    extraAppConfigEmitFile,
     html,
     i18n,
     importmap,
@@ -203,7 +204,11 @@ async function loadApplicationPlugins(
     {
       condition: isBuild && extraAppConfig,
       plugins: async () => [
-        await viteExtraAppConfigPlugin({ isBuild: true, root: process.cwd() }),
+        await viteExtraAppConfigPlugin({
+          emitFile: extraAppConfigEmitFile,
+          isBuild: true,
+          root: process.cwd(),
+        }),
       ],
     },
     {

@@ -9,6 +9,7 @@ import {
 import { loadEnv } from '../utils/env';
 
 interface PluginOptions {
+  emitFile?: boolean;
   isBuild: boolean;
   root: string;
 }
@@ -22,6 +23,7 @@ const VBEN_ADMIN_PRO_APP_CONF = '_VBEN_ADMIN_PRO_APP_CONF_';
  */
 
 async function viteExtraAppConfigPlugin({
+  emitFile = true,
   isBuild,
   root,
 }: PluginOptions): Promise<PluginOption | undefined> {
@@ -40,6 +42,10 @@ async function viteExtraAppConfigPlugin({
       source = await getConfigSource();
     },
     async generateBundle() {
+      if (!emitFile) {
+        return;
+      }
+
       try {
         this.emitFile({
           fileName: GLOBAL_CONFIG_FILE_NAME,

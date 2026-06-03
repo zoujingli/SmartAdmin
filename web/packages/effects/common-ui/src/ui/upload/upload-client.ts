@@ -459,7 +459,7 @@ export async function uploadFile(
         });
         uploadedBytes = end;
         parts.push({
-          etag: (uploadResult.etag || '').replaceAll('"', ''),
+          etag: (uploadResult.etag || '').replace(/"/g, ''),
           part_number: partNumber,
         });
       }

@@ -455,7 +455,7 @@ function getFileAssetUrl(asset: UploadAsset) {
 }
 
 function escapeHtml(value: string) {
-  return value.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function sanitizePreviewHtml(value: string) {
