@@ -30,6 +30,7 @@ import { systemNoticeRoute } from '#/router/routes/static-system';
 import { useAuthStore } from '#/store';
 
 import { generateAccess } from './access';
+import { routeReentry, shouldRebuildAccessRoutes as shouldRebuildAccessRoutesForEntry } from './guard-routes';
 
 /**
  * 通用守卫配置
@@ -129,23 +130,14 @@ function setupAccessGuard(router: Router) {
     return getAuthEntryByRoutePath(path) === entry;
   }
 
-  function isFallbackRoute(to: RouteLocationNormalized): boolean {
-    return to.name === 'FallbackNotFound'
-      || to.matched.some((route) => route.name === 'FallbackNotFound');
-  }
-
   function shouldRebuildAccessRoutes(to: RouteLocationNormalized): boolean {
-    if (to.meta.ignoreAccess || coreRouteNames.includes(to.name as string)) {
-      return false;
-    }
-    if (!isFallbackRoute(to)) {
-      return false;
-    }
-
     const entry = getAuthEntry();
-    return isPluginAuthEntry(entry)
-      ? pathBelongsToEntry(to.path, entry)
-      : isSystemPath(to.path);
+    return shouldRebuildAccessRoutesForEntry(to, {
+      coreRouteNames,
+      isEntryPath: (path) => isPluginAuthEntry(entry)
+        ? pathBelongsToEntry(path, entry)
+        : isSystemPath(path),
+    });
   }
 
   function resetDynamicRoutesForRebuild() {
@@ -271,6 +263,14 @@ function setupAccessGuard(router: Router) {
 
     // 基本路由，这些路由不需要进入权限拦截
     if (coreRouteNames.includes(to.name as string)) {
+      if (to.meta.requireAuth && !accessStore.accessToken) {
+        const loginPath = getAuthLoginPath();
+        return {
+          path: loginPath,
+          query: { redirect: encodeURIComponent(to.fullPath) },
+          replace: true,
+        };
+      }
       const loginEntry = getLoginEntryByPath(to.path);
       const userEntry = getAuthEntryByUserInfo(userStore.userInfo);
       if (loginEntry && accessStore.accessToken && userEntry === loginEntry) {
@@ -333,12 +333,7 @@ function setupAccessGuard(router: Router) {
           accessRouteRebuildPaths.add(to.fullPath);
           resetDynamicRoutesForRebuild();
 
-          return {
-            hash: to.hash,
-            path: to.path,
-            query: to.query,
-            replace: true,
-          };
+          return routeReentry(to);
         }
 
         accessRouteRebuildPaths.delete(to.fullPath);
