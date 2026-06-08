@@ -130,6 +130,8 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
       const errorMessage =
         status === 401
           ? AUTH_EXPIRED_MESSAGE
+          : status === 502
+            ? '服务器暂不可用，请稍后重试或联系管理员'
           : responseData?.info ?? responseData?.error ?? responseData?.message ?? '';
 
       // 401 面向用户只展示简短登录失效文案，后端节点详情仅保留给接口响应和日志定位。

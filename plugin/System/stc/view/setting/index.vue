@@ -105,6 +105,14 @@
                   />
                 </FormItem>
               </Col>
+              <Col :span="24">
+                <FormItem label="启用模块引导页" name="module_guide_enable">
+                  <Switch
+                    v-model:checked="formState.module_guide_enable"
+                    :disabled="!canSaveSettings"
+                  />
+                </FormItem>
+              </Col>
             </Row>
           </Card>
         </Col>
@@ -228,6 +236,7 @@ const defaultSystemSetting: SettingApi.SystemSetting = {
   login_description: '融合权限治理、组织协同、数据安全与全链路审计能力',
   logo_url: '',
   logo_file_id: 0,
+  module_guide_enable: true,
   copyright_enable: true,
   company_name: 'SmartAdmin',
   company_site_link: '',
@@ -329,6 +338,7 @@ function normalizeSettingResponse(data: unknown): SettingApi.SystemSetting {
   return {
     ...defaultSystemSetting,
     ...source,
+    module_guide_enable: toBool(source.module_guide_enable, defaultSystemSetting.module_guide_enable),
     copyright_enable: toBool(source.copyright_enable, defaultSystemSetting.copyright_enable),
     logo_file_id: Number(source.logo_file_id || 0),
   };

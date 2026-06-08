@@ -28,6 +28,7 @@ import { getReferenceProvider } from './registry';
 import { parseReferenceSegments, referenceClickableText, referenceTrailingText } from './reference-utils';
 
 const props = withDefaults(defineProps<{
+  onReferenceClick?: (reference: ReferenceItem) => boolean | void;
   maskClosable?: boolean;
   providerKey?: string;
   value?: number | string | null;
@@ -46,6 +47,9 @@ function describe(reference: ReferenceItem) {
 }
 
 function openReference(reference: ReferenceItem) {
+  if (props.onReferenceClick?.(reference) === false) {
+    return;
+  }
   selectedReference.value = reference;
   drawerOpen.value = true;
 }

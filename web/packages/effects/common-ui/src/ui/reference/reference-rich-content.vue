@@ -14,6 +14,7 @@ import ReferenceDetailDrawer from './reference-detail-drawer.vue';
 import { referenceFromDataset, renderReferenceHtml } from './reference-utils';
 
 const props = withDefaults(defineProps<{
+  onReferenceClick?: (reference: ReferenceItem) => boolean | void;
   maskClosable?: boolean;
   providerKey?: string;
   value?: string;
@@ -34,6 +35,9 @@ function openFromEvent(event: Event) {
   if (!reference) return;
   event.preventDefault();
   event.stopPropagation();
+  if (props.onReferenceClick?.(reference) === false) {
+    return;
+  }
   selectedReference.value = reference;
   drawerOpen.value = true;
 }

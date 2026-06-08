@@ -56,7 +56,14 @@ export interface ReferenceDetail {
   sections?: ReferenceSection[];
 }
 
+export interface ReferenceDetailAction {
+  label: string;
+  onClick: () => unknown;
+  type?: 'primary' | 'default';
+}
+
 export interface ReferenceProvider {
+  detailAction?: (reference: ReferenceItem, detail: ReferenceDetail) => ReferenceDetailAction | null | undefined;
   describe?: (reference: ReferenceItem) => string;
   resolve: (reference: ReferenceItem) => Promise<ReferenceDetail>;
 }

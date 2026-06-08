@@ -30,7 +30,7 @@ import { systemNoticeRoute } from '#/router/routes/static-system';
 import { useAuthStore } from '#/store';
 
 import { generateAccess } from './access';
-import { routeReentry, shouldRebuildAccessRoutes as shouldRebuildAccessRoutesForEntry } from './guard-routes';
+import { shouldRebuildAccessRoutes as shouldRebuildAccessRoutesForEntry } from './guard-routes';
 
 /**
  * 通用守卫配置
@@ -167,6 +167,13 @@ function setupAccessGuard(router: Router) {
       return false;
     }
     if (path === LOGIN_PATH || isAuthLoginPath(path) || path.startsWith('/auth/')) {
+      return false;
+    }
+    if (['/403', '/404', '/500'].includes(path) || path.startsWith('/_core/fallback')) {
+      return false;
+    }
+    const resolved = router.resolve(path);
+    if (['Fallback403', 'Fallback404', 'Fallback500', 'FallbackNotFound'].includes(String(resolved.name || ''))) {
       return false;
     }
 
@@ -310,6 +317,7 @@ function setupAccessGuard(router: Router) {
     }
 
     // 是否已经生成过动态路由
+    let shouldForceRebuildAccess = false;
     if (accessStore.isAccessChecked) {
       await refreshAccessCodesIfNeeded();
       const entry = getAuthEntry();
@@ -331,16 +339,19 @@ function setupAccessGuard(router: Router) {
       if (shouldRebuildAccessRoutes(to)) {
         if (!accessRouteRebuildPaths.has(to.fullPath)) {
           accessRouteRebuildPaths.add(to.fullPath);
+          // 当前跳转已经命中 fallback 时，立即在本轮守卫内重建动态路由；
+          // 只返回同一路径让下一轮再生成，部分菜单首跳会停留在空白 fallback，刷新后才正常。
           resetDynamicRoutesForRebuild();
-
-          return routeReentry(to);
+          shouldForceRebuildAccess = true;
+        } else {
+          accessRouteRebuildPaths.delete(to.fullPath);
+          return true;
         }
-
+      }
+      if (!shouldForceRebuildAccess) {
         accessRouteRebuildPaths.delete(to.fullPath);
         return true;
       }
-      accessRouteRebuildPaths.delete(to.fullPath);
-      return true;
     }
 
     // 生成路由表

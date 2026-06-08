@@ -50,6 +50,27 @@ export namespace DataApi {
     };
   }
 
+  export interface ModuleGuideEntry {
+    code: string;
+    description: string;
+    enabled: boolean;
+    home_path: string;
+    icon: string;
+    login_path: string;
+    name: string;
+    plugin: string;
+    sort: number;
+  }
+
+  export interface ModuleGuide {
+    app?: {
+      description: string;
+      name: string;
+    };
+    enabled: boolean;
+    entries: ModuleGuideEntry[];
+  }
+
   export interface CapabilityItem {
     key: string;
     name: string;
@@ -127,6 +148,10 @@ class DataApiService extends SystemApiService {
 
   async getUiMeta() {
     return this.get<DataApi.UiMeta>('system/data/ui-meta');
+  }
+
+  async getModuleGuide() {
+    return this.get<DataApi.ModuleGuide>('system/module-guide/index');
   }
 
   async clearCache() {

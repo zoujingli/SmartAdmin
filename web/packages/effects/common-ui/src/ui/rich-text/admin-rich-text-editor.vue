@@ -255,11 +255,11 @@ const editorConfig = computed<Partial<IEditorConfig>>(() => ({
     uploadVideo: {
       allowedFileTypes: ['video/*'],
       maxNumberOfFiles: 1,
-      // 视频同样进入系统上传机制；正文只持久化可访问 URL，避免保存本地临时路径或 base64。
+      // 视频按附件保存，避免大视频直接铺在详情页；点击附件链接后再播放或下载。
       customUpload(file: File, _insertFn: (src: string, poster: string) => void) {
         void uploadEditorAsset('video', file)
           .then((asset) => {
-            const url = getAssetUrl(asset);
+            const url = getFileAssetUrl(asset);
             if (!url) throw new Error('视频上传成功但未返回访问地址');
             insertUploadedMedia('video', asset, file);
           })
@@ -372,7 +372,7 @@ async function uploadAndInsertPastedMedia(editor: IDomEditor, files: File[]) {
     for (const file of files) {
       const scene = file.type.startsWith('video/') ? 'video' : 'image';
       const asset = await uploadEditorAsset(scene, file);
-      const html = scene === 'video' ? buildVideoHtml(asset, file) : buildImageHtml(asset, file);
+      const html = scene === 'video' ? buildFileHtml(asset, file) : buildImageHtml(asset, file);
       editor.restoreSelection();
       editor.dangerouslyInsertHtml(html);
     }
@@ -384,7 +384,7 @@ async function uploadAndInsertPastedMedia(editor: IDomEditor, files: File[]) {
 }
 
 function insertUploadedMedia(scene: 'image' | 'video', asset: UploadAsset, file: File) {
-  const html = scene === 'video' ? buildVideoHtml(asset, file) : buildImageHtml(asset, file);
+  const html = scene === 'video' ? buildFileHtml(asset, file) : buildImageHtml(asset, file);
   if (!html) {
     throw new Error('文件上传成功但未返回可插入内容');
   }
@@ -419,10 +419,15 @@ function handleFilePicked(event: Event) {
   void uploadEditorAsset('file', file)
     .then((asset) => {
       const editor = richEditorRef.value;
-      if (!editor) throw new Error('编辑器尚未初始化');
-      editor.restoreSelection();
-      editor.dangerouslyInsertHtml(buildFileHtml(asset, file));
-      contentValue.value = editor.getHtml();
+      const html = buildFileHtml(asset, file);
+      if (!html) throw new Error('文件上传成功但未返回可插入内容');
+      if (!editor) {
+        contentValue.value = `${contentValue.value || ''}${html}`;
+      } else {
+        editor.restoreSelection();
+        editor.dangerouslyInsertHtml(html);
+        contentValue.value = editor.getHtml();
+      }
       message.success('附件已上传并插入正文');
     })
     .catch((error) => handleEditorUploadError(error));
@@ -432,12 +437,6 @@ function buildImageHtml(asset: UploadAsset, file: File) {
   const url = getAssetUrl(asset);
   if (!url) return '';
   return `<p><img src="${escapeHtml(url)}" alt="${escapeHtml(asset.origin_name || file.name || '图片')}" style="max-width:100%;height:auto;" /></p>`;
-}
-
-function buildVideoHtml(asset: UploadAsset, file: File) {
-  const url = getAssetUrl(asset);
-  if (!url) return '';
-  return `<p><video src="${escapeHtml(url)}" controls preload="metadata" style="max-width:100%;width:100%;border-radius:8px;">${escapeHtml(asset.origin_name || file.name || '视频')}</video></p>`;
 }
 
 function buildFileHtml(asset: UploadAsset, file: File) {
@@ -466,7 +465,7 @@ function sanitizePreviewHtml(value: string) {
 }
 
 function buildPreviewStyle() {
-  return `body{margin:0;padding:18px 22px;color:CanvasText;background:Canvas;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.85;}img{max-width:100%;height:auto;border-radius:8px;}video{max-width:100%;border-radius:10px;background:#000;}a[data-project-file="1"]{display:inline-flex;align-items:center;gap:8px;max-width:100%;padding:8px 10px;border:1px solid ButtonBorder;border-radius:8px;background:color-mix(in srgb, CanvasText 5%, Canvas);color:LinkText;text-decoration:none;font-weight:500;overflow-wrap:anywhere;}a[data-project-file="1"]::before{content:"📎";flex:none;}a[data-project-file="1"]:hover{text-decoration:underline;text-underline-offset:2px;}table{width:100%;border-collapse:collapse;}td,th{padding:8px;border:1px solid ButtonBorder;}blockquote{margin:8px 0;padding:8px 12px;border-left:4px solid Highlight;background:color-mix(in srgb, Highlight 8%, Canvas);}pre{padding:12px;overflow:auto;background:color-mix(in srgb, CanvasText 6%, Canvas);border-radius:8px;}.empty{color:GrayText;}`;
+  return `body{margin:0;padding:18px 22px;color:CanvasText;background:Canvas;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.85;}img{max-width:100%;height:auto;border-radius:8px;}a[data-project-file="1"]{display:inline-flex;align-items:center;gap:8px;max-width:100%;padding:8px 10px;border:1px solid ButtonBorder;border-radius:8px;background:color-mix(in srgb, CanvasText 5%, Canvas);color:LinkText;text-decoration:none;font-weight:500;overflow-wrap:anywhere;}a[data-project-file="1"]::before{content:"📎";flex:none;}a[data-project-file="1"]:hover{text-decoration:underline;text-underline-offset:2px;}table{width:100%;border-collapse:collapse;}td,th{padding:8px;border:1px solid ButtonBorder;}blockquote{margin:8px 0;padding:8px 12px;border-left:4px solid Highlight;background:color-mix(in srgb, Highlight 8%, Canvas);}pre{padding:12px;overflow:auto;background:color-mix(in srgb, CanvasText 6%, Canvas);border-radius:8px;}.empty{color:GrayText;}`;
 }
 
 async function mountEditor() {
@@ -781,12 +780,6 @@ onBeforeUnmount(() => {
   max-width: 100%;
   height: auto;
   border-radius: 8px;
-}
-
-.admin-rich-text-editor :deep(.w-e-text-container video) {
-  max-width: 100%;
-  border-radius: 10px;
-  background: #000;
 }
 
 .admin-rich-text-editor :deep(.w-e-text-container a[data-project-file='1']) {

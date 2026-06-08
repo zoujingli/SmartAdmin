@@ -4,28 +4,33 @@
     <Alert v-else-if="error" show-icon type="warning" :message="error" />
     <div v-else-if="detail" class="reference-detail-panel">
       <section class="reference-detail-hero">
-        <div class="reference-detail-head">
-          <Tag color="processing">{{ detail.type_text || detail.type || '引用' }}</Tag>
-          <span class="reference-detail-id">ID {{ detail.id }}</span>
+        <div class="reference-detail-hero-badge">
+          <IconifyIcon :icon="heroIcon" class="reference-detail-hero-icon" />
         </div>
-        <h3 class="reference-detail-title">{{ detailTitle }}</h3>
-        <p v-if="detail.subtitle" class="reference-detail-subtitle">
-          <template v-for="(segment, index) in inlineReferenceSegments(detail.subtitle)" :key="inlineSegmentKey(segment, index)">
-            <span v-if="segment.type === 'text'">{{ segment.text }}</span>
-            <button
-              v-else
-              class="reference-token reference-detail-inline-token"
-              type="button"
-              :title="describe(segment.reference)"
-              @click.stop.prevent="openInlineReference(segment.reference)"
-            >{{ referenceClickableText(segment.reference) }}</button>
-            <span v-if="segment.type === 'reference'">{{ referenceTrailingText(segment.reference) }}</span>
-          </template>
-        </p>
-        <div v-if="detail.tags?.length" class="reference-detail-tags">
-          <Tag v-for="tag in detail.tags" :key="`${tag.label}-${tag.color || ''}`" :color="tag.color">{{ tag.label }}</Tag>
+        <div class="reference-detail-hero-content">
+          <div class="reference-detail-head">
+            <Tag color="processing">{{ detail.type_text || detail.type || '引用' }}</Tag>
+            <span class="reference-detail-id">ID {{ detail.id }}</span>
+          </div>
+          <h3 class="reference-detail-title">{{ detailTitle }}</h3>
+          <p v-if="detail.subtitle" class="reference-detail-subtitle">
+            <template v-for="(segment, index) in inlineReferenceSegments(detail.subtitle)" :key="inlineSegmentKey(segment, index)">
+              <span v-if="segment.type === 'text'">{{ segment.text }}</span>
+              <button
+                v-else
+                class="reference-token reference-detail-inline-token"
+                type="button"
+                :title="describe(segment.reference)"
+                @click.stop.prevent="openInlineReference(segment.reference)"
+              >{{ referenceClickableText(segment.reference) }}</button>
+              <span v-if="segment.type === 'reference'">{{ referenceTrailingText(segment.reference) }}</span>
+            </template>
+          </p>
+          <div v-if="detail.tags?.length" class="reference-detail-tags">
+            <Tag v-for="tag in detail.tags" :key="`${tag.label}-${tag.color || ''}`" :color="tag.color">{{ tag.label }}</Tag>
+          </div>
+          <Alert v-if="detail.available === false" show-icon type="warning" :message="detail.message || '引用不可用'" />
         </div>
-        <Alert v-if="detail.available === false" show-icon type="warning" :message="detail.message || '引用不可用'" />
       </section>
 
       <section v-if="detail.chain?.length" class="reference-detail-section">
@@ -49,8 +54,8 @@
 
       <section v-if="detail.fields?.length" class="reference-detail-section">
         <div class="reference-detail-section-title">关键字段</div>
-        <Descriptions :column="2" bordered size="small" class="reference-detail-fields">
-          <DescriptionsItem v-for="field in detail.fields" :key="field.label">
+        <Descriptions :column="{ md: 2, sm: 1, xs: 1 }" bordered size="small" class="reference-detail-fields">
+          <DescriptionsItem v-for="(field, fieldIndex) in detail.fields" :key="`${field.label}-${fieldIndex}`">
             <template #label>
               <span class="reference-detail-field-label-text">
                 <template v-for="(segment, index) in inlineReferenceSegments(field.label)" :key="inlineSegmentKey(segment, index)">
@@ -100,7 +105,7 @@
         </p>
       </section>
 
-      <section v-for="section in detail.sections || []" :key="section.title" class="reference-detail-section reference-detail-card">
+      <section v-for="(section, sectionIndex) in detail.sections || []" :key="`${section.title}-${sectionIndex}`" class="reference-detail-section reference-detail-card">
         <div class="reference-detail-section-title">{{ section.title }}</div>
         <div
           v-if="section.content_html"
@@ -124,7 +129,7 @@
           </template>
         </p>
         <div v-if="section.fields?.length" class="reference-detail-field-list">
-          <div v-for="field in section.fields" :key="`${section.title}-${field.label}`" class="reference-detail-field-row">
+          <div v-for="(field, fieldIndex) in section.fields" :key="`${section.title}-${field.label}-${fieldIndex}`" class="reference-detail-field-row">
             <span
               class="reference-detail-field-label"
             >
@@ -158,6 +163,10 @@
           </div>
         </div>
       </section>
+
+      <div v-if="detailAction" class="reference-detail-actions">
+        <Button :type="detailAction.type || 'primary'" @click="handleDetailAction">{{ detailAction.label }}</Button>
+      </div>
     </div>
     <Alert v-else show-icon type="info" message="请选择一个引用标签" />
   </AppDrawer>
@@ -167,7 +176,10 @@
 import type { ReferenceChainItem, ReferenceDetail, ReferenceItem, ReferencePrefix, ReferenceSegment } from './types';
 
 import { computed, ref, watch } from 'vue';
-import { Alert, Descriptions, DescriptionsItem, Spin, Tag } from 'ant-design-vue';
+
+import { IconifyIcon } from '@vben/icons';
+
+import { Alert, Button, Descriptions, DescriptionsItem, Spin, Tag } from 'ant-design-vue';
 
 import AppDrawer from '../../components/app-drawer/app-drawer.vue';
 import { getReferenceProvider } from './registry';
@@ -208,9 +220,43 @@ const activeReference = ref<null | ReferenceItem>(null);
 const displayReference = computed(() => activeReference.value ? referenceDisplayText(withResolvedReferenceLabel(activeReference.value)) : '');
 const detailTitle = computed(() => displayReference.value || detail.value?.title || '引用详情');
 const drawerTitle = computed(() => displayReference.value ? `数据引用 ${displayReference.value}` : '数据引用');
+const heroIcon = computed(() => {
+  const type = String(detail.value?.type || activeReference.value?.code || '').toLowerCase();
+  const iconMap: Record<string, string> = {
+    b: 'lucide:bug',
+    bug: 'lucide:bug',
+    f: 'lucide:list-tree',
+    feature: 'lucide:list-tree',
+    p: 'lucide:package',
+    product: 'lucide:package',
+    s: 'lucide:list-checks',
+    st: 'lucide:panel-top',
+    subtask: 'lucide:panel-top',
+    task: 'lucide:list-checks',
+    t: 'lucide:clipboard-check',
+    test: 'lucide:clipboard-check',
+    u: 'lucide:user-round',
+    user: 'lucide:user-round',
+    v: 'lucide:git-branch',
+    version: 'lucide:git-branch',
+  };
+
+  return iconMap[type] || 'lucide:link';
+});
+const detailAction = computed(() => {
+  if (!activeReference.value || !detail.value) return null;
+
+  return getReferenceProvider(props.providerKey)?.detailAction?.(withResolvedReferenceLabel(activeReference.value), detail.value) || null;
+});
 
 function close() {
   emit('update:open', false);
+}
+
+function handleDetailAction() {
+  if (!detailAction.value) return;
+  emit('update:open', false);
+  void detailAction.value.onClick();
 }
 
 function describe(reference: ReferenceItem) {
@@ -343,18 +389,62 @@ watch(() => [props.open, activeReference.value?.raw, activeReference.value?.id, 
 
 <style scoped>
 .reference-detail-state { display: flex; min-height: 220px; gap: 10px; align-items: center; justify-content: center; color: var(--ant-colorTextSecondary, hsl(var(--muted-foreground))); }
-.reference-detail-panel { display: flex; flex-direction: column; gap: 18px; }
-.reference-detail-hero { padding: 20px; border: 1px solid var(--ant-colorBorderSecondary, hsl(var(--border))); border-radius: 18px; background: linear-gradient(135deg, var(--ant-colorPrimaryBg, hsl(var(--primary) / 8%)), var(--ant-colorBgContainer, hsl(var(--card))) 58%); box-shadow: 0 12px 30px rgb(15 23 42 / 6%); }
-.reference-detail-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+.reference-detail-panel { display: flex; flex-direction: column; gap: 20px; }
+.reference-detail-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 20px;
+  padding: 20px;
+  border: 1px solid var(--ant-colorBorderSecondary, hsl(var(--border)));
+  border-radius: 16px;
+  background: var(--ant-colorFillQuaternary, hsl(var(--muted) / 20%));
+}
+.reference-detail-hero-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 18px;
+  background: var(--ant-colorPrimaryBg, hsl(var(--primary) / 8%));
+  color: var(--ant-colorPrimary, hsl(var(--primary)));
+}
+.reference-detail-hero-icon {
+  width: 30px;
+  height: 30px;
+}
+.reference-detail-hero-content { display: grid; min-width: 0; gap: 10px; }
+.reference-detail-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .reference-detail-id { color: var(--ant-colorTextTertiary, hsl(var(--muted-foreground))); font-size: 12px; }
-.reference-detail-title { margin: 0; color: var(--ant-colorText, hsl(var(--foreground))); font-weight: 700; font-size: 20px; line-height: 1.45; word-break: break-word; }
-.reference-detail-subtitle { margin: 8px 0 0; color: var(--ant-colorTextSecondary, hsl(var(--muted-foreground))); line-height: 1.6; }
-.reference-detail-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.reference-detail-title { margin: 0; color: var(--ant-colorText, hsl(var(--foreground))); font-weight: 600; font-size: 20px; line-height: 28px; word-break: break-word; }
+.reference-detail-subtitle { margin: 0; color: var(--ant-colorTextSecondary, hsl(var(--muted-foreground))); line-height: 1.6; }
+.reference-detail-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .reference-detail-section { min-width: 0; }
-.reference-detail-card { padding: 16px 18px; border: 1px solid var(--ant-colorBorderSecondary, hsl(var(--border))); border-radius: 16px; background: var(--ant-colorBgContainer, hsl(var(--card))); box-shadow: 0 8px 24px rgb(15 23 42 / 4%); }
+.reference-detail-card { padding: 0; border: 0; background: transparent; box-shadow: none; }
 .reference-detail-section-title { margin-bottom: 10px; color: var(--ant-colorText, hsl(var(--foreground))); font-weight: 600; font-size: 14px; }
-.reference-detail-chain { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; padding: 14px; border: 1px dashed var(--ant-colorBorder, hsl(var(--border))); border-radius: 14px; background: var(--ant-colorFillQuaternary, hsl(var(--muted) / 20%)); }
-.reference-detail-chain-item { display: inline-flex; max-width: 260px; flex-direction: column; gap: 2px; padding: 9px 12px; border: 1px solid var(--ant-colorBorderSecondary, hsl(var(--border))); border-radius: 12px; appearance: none; background: var(--ant-colorBgElevated, hsl(var(--background))); box-shadow: 0 4px 14px rgb(15 23 42 / 4%); text-align: left; cursor: pointer; }
+.reference-detail-chain {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: stretch;
+  padding: 12px;
+  border: 1px solid var(--ant-colorBorderSecondary, hsl(var(--border)));
+  border-radius: 8px;
+  background: var(--ant-colorFillQuaternary, hsl(var(--muted) / 20%));
+}
+.reference-detail-chain-item {
+  display: inline-flex;
+  max-width: 240px;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--ant-colorBorderSecondary, hsl(var(--border)));
+  border-radius: 8px;
+  appearance: none;
+  background: var(--ant-colorBgContainer, hsl(var(--card)));
+  text-align: left;
+  cursor: pointer;
+}
 .reference-detail-chain-item:not(:disabled):hover { border-color: var(--ant-colorPrimary, hsl(var(--primary))); color: var(--ant-colorPrimary, hsl(var(--primary))); }
 .reference-detail-chain-item:disabled { cursor: default; }
 .reference-detail-chain-item.is-active { border-color: var(--ant-colorPrimary, hsl(var(--primary))); background: var(--ant-colorPrimaryBg, hsl(var(--primary) / 8%)); }
@@ -362,6 +452,9 @@ watch(() => [props.open, activeReference.value?.raw, activeReference.value?.id, 
 .reference-detail-chain-label { overflow: hidden; color: var(--ant-colorText, hsl(var(--foreground))); font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
 .reference-detail-chain-arrow { display: inline-flex; align-items: center; color: var(--ant-colorPrimary, hsl(var(--primary))); font-weight: 700; }
 .reference-detail-fields { margin-top: 0; }
+.reference-detail-fields :deep(.ant-descriptions-view) { overflow: hidden; }
+.reference-detail-fields :deep(.ant-descriptions-item-label) { min-width: 104px; white-space: nowrap; width: 112px; }
+.reference-detail-fields :deep(.ant-descriptions-item-content) { min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
 .reference-detail-description { margin: 0; color: var(--ant-colorText, hsl(var(--foreground))); line-height: 1.8; white-space: pre-wrap; word-break: break-word; }
 .reference-detail-rich-content { color: var(--ant-colorText, hsl(var(--foreground))); line-height: 1.75; overflow-wrap: anywhere; }
 .reference-detail-rich-content :deep(.reference-token) { display: inline; max-width: 100%; padding: 0; margin: 0; border: 0; background: transparent; color: var(--ant-colorPrimary, hsl(var(--primary))); font: inherit; line-height: inherit; vertical-align: baseline; cursor: pointer; }
@@ -421,13 +514,28 @@ watch(() => [props.open, activeReference.value?.raw, activeReference.value?.id, 
 .reference-detail-rich-content :deep(blockquote) { margin: 8px 0; padding: 8px 12px; border-left: 3px solid var(--ant-colorPrimary, hsl(var(--primary))); background: var(--ant-colorFillQuaternary, hsl(var(--muted) / 20%)); }
 .reference-detail-rich-content :deep(table) { width: 100%; border-collapse: collapse; }
 .reference-detail-rich-content :deep(td), .reference-detail-rich-content :deep(th) { padding: 8px; border: 1px solid var(--ant-colorBorderSecondary, hsl(var(--border))); }
-.reference-detail-field-list { display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--ant-colorBorderSecondary, hsl(var(--border))); border-radius: 10px; }
+.reference-detail-field-list { display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--ant-colorBorderSecondary, hsl(var(--border))); border-radius: 8px; }
 .reference-detail-field-row { display: grid; grid-template-columns: minmax(120px, 28%) minmax(0, 1fr); border-bottom: 1px solid var(--ant-colorBorderSecondary, hsl(var(--border))); }
 .reference-detail-field-row:last-child { border-bottom: 0; }
 .reference-detail-field-label { padding: 9px 10px; background: var(--ant-colorFillQuaternary, hsl(var(--muted) / 22%)); color: var(--ant-colorTextSecondary, hsl(var(--muted-foreground))); font-size: 12px; }
 .reference-detail-field-value { min-width: 0; padding: 9px 10px; color: var(--ant-colorText, hsl(var(--foreground))); line-height: 1.6; word-break: break-word; }
+.reference-detail-actions {
+  position: sticky;
+  bottom: -20px;
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 0 0;
+  background: linear-gradient(180deg, transparent, var(--ant-colorBgContainer, hsl(var(--card))) 42%);
+}
 @media (max-width: 640px) {
+  .reference-detail-hero { grid-template-columns: minmax(0, 1fr); }
+  .reference-detail-hero-badge { width: 56px; height: 56px; border-radius: 12px; }
+  .reference-detail-hero-icon { width: 24px; height: 24px; }
+  .reference-detail-fields :deep(.ant-descriptions-item-label) { min-width: 88px; width: 96px; }
   .reference-detail-field-row { grid-template-columns: 1fr; }
   .reference-detail-field-label { border-bottom: 1px solid var(--ant-colorBorderSecondary, hsl(var(--border))); }
+  .reference-detail-chain { flex-direction: column; }
+  .reference-detail-chain-item { max-width: none; width: 100%; }
+  .reference-detail-chain-arrow { display: none; }
 }
 </style>

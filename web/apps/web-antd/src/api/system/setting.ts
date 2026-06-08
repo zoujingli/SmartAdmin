@@ -9,6 +9,7 @@ export namespace SettingApi {
     login_description: string;
     logo_url: string;
     logo_file_id: number;
+    module_guide_enable: boolean;
     copyright_enable: boolean;
     company_name: string;
     company_site_link: string;

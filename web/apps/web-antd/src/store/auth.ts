@@ -103,7 +103,10 @@ export const useAuthStore = defineStore('auth', () => {
       && !isAuthLoginPath(currentRoute.path)
       && !currentRoute.path.startsWith('/auth/');
     try {
-      await coreAuthApiService.logout();
+      await Promise.race([
+        coreAuthApiService.logout(),
+        new Promise((resolve) => setTimeout(resolve, 2000)),
+      ]);
     } catch {
       // 不做任何处理
     }

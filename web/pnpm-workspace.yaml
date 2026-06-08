@@ -45,7 +45,7 @@ catalog:
   '@types/json-bigint': ^1.0.4
   '@types/jsonwebtoken': ^9.0.10
   '@types/lodash.clonedeep': ^4.5.9
-  '@types/node': ^24.12.4
+  '@types/node': ^24.13.1
   '@types/nprogress': ^0.2.3
   '@types/postcss-import': ^14.0.3
   '@types/qrcode': ^1.5.6
@@ -58,7 +58,7 @@ catalog:
   '@vitejs/plugin-vue': ^6.0.7
   '@vitejs/plugin-vue-jsx': ^5.1.5
   '@vue/shared': ^3.5.27
-  '@vue/test-utils': ^2.4.10
+  '@vue/test-utils': ^2.4.11
   '@vueuse/core': ^14.1.0
   '@vueuse/integrations': ^14.1.0
   '@vueuse/motion': ^3.0.3
@@ -119,7 +119,7 @@ catalog:
   json-bigint: ^1.0.0
   jsonc-eslint-parser: ^2.4.2
   jsonwebtoken: ^9.0.3
-  lefthook: ^2.1.8
+  lefthook: ^2.1.9
   lodash.clonedeep: ^4.5.0
   lucide-vue-next: ^0.553.0
   medium-zoom: ^1.1.0
@@ -165,12 +165,12 @@ catalog:
   tdesign-vue-next: ^1.18.0
   theme-colors: ^0.1.0
   tippy.js: ^6.3.7
-  turbo: ^2.9.14
+  turbo: ^2.9.16
   typescript: ^5.9.3
   unbuild: ^3.6.1
   unplugin-element-plus: ^0.11.2
   vee-validate: ^4.15.1
-  vite: ^7.3.3
+  vite: ^7.3.5
   vite-plugin-compression: ^0.5.1
   vite-plugin-dts: ^4.5.4
   vite-plugin-html: ^3.2.2
@@ -179,14 +179,14 @@ catalog:
   vite-plugin-vue-devtools: ^8.0.5
   vitepress: ^1.6.4
   vitepress-plugin-group-icons: ^1.7.1
-  vitest: ^3.2.4
+  vitest: ^3.2.6
   vue: ^3.5.27
   vue-eslint-parser: ^10.2.0
   vue-i18n: ^11.2.8
   vue-json-viewer: ^3.0.4
   vue-router: ^4.6.4
   vue-tippy: ^6.7.1
-  vue-tsc: ^3.3.1
+  vue-tsc: ^3.3.3
   vxe-pc-ui: ^4.12.16
   vxe-table: ^4.17.46
   watermark-js-plus: ^1.6.3
