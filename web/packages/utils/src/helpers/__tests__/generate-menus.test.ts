@@ -173,6 +173,62 @@ describe('generateMenus', () => {
     ]);
   });
 
+  it('keeps directory menu keys and stores redirect targets for click navigation', async () => {
+    const mockRoutesWithDirectory = [
+      {
+        name: 'system_project_base',
+        path: '/system/project/base',
+        redirect: '/system/project/account',
+        meta: { icon: 'folder-icon', title: '基础资料' },
+        children: [
+          {
+            path: '/system/project/account',
+            name: 'system_project_account',
+            meta: { icon: 'account-icon', title: '项目账号' },
+          },
+        ],
+      },
+    ] as RouteRecordRaw[];
+
+    const menus = generateMenus(mockRoutesWithDirectory, {
+      getRoutes: () => [
+        { name: 'system_project_base', path: '/system/project/base' },
+        { name: 'system_project_account', path: '/system/project/account' },
+      ],
+    } as any);
+
+    expect(menus).toEqual([
+      {
+        badge: undefined,
+        badgeType: undefined,
+        badgeVariants: undefined,
+        icon: 'folder-icon',
+        name: '基础资料',
+        order: undefined,
+        parent: undefined,
+        parents: undefined,
+        path: '/system/project/base',
+        redirectPath: '/system/project/account',
+        show: true,
+        children: [
+          {
+            badge: undefined,
+            badgeType: undefined,
+            badgeVariants: undefined,
+            icon: 'account-icon',
+            name: '项目账号',
+            order: undefined,
+            parent: '/system/project/base',
+            parents: ['/system/project/base'],
+            path: '/system/project/account',
+            show: true,
+            children: [],
+          },
+        ],
+      },
+    ]);
+  });
+
   const routes: any = [
     {
       meta: { order: 2, title: 'Home' },

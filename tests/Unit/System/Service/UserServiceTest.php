@@ -50,7 +50,7 @@ final class UserServiceTest extends TestCase
             ->onlyMethods(['getHeaderToken', 'getParserData'])
             ->getMock();
         $token->expects($this->never())->method('getHeaderToken');
-        $token->method('getParserData')->with('')->willReturn([
+        $token->expects($this->once())->method('getParserData')->with('')->willReturn([
             'uid' => 11,
             'class' => FakeFrontendUser::class,
         ]);

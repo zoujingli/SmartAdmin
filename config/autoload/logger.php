@@ -47,14 +47,18 @@ return [
     'channels' => [
         'log' => [
             'handlers' => $logs,
-            'processor' => [
-                'class' => RequestIdProcessor::class,
+            'processors' => [
+                [
+                    'class' => RequestIdProcessor::class,
+                ],
             ],
         ],
         'sql' => [
             'handlers' => $sqls,
-            'processor' => [
-                'class' => RequestIdProcessor::class,
+            'processors' => [
+                [
+                    'class' => RequestIdProcessor::class,
+                ],
             ],
         ],
         // 屏幕输出日志 - 使用 StdoutLogger 支持颜色

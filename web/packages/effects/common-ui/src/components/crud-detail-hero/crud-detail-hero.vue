@@ -17,8 +17,12 @@
           {{ tag.label }}
         </Tag>
       </div>
-      <div v-for="line in normalizedLines" :key="line" class="crud-detail-hero__subtext">
-        {{ line }}
+      <div v-if="hasLinesSlot || normalizedLines.length > 0" class="crud-detail-hero__lines">
+        <slot name="lines">
+          <div v-for="line in normalizedLines" :key="line" class="crud-detail-hero__subtext">
+            {{ line }}
+          </div>
+        </slot>
       </div>
     </div>
   </div>
@@ -54,6 +58,7 @@ const { token } = theme.useToken();
 const slots = useSlots();
 
 const hasAside = computed(() => Boolean(slots.aside));
+const hasLinesSlot = computed(() => Boolean(slots.lines));
 
 const normalizedLines = computed(() =>
   props.lines.filter((line): line is string => typeof line === 'string' && line.trim().length > 0),
@@ -169,6 +174,12 @@ function normalizeIcon(icon: string) {
   font-size: 13px;
   line-height: 20px;
   overflow-wrap: anywhere;
+}
+
+.crud-detail-hero__lines {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
 }
 
 @media (max-width: 767px) {

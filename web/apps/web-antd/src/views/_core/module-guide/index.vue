@@ -7,7 +7,7 @@ import { useRouter } from 'vue-router';
 import { IconifyIcon } from '@vben/icons';
 import { preferences } from '@vben/preferences';
 
-import { Button, Empty, Skeleton, message } from 'ant-design-vue';
+import { Empty, Skeleton, message } from 'ant-design-vue';
 
 import { dataApiService } from '#/api';
 
@@ -17,6 +17,17 @@ const entries = ref<DataApi.ModuleGuideEntry[]>([]);
 const guideAppName = ref('');
 const appDescription = ref('');
 const appName = computed(() => guideAppName.value || preferences.app.name || 'SmartAdmin');
+const systemGuideEntry: DataApi.ModuleGuideEntry = {
+  code: 'system',
+  description: '系统管理员进入权限、组织、租户、日志、文件和平台参数维护中心。',
+  enabled: true,
+  home_path: '/auth/login',
+  icon: 'lucide:shield-check',
+  login_path: '/auth/login',
+  name: '系统后台',
+  plugin: 'System',
+  sort: -100,
+};
 // 数字雨使用独立短粒子，避免长文本列或整层纹理移动造成“整块背景下落”的观感。
 const binaryRainDropSeeds = [
   ['0', '2%', '18px', '-7.6s', '13.2s', '12px', '0.28'],
@@ -118,12 +129,42 @@ function normalizePath(value: string) {
   return path === '/' ? '/' : path.replace(/\/+$/, '');
 }
 
+function normalizeGuideEntries(source: DataApi.ModuleGuideEntry[]) {
+  const merged = new Map<string, DataApi.ModuleGuideEntry>();
+  for (const entry of source) {
+    const code = String(entry.code || '').trim().toLowerCase();
+    if (code === '') {
+      continue;
+    }
+
+    merged.set(code, { ...entry, code });
+  }
+
+  // System 是通用后台入口。长驻后端未刷新清单时，前端兜底补齐并固定放在最后，避免小屏误进默认后台。
+  merged.set('system', {
+    ...systemGuideEntry,
+    ...(merged.get('system') || {}),
+    code: 'system',
+  });
+
+  return [...merged.values()].sort((left, right) => {
+    const leftIsSystem = left.code === 'system';
+    const rightIsSystem = right.code === 'system';
+    if (leftIsSystem !== rightIsSystem) {
+      return leftIsSystem ? 1 : -1;
+    }
+
+    const sortCompare = Number(right.sort || 0) - Number(left.sort || 0);
+    return sortCompare === 0 ? left.code.localeCompare(right.code) : sortCompare;
+  });
+}
+
 async function loadGuide() {
   loading.value = true;
   try {
     const guide = await dataApiService.getModuleGuide();
 
-    const guideEntries = Array.isArray(guide.entries) ? guide.entries : [];
+    const guideEntries = normalizeGuideEntries(Array.isArray(guide.entries) ? guide.entries : []);
     if (!guide.enabled || guideEntries.length === 0) {
       await router.replace('/auth/login');
       return;
@@ -134,7 +175,7 @@ async function loadGuide() {
     entries.value = guideEntries;
   } catch (error) {
     console.error('load module guide failed', error);
-    message.error('加载模块引导页失败');
+    message.error('加载系统引导页失败');
   } finally {
     loading.value = false;
   }
@@ -183,27 +224,23 @@ onMounted(() => {
           <span class="module-guide__brand-mark">
             <IconifyIcon icon="lucide:layout-dashboard" />
           </span>
-          <span>MODULE GATEWAY</span>
+          <span>SYSTEM GATEWAY</span>
         </div>
-        <Button class="module-guide__login" size="large" @click="router.push('/auth/login')">
-          <IconifyIcon icon="lucide:shield-check" />
-          系统后台
-        </Button>
       </header>
 
       <section class="module-guide__hero">
         <div class="module-guide__hero-copy">
           <div class="module-guide__eyebrow">
             <span class="module-guide__eyebrow-dot" />
-            模块引导
+            系统引导
           </div>
           <h1 class="module-guide__name">{{ appName }}</h1>
           <p class="module-guide__desc">
-            {{ appDescription || '请选择要进入的业务模块。' }}
+            {{ appDescription || '请选择要进入的业务系统。' }}
           </p>
         </div>
 
-        <aside class="module-guide__console" aria-label="模块状态">
+        <aside class="module-guide__console" aria-label="系统状态">
           <div class="module-guide__console-head">
             <span class="module-guide__console-dot"></span>
             <span class="module-guide__console-dot"></span>
@@ -213,7 +250,7 @@ onMounted(() => {
           <div class="module-guide__console-body">
             <div class="module-guide__metric">
               <span class="module-guide__metric-value">{{ entries.length }}</span>
-              <span class="module-guide__metric-label">ACTIVE MODULES</span>
+              <span class="module-guide__metric-label">ACTIVE SYSTEMS</span>
             </div>
             <div class="module-guide__pulse-line"></div>
             <div class="module-guide__console-row">
@@ -228,16 +265,16 @@ onMounted(() => {
         <div class="module-guide__section-head">
           <div>
             <div class="module-guide__section-title">业务入口</div>
-            <div class="module-guide__section-desc">独立插件子系统</div>
+            <div class="module-guide__section-desc">可用业务系统</div>
           </div>
-          <div class="module-guide__count">{{ entries.length }} 个模块</div>
+          <div class="module-guide__count">{{ entries.length }} 个系统</div>
         </div>
 
         <Skeleton v-if="loading && entries.length === 0" active />
         <Empty
           v-else-if="entries.length === 0"
           class="module-guide__empty"
-          description="暂无可用模块入口"
+          description="暂无可用系统入口"
         />
         <section v-else class="module-guide__grid">
           <button
@@ -245,6 +282,7 @@ onMounted(() => {
             :key="entry.code"
             type="button"
             class="module-guide__card"
+            :class="`module-guide__card--${entry.code}`"
             @click="openEntry(entry)"
           >
             <span class="module-guide__card-glow" aria-hidden="true"></span>
@@ -267,7 +305,7 @@ onMounted(() => {
                 <div class="module-guide__card-foot">
                   <span class="module-guide__entry-code">{{ entry.code }}</span>
                   <span class="module-guide__enter">
-                    进入模块
+                    进入系统
                     <IconifyIcon icon="lucide:chevron-right" />
                   </span>
                 </div>
@@ -298,7 +336,7 @@ onMounted(() => {
 
   position: relative;
   min-height: 100vh;
-  padding: 34px 24px 58px;
+  padding: 14px 24px 32px;
   overflow: hidden;
   background:
     radial-gradient(circle at 18% 14%, rgb(56 189 248 / 30%), transparent 30%),
@@ -516,13 +554,13 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 58px;
-  margin-bottom: 42px;
+  min-height: 30px;
+  margin-bottom: 10px;
 }
 
 .module-guide__brand-mini {
   display: inline-flex;
-  gap: 12px;
+  gap: 9px;
   align-items: center;
   color: var(--guide-text-soft);
   font-size: 13px;
@@ -532,8 +570,8 @@ onMounted(() => {
 
 .module-guide__brand-mark {
   display: flex;
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--guide-line-strong);
@@ -545,46 +583,21 @@ onMounted(() => {
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 14%),
     0 0 28px rgb(56 189 248 / 16%);
-  font-size: 20px;
-}
-
-.module-guide__login {
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
-  border-color: var(--guide-line-strong);
-  border-radius: 8px;
-  color: var(--guide-text);
-  background:
-    linear-gradient(135deg, rgb(255 255 255 / 10%), rgb(255 255 255 / 4%)),
-    rgb(9 15 27 / 72%);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 12%),
-    0 14px 40px rgb(0 0 0 / 24%);
-  font-weight: 700;
-}
-
-.module-guide__login:hover,
-.module-guide__login:focus {
-  border-color: rgb(56 189 248 / 70%);
-  color: #fff;
-  background:
-    linear-gradient(135deg, rgb(56 189 248 / 20%), rgb(45 212 191 / 10%)),
-    rgb(9 15 27 / 78%);
+  font-size: 17px;
 }
 
 .module-guide__hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 28px;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 16px;
   align-items: stretch;
-  margin-bottom: 42px;
+  margin-bottom: 14px;
 }
 
 .module-guide__hero-copy {
   position: relative;
-  min-height: 260px;
-  padding: 36px 38px;
+  min-height: 108px;
+  padding: 16px 22px;
   border: 1px solid var(--guide-line);
   border-radius: 8px;
   overflow: hidden;
@@ -599,10 +612,10 @@ onMounted(() => {
 
 .module-guide__hero-copy::before {
   position: absolute;
-  right: -90px;
-  bottom: -110px;
-  width: 380px;
-  height: 380px;
+  right: -140px;
+  bottom: -180px;
+  width: 300px;
+  height: 300px;
   content: "";
   border: 1px solid rgb(56 189 248 / 18%);
   border-radius: 50%;
@@ -615,7 +628,7 @@ onMounted(() => {
 
 .module-guide__hero-copy::after {
   position: absolute;
-  inset: auto 30px 26px;
+  inset: auto 24px 16px;
   height: 1px;
   content: "";
   background: linear-gradient(90deg, rgb(56 189 248 / 74%), transparent 72%);
@@ -628,7 +641,7 @@ onMounted(() => {
   display: inline-flex;
   gap: 9px;
   align-items: center;
-  margin-bottom: 14px;
+  margin-bottom: 6px;
   color: rgb(129 231 255);
   font-size: 12px;
   font-weight: 800;
@@ -649,7 +662,7 @@ onMounted(() => {
   max-width: 820px;
   margin: 0;
   color: var(--guide-text);
-  font-size: 48px;
+  font-size: 30px;
   font-weight: 850;
   line-height: 1.08;
   text-shadow: 0 0 30px rgb(56 189 248 / 18%);
@@ -659,16 +672,16 @@ onMounted(() => {
   position: relative;
   z-index: 1;
   max-width: 720px;
-  margin: 18px 0 0;
+  margin: 6px 0 0;
   color: var(--guide-text-soft);
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
-  line-height: 1.9;
+  line-height: 1.5;
 }
 
 .module-guide__console {
   display: flex;
-  min-height: 260px;
+  min-height: 108px;
   flex-direction: column;
   border: 1px solid var(--guide-line);
   border-radius: 8px;
@@ -686,7 +699,7 @@ onMounted(() => {
   display: flex;
   gap: 8px;
   align-items: center;
-  min-height: 42px;
+  min-height: 30px;
   padding: 0 16px;
   border-bottom: 1px solid var(--guide-line);
   background: rgb(255 255 255 / 4%);
@@ -720,18 +733,18 @@ onMounted(() => {
   flex: 1;
   flex-direction: column;
   justify-content: space-between;
-  padding: 24px;
+  padding: 14px;
 }
 
 .module-guide__metric {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .module-guide__metric-value {
   color: var(--guide-text);
-  font-size: 72px;
+  font-size: 40px;
   font-weight: 850;
   line-height: 0.95;
   text-shadow: 0 0 28px rgb(45 212 191 / 26%);
@@ -745,8 +758,8 @@ onMounted(() => {
 }
 
 .module-guide__pulse-line {
-  height: 46px;
-  margin: 22px 0;
+  height: 18px;
+  margin: 8px 0;
   background:
     linear-gradient(90deg, transparent, rgb(45 212 191 / 50%), transparent) center / 100% 1px no-repeat,
     linear-gradient(90deg, transparent 0 12%, rgb(45 212 191 / 46%) 12% 15%, transparent 15% 28%, rgb(56 189 248 / 70%) 28% 32%, transparent 32% 48%, rgb(163 230 53 / 62%) 48% 51%, transparent 51% 100%) center / 100% 100% no-repeat;
@@ -757,7 +770,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px;
+  padding: 8px 10px;
   border: 1px solid var(--guide-line);
   border-radius: 8px;
   color: var(--guide-text-muted);
@@ -777,15 +790,15 @@ onMounted(() => {
 
 .module-guide__section-head {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 18px;
+  margin-bottom: 10px;
 }
 
 .module-guide__section-title {
   color: var(--guide-text);
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 850;
   line-height: 1.4;
 }
@@ -815,31 +828,36 @@ onMounted(() => {
 .module-guide__grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 22px;
+  gap: 18px;
 }
 
 .module-guide__card {
   --guide-accent: var(--guide-primary);
+  --guide-accent-2: #0ea5e9;
+  --guide-card-surface: rgb(15 24 42 / 94%);
+  --guide-card-soft: color-mix(in srgb, var(--guide-accent) 14%, transparent);
 
   position: relative;
   display: block;
   width: 100%;
   height: 100%;
   padding: 0;
-  border: 1px solid color-mix(in srgb, var(--guide-accent) 58%, rgb(255 255 255 / 14%));
+  border: 1px solid color-mix(in srgb, var(--guide-accent) 46%, rgb(255 255 255 / 14%));
   border-radius: 8px;
   overflow: hidden;
   color: inherit;
   text-align: left;
   background:
-    linear-gradient(145deg, color-mix(in srgb, var(--guide-accent) 24%, transparent), transparent 44%),
-    linear-gradient(180deg, rgb(255 255 255 / 9%), rgb(255 255 255 / 4%)),
-    var(--guide-panel-strong);
+    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--guide-accent) 22%, transparent), transparent 30%),
+    radial-gradient(circle at 88% 12%, color-mix(in srgb, var(--guide-accent-2) 18%, transparent), transparent 34%),
+    linear-gradient(150deg, var(--guide-card-soft), transparent 50%),
+    linear-gradient(180deg, rgb(255 255 255 / 8%), rgb(255 255 255 / 4%)),
+    var(--guide-card-surface);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 14%),
     inset 0 0 0 1px rgb(255 255 255 / 4%),
-    0 24px 70px rgb(0 0 0 / 34%),
-    0 0 46px color-mix(in srgb, var(--guide-accent) 14%, transparent);
+    0 20px 58px rgb(0 0 0 / 30%),
+    0 0 34px color-mix(in srgb, var(--guide-accent) 10%, transparent);
   cursor: pointer;
   transition:
     background 0.18s ease,
@@ -848,12 +866,46 @@ onMounted(() => {
     transform 0.18s ease;
 }
 
-.module-guide__card:nth-child(3n + 2) {
-  --guide-accent: var(--guide-success);
+.module-guide__card--project {
+  --guide-accent: #38bdf8;
+  --guide-accent-2: #6366f1;
+  --guide-card-surface: rgb(13 24 44 / 94%);
+  --guide-card-soft: rgb(56 189 248 / 16%);
 }
 
-.module-guide__card:nth-child(3n) {
-  --guide-accent: var(--guide-warm);
+.module-guide__card--website {
+  --guide-accent: #34d399;
+  --guide-accent-2: #14b8a6;
+  --guide-card-surface: rgb(10 31 30 / 94%);
+  --guide-card-soft: rgb(52 211 153 / 15%);
+}
+
+.module-guide__card--material {
+  --guide-accent: #fb923c;
+  --guide-accent-2: #ef4444;
+  --guide-card-surface: rgb(42 24 15 / 94%);
+  --guide-card-soft: rgb(251 146 60 / 14%);
+}
+
+.module-guide__card--asset {
+  --guide-accent: #a78bfa;
+  --guide-accent-2: #f472b6;
+  --guide-card-surface: rgb(31 24 47 / 94%);
+  --guide-card-soft: rgb(167 139 250 / 14%);
+}
+
+.module-guide__card--points {
+  --guide-accent: #bef264;
+  --guide-accent-2: #84cc16;
+  --guide-card-surface: rgb(25 36 15 / 94%);
+  --guide-card-soft: rgb(190 242 100 / 12%);
+}
+
+.module-guide__card--system {
+  --guide-accent: #cbd5e1;
+  --guide-accent-2: #64748b;
+  --guide-card-surface: rgb(20 24 32 / 96%);
+  --guide-card-soft: rgb(203 213 225 / 10%);
 }
 
 .module-guide__card::before {
@@ -861,8 +913,8 @@ onMounted(() => {
   inset: 0 0 auto;
   height: 3px;
   content: "";
-  background: linear-gradient(90deg, transparent, var(--guide-accent), transparent);
-  box-shadow: 0 0 28px color-mix(in srgb, var(--guide-accent) 62%, transparent);
+  background: linear-gradient(90deg, transparent, var(--guide-accent), var(--guide-accent-2), transparent);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--guide-accent) 46%, transparent);
 }
 
 .module-guide__card::after {
@@ -871,8 +923,8 @@ onMounted(() => {
   pointer-events: none;
   content: "";
   background-image:
-    linear-gradient(90deg, color-mix(in srgb, var(--guide-accent) 16%, transparent) 1px, transparent 1px),
-    linear-gradient(color-mix(in srgb, var(--guide-accent) 12%, transparent) 1px, transparent 1px);
+    linear-gradient(90deg, color-mix(in srgb, var(--guide-accent) 11%, transparent) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--guide-accent-2) 10%, transparent) 1px, transparent 1px);
   background-size: 28px 28px;
   mask-image: linear-gradient(180deg, rgb(0 0 0 / 45%), transparent 62%);
   opacity: 0.72;
@@ -886,8 +938,8 @@ onMounted(() => {
   height: 210px;
   pointer-events: none;
   border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--guide-accent) 34%, transparent), transparent 66%);
-  opacity: 0.8;
+  background: radial-gradient(circle, color-mix(in srgb, var(--guide-accent-2) 28%, transparent), transparent 68%);
+  opacity: 0.7;
   transition:
     opacity 0.18s ease,
     transform 0.18s ease;
@@ -896,15 +948,17 @@ onMounted(() => {
 .module-guide__card:hover {
   border-color: color-mix(in srgb, var(--guide-accent) 86%, white 8%);
   background:
-    linear-gradient(145deg, color-mix(in srgb, var(--guide-accent) 30%, transparent), transparent 42%),
-    linear-gradient(180deg, rgb(255 255 255 / 12%), rgb(255 255 255 / 5%)),
-    var(--guide-panel-strong);
+    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--guide-accent) 28%, transparent), transparent 31%),
+    radial-gradient(circle at 88% 12%, color-mix(in srgb, var(--guide-accent-2) 24%, transparent), transparent 35%),
+    linear-gradient(150deg, color-mix(in srgb, var(--guide-accent) 20%, transparent), transparent 48%),
+    linear-gradient(180deg, rgb(255 255 255 / 11%), rgb(255 255 255 / 5%)),
+    var(--guide-card-surface);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 18%),
-    0 30px 82px rgb(0 0 0 / 42%),
-    0 0 0 1px color-mix(in srgb, var(--guide-accent) 18%, transparent),
-    0 0 58px color-mix(in srgb, var(--guide-accent) 22%, transparent);
-  transform: translateY(-6px);
+    0 26px 70px rgb(0 0 0 / 38%),
+    0 0 0 1px color-mix(in srgb, var(--guide-accent) 16%, transparent),
+    0 0 48px color-mix(in srgb, var(--guide-accent) 18%, transparent);
+  transform: translateY(-4px);
 }
 
 .module-guide__card:hover .module-guide__card-glow {
@@ -922,10 +976,10 @@ onMounted(() => {
   z-index: 1;
   display: flex;
   height: 100%;
-  min-height: 282px;
+  min-height: 236px;
   flex-direction: column;
-  gap: 22px;
-  padding: 26px;
+  gap: 18px;
+  padding: 22px;
 }
 
 .module-guide__card-top {
@@ -936,21 +990,21 @@ onMounted(() => {
 
 .module-guide__icon {
   display: flex;
-  width: 62px;
-  height: 62px;
+  width: 56px;
+  height: 56px;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  border: 1px solid color-mix(in srgb, var(--guide-accent) 62%, transparent);
+  border: 1px solid color-mix(in srgb, var(--guide-accent) 54%, transparent);
   border-radius: 8px;
   color: var(--guide-accent);
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--guide-accent) 28%, transparent), rgb(255 255 255 / 4%)),
+    linear-gradient(135deg, color-mix(in srgb, var(--guide-accent) 24%, transparent), color-mix(in srgb, var(--guide-accent-2) 12%, transparent)),
     rgb(255 255 255 / 5%);
-  font-size: 30px;
+  font-size: 28px;
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 14%),
-    0 14px 34px color-mix(in srgb, var(--guide-accent) 22%, transparent);
+    0 12px 28px color-mix(in srgb, var(--guide-accent) 18%, transparent);
 }
 
 .module-guide__status {
@@ -958,10 +1012,10 @@ onMounted(() => {
   gap: 7px;
   align-items: center;
   padding: 6px 9px;
-  border: 1px solid color-mix(in srgb, var(--guide-accent) 42%, rgb(255 255 255 / 14%));
+  border: 1px solid color-mix(in srgb, var(--guide-accent) 34%, rgb(255 255 255 / 14%));
   border-radius: 8px;
   color: var(--guide-text-soft);
-  background: rgb(255 255 255 / 6%);
+  background: color-mix(in srgb, var(--guide-accent) 10%, rgb(255 255 255 / 5%));
   font-size: 11px;
   font-weight: 850;
   line-height: 1;
@@ -997,7 +1051,7 @@ onMounted(() => {
 }
 
 .module-guide__summary {
-  min-height: 84px;
+  min-height: 66px;
   margin-top: 12px;
   color: var(--guide-text-soft);
   font-size: 14px;
@@ -1011,11 +1065,11 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   margin-top: auto;
-  padding: 13px 14px;
-  border: 1px solid color-mix(in srgb, var(--guide-accent) 28%, rgb(255 255 255 / 12%));
+  padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--guide-accent) 24%, rgb(255 255 255 / 12%));
   border-radius: 8px;
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--guide-accent) 16%, transparent), transparent),
+    linear-gradient(90deg, color-mix(in srgb, var(--guide-accent) 12%, transparent), color-mix(in srgb, var(--guide-accent-2) 8%, transparent)),
     rgb(255 255 255 / 5%);
 }
 
@@ -1159,7 +1213,7 @@ onMounted(() => {
   }
 
   .module-guide__console {
-    min-height: 190px;
+    min-height: 100px;
   }
 
   .module-guide__grid {
@@ -1169,7 +1223,7 @@ onMounted(() => {
 
 @media (max-width: 640px) {
   .module-guide {
-    padding: 18px 14px 32px;
+    padding: 8px 10px 22px;
   }
 
   .module-guide::before {
@@ -1211,49 +1265,52 @@ onMounted(() => {
   }
 
   .module-guide__topbar {
-    gap: 14px;
-    align-items: stretch;
-    flex-direction: column;
-    margin-bottom: 22px;
+    justify-content: center;
+    min-height: 26px;
+    margin-bottom: 6px;
   }
 
   .module-guide__brand-mini {
     justify-content: center;
   }
 
-  .module-guide__login {
-    justify-content: center;
-    width: 100%;
-  }
-
   .module-guide__hero {
-    gap: 14px;
-    margin-bottom: 26px;
+    gap: 0;
+    margin-bottom: 8px;
   }
 
   .module-guide__hero-copy {
-    min-height: 220px;
-    padding: 26px 22px;
+    min-height: 72px;
+    padding: 10px 14px;
   }
 
   .module-guide__name {
-    font-size: 34px;
+    font-size: 22px;
   }
 
   .module-guide__desc {
-    font-size: 14px;
+    display: none;
   }
 
   .module-guide__console {
-    min-height: 166px;
-  }
-
-  .module-guide__metric-value {
-    font-size: 50px;
+    display: none;
   }
 
   .module-guide__section-head {
-    flex-direction: column;
+    gap: 8px;
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .module-guide__section-desc {
+    display: none;
+  }
+
+  .module-guide__count {
+    min-height: 28px;
+    padding: 0 10px;
+    font-size: 12px;
   }
 
   .module-guide__grid {
@@ -1261,14 +1318,15 @@ onMounted(() => {
   }
 
   .module-guide__card-body {
-    min-height: 238px;
-    padding: 22px;
+    min-height: 204px;
+    gap: 14px;
+    padding: 18px;
   }
 
   .module-guide__icon {
-    width: 54px;
-    height: 54px;
-    font-size: 26px;
+    width: 48px;
+    height: 48px;
+    font-size: 24px;
   }
 
   .module-guide__title {

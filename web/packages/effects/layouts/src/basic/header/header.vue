@@ -151,9 +151,10 @@ function savePreferences() {
   >
     <slot name="menu"></slot>
   </div>
-  <div class="flex h-full min-w-0 flex-shrink-0 items-center">
+  <div class="layout-header-right flex h-full min-w-0 flex-shrink-0 items-center">
     <template v-for="slot in rightSlots" :key="slot.name">
-      <slot :name="slot.name">
+      <div class="layout-header-right__item" :data-slot="slot.name">
+        <slot :name="slot.name">
         <template v-if="slot.name === 'global-search'">
           <GlobalSearch
             :enable-shortcut-key="globalSearchShortcutKey"
@@ -181,7 +182,8 @@ function savePreferences() {
         <template v-else-if="slot.name === 'timezone'">
           <TimezoneButton class="mr-1 mt-[2px]" />
         </template>
-      </slot>
+        </slot>
+      </div>
     </template>
   </div>
 </template>
@@ -196,5 +198,34 @@ function savePreferences() {
 
 .menu-align-end {
   --menu-align: end;
+}
+
+.layout-header-right {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.layout-header-right__item {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.layout-header-right__item:empty {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .layout-header-right {
+    flex: 0 1 auto;
+  }
+
+  .layout-header-right__item[data-slot='global-search'],
+  .layout-header-right__item[data-slot='preferences'],
+  .layout-header-right__item[data-slot='language-toggle'],
+  .layout-header-right__item[data-slot='timezone'],
+  .layout-header-right__item[data-slot='fullscreen'],
+  .layout-header-right__item[data-slot='notification'] {
+    display: none;
+  }
 }
 </style>

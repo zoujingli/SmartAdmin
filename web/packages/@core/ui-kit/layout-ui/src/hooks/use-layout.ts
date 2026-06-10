@@ -2,11 +2,18 @@ import type { LayoutType } from '@vben-core/typings';
 
 import type { VbenLayoutProps } from '../vben-layout';
 
+import type { ComputedRef } from 'vue';
+
 import { computed } from 'vue';
 
-export function useLayout(props: VbenLayoutProps) {
+export function useLayout(
+  props: VbenLayoutProps,
+  effectiveIsMobile?: ComputedRef<boolean>,
+) {
   const currentLayout = computed(() =>
-    props.isMobile ? 'sidebar-nav' : (props.layout as LayoutType),
+    (effectiveIsMobile?.value || props.isMobile)
+      ? 'sidebar-nav'
+      : (props.layout as LayoutType),
   );
 
   /**

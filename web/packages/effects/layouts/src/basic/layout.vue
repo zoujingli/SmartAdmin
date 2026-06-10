@@ -261,7 +261,7 @@ const headerSlots = computed(() => {
     :header-theme="headerTheme"
     :header-toggle-sidebar-button="preferences.widget.sidebarToggle"
     :header-visible="preferences.header.enable"
-    :is-mobile="preferences.app.isMobile"
+    :is-mobile="isMobile"
     :layout="layout"
     :sidebar-collapse="preferences.sidebar.collapsed"
     :sidebar-collapse-show-title="preferences.sidebar.collapsedShowTitle"

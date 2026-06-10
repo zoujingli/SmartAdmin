@@ -62,10 +62,18 @@ function generateMenus(
       });
     }
 
-    // 确定最终路径
-    const resultPath = hideChildrenInMenu ? redirect || path : link || path;
+    // 目录菜单没有页面组件，点击时必须进入 redirect 指向的首个真实页面，避免 RouterView 渲染空白。
+    const redirectPath =
+      !link && redirect && !hideChildrenInMenu && resultChildren.length > 0
+        ? String(redirect)
+        : undefined;
 
-    return {
+    // 确定最终路径
+    const resultPath = hideChildrenInMenu
+      ? link || redirect || path
+      : link || path;
+
+    const menuItem: MenuRecordRaw = {
       activeIcon,
       badge,
       badgeType,
@@ -80,6 +88,12 @@ function generateMenus(
       show: !meta.hideInMenu,
       children: resultChildren,
     };
+
+    if (redirectPath) {
+      menuItem.redirectPath = redirectPath;
+    }
+
+    return menuItem;
   });
 
   // 对菜单进行排序，避免order=0时被替换成999的问题

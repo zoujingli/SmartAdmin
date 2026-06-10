@@ -28,6 +28,10 @@ function useExtraMenu(useRootMenus?: ComputedRef<MenuRecordRaw[]>) {
     preferences.app.layout === 'header-mixed-nav' ? 1 : 0,
   );
 
+  function getMenuNavigationPath(menu?: MenuRecordRaw | null) {
+    return menu?.redirectPath || menu?.path || '';
+  }
+
   /**
    * 选择混合菜单事件
    * @param menu
@@ -36,19 +40,21 @@ function useExtraMenu(useRootMenus?: ComputedRef<MenuRecordRaw[]>) {
     const _extraMenus = menu?.children ?? [];
     const hasChildren = _extraMenus.length > 0;
 
-    if (!willOpenedByWindow(menu.path)) {
+    const navigationPath = getMenuNavigationPath(menu);
+
+    if (!willOpenedByWindow(navigationPath)) {
       extraMenus.value = _extraMenus ?? [];
       extraActiveMenu.value = menu.parents?.[parentLevel.value] ?? menu.path;
       sidebarExtraVisible.value = hasChildren;
     }
 
     if (!hasChildren) {
-      await navigation(menu.path);
+      await navigation(navigationPath);
     } else if (preferences.sidebar.autoActivateChild) {
       await navigation(
         defaultSubMap.has(menu.path)
           ? (defaultSubMap.get(menu.path) as string)
-          : menu.path,
+          : navigationPath,
       );
     }
   };

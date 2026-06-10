@@ -7,6 +7,7 @@ import { computed, ref, watch } from 'vue';
 
 import {
   SCROLL_FIXED_CLASS,
+  useIsMobile,
   useLayoutFooterStyle,
   useLayoutHeaderStyle,
 } from '@vben-core/composables';
@@ -90,6 +91,8 @@ const {
 
 const { setLayoutHeaderHeight } = useLayoutHeaderStyle();
 const { setLayoutFooterHeight } = useLayoutFooterStyle();
+const { isMobile: viewportIsMobile } = useIsMobile();
+const effectiveIsMobile = computed(() => props.isMobile || viewportIsMobile.value);
 
 const { y: mouseY } = useMouse({ target: contentRef, type: 'client' });
 
@@ -100,7 +103,7 @@ const {
   isHeaderNav,
   isMixedNav,
   isSidebarMixedNav,
-} = useLayout(props);
+} = useLayout(props, effectiveIsMobile);
 
 /**
  * 顶栏是否自动隐藏
@@ -140,15 +143,15 @@ const sidebarEnableState = computed(() => {
  * 侧边区域离顶部高度
  */
 const sidebarMarginTop = computed(() => {
-  const { headerHeight, isMobile } = props;
-  return isMixedNav.value && !isMobile ? headerHeight : 0;
+  const { headerHeight } = props;
+  return isMixedNav.value && !effectiveIsMobile.value ? headerHeight : 0;
 });
 
 /**
  * 动态获取侧边宽度
  */
 const getSidebarWidth = computed(() => {
-  const { isMobile, sidebarHidden, sidebarMixedWidth, sidebarWidth } = props;
+  const { sidebarHidden, sidebarMixedWidth, sidebarWidth } = props;
   let width = 0;
 
   if (sidebarHidden) {
@@ -165,10 +168,10 @@ const getSidebarWidth = computed(() => {
     return width;
   }
 
-  if ((isHeaderMixedNav.value || isSidebarMixedNav.value) && !isMobile) {
+  if ((isHeaderMixedNav.value || isSidebarMixedNav.value) && !effectiveIsMobile.value) {
     width = sidebarMixedWidth;
   } else if (sidebarCollapse.value) {
-    width = isMobile ? 0 : getSideCollapseWidth.value;
+    width = effectiveIsMobile.value ? 0 : getSideCollapseWidth.value;
   } else {
     width = sidebarWidth;
   }
@@ -216,18 +219,28 @@ const showSidebar = computed(() => {
 /**
  * 遮罩可见性
  */
-const maskVisible = computed(() => !sidebarCollapse.value && props.isMobile);
+const maskVisible = computed(() => !sidebarCollapse.value && effectiveIsMobile.value);
 
 const mainStyle = computed(() => {
   let width = '100%';
   let sidebarAndExtraWidth = 'unset';
+
+  // 移动端侧栏是遮罩抽屉语义，不参与主内容和固定头部的宽度计算；
+  // 否则侧栏收起到视口外后，header/main 仍会按桌面侧栏宽度偏移，导致内容被压成窄列。
+  if (effectiveIsMobile.value) {
+    return {
+      sidebarAndExtraWidth: '0',
+      width,
+    };
+  }
+
   if (
     headerFixed.value &&
     currentLayout.value !== 'header-nav' &&
     currentLayout.value !== 'mixed-nav' &&
     currentLayout.value !== 'header-sidebar-nav' &&
     showSidebar.value &&
-    !props.isMobile
+    !effectiveIsMobile.value
   ) {
     // fixed模式下生效
     const isSideNavEffective =
@@ -333,8 +346,8 @@ const headerWrapperStyle = computed((): CSSProperties => {
  * 侧边栏z-index
  */
 const sidebarZIndex = computed(() => {
-  const { isMobile, zIndex } = props;
-  let offset = isMobile || isSideMode.value ? 1 : -1;
+  const { zIndex } = props;
+  let offset = effectiveIsMobile.value || isSideMode.value ? 1 : -1;
 
   if (isMixedNav.value) {
     offset += 1;
@@ -357,21 +370,21 @@ const maskStyle = computed((): CSSProperties => {
 
 const showHeaderToggleButton = computed(() => {
   return (
-    props.isMobile ||
+    effectiveIsMobile.value ||
     (props.headerToggleSidebarButton &&
       isSideMode.value &&
       !isSidebarMixedNav.value &&
       !isMixedNav.value &&
-      !props.isMobile)
+      !effectiveIsMobile.value)
   );
 });
 
 const showHeaderLogo = computed(() => {
-  return !isSideMode.value || isMixedNav.value || props.isMobile;
+  return !isSideMode.value || isMixedNav.value || effectiveIsMobile.value;
 });
 
 watch(
-  () => props.isMobile,
+  () => effectiveIsMobile.value,
   (val) => {
     if (val) {
       sidebarCollapse.value = true;
@@ -471,7 +484,7 @@ function handleClickMask() {
 }
 
 function handleHeaderToggle() {
-  if (props.isMobile) {
+  if (effectiveIsMobile.value) {
     sidebarCollapse.value = false;
   } else {
     emit('toggleSidebar');
@@ -493,7 +506,7 @@ const idMainContent = ELEMENT_ID_MAIN_CONTENT;
       :show-collapse-button="sidebarCollapsedButton"
       :show-fixed-button="sidebarFixedButton"
       :collapse-width="getSideCollapseWidth"
-      :dom-visible="!isMobile"
+      :dom-visible="!effectiveIsMobile"
       :extra-width="sidebarExtraWidth"
       :fixed-extra="sidebarExpandOnHover"
       :header-height="isMixedNav ? 0 : headerHeight"
@@ -528,6 +541,7 @@ const idMainContent = ELEMENT_ID_MAIN_CONTENT;
     <div
       ref="contentRef"
       class="flex flex-1 flex-col overflow-hidden transition-all duration-300 ease-in"
+      :class="{ 'min-w-0': effectiveIsMobile }"
     >
       <div
         :class="[
@@ -543,7 +557,7 @@ const idMainContent = ELEMENT_ID_MAIN_CONTENT;
           v-if="headerVisible"
           :full-width="!isSideMode"
           :height="headerHeight"
-          :is-mobile="isMobile"
+          :is-mobile="effectiveIsMobile"
           :show="!isFullContent && !headerHidden"
           :sidebar-width="sidebarWidth"
           :theme="headerTheme"

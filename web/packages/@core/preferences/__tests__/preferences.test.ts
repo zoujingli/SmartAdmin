@@ -111,6 +111,18 @@ describe('preferences', () => {
     expect(preferenceManager.getPreferences().app.isMobile).toBe(true);
   });
 
+  it('overrides existing boolean preference values', () => {
+    preferenceManager.updatePreferences({
+      app: { isMobile: true },
+    });
+    expect(preferenceManager.getPreferences().app.isMobile).toBe(true);
+
+    preferenceManager.updatePreferences({
+      app: { isMobile: false },
+    });
+    expect(preferenceManager.getPreferences().app.isMobile).toBe(false);
+  });
+
   it('updates the locale preference correctly', () => {
     preferenceManager.updatePreferences({
       app: { locale: 'en-US' },

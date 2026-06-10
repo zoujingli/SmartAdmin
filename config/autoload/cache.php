@@ -27,7 +27,7 @@ if (!is_dir($fileCacheDirectory) && !@mkdir($fileCacheDirectory, 0755, true) && 
 }
 
 return [
-    'default' => 'default',
+    'default' => $cacheStore,
     'stores' => (function () use ($cachePrefix, $cacheStore, $fileCacheDirectory) {
         $stores = [
             'file' => [
@@ -60,6 +60,7 @@ return [
             ],
         ];
 
+        // Hyperf 3.2 的 cache.default 直接指向有效 store；保留 default 别名给注解默认 group 使用。
         $selectedStore = array_key_exists($cacheStore, $stores) ? $cacheStore : 'file';
         $stores['default'] = $stores[$selectedStore];
 

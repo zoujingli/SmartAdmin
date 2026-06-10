@@ -5,7 +5,7 @@ import { useRoute } from 'vue-router';
 
 import { preferences, usePreferences } from '@vben/preferences';
 import { useAccessStore } from '@vben/stores';
-import { findRootMenuByPath } from '@vben/utils';
+import { findMenuByPath, findRootMenuByPath } from '@vben/utils';
 
 import { useNavigation } from './use-navigation';
 
@@ -26,6 +26,10 @@ function useMixedMenu() {
       (preferences.navigation.split && isMixedNav.value) ||
       isHeaderMixedNav.value,
   );
+
+  function getMenuNavigationPath(menu?: MenuRecordRaw | null, fallback?: string) {
+    return menu?.redirectPath || fallback || menu?.path || '';
+  }
 
   const sidebarVisible = computed(() => {
     const enableSidebar = preferences.sidebar.enable;
@@ -85,25 +89,28 @@ function useMixedMenu() {
    * @param mode 菜单模式
    */
   const handleMenuSelect = (key: string, mode?: string) => {
+    const selectedMenu = findMenuByPath(menus.value, key);
+    const navigationPath = getMenuNavigationPath(selectedMenu, key);
+
     if (!needSplit.value || mode === 'vertical') {
-      navigation(key);
+      navigation(navigationPath);
       return;
     }
     const rootMenu = menus.value.find((item) => item.path === key);
     const _splitSideMenus = rootMenu?.children ?? [];
 
-    if (!willOpenedByWindow(key)) {
+    if (!willOpenedByWindow(navigationPath)) {
       rootMenuPath.value = rootMenu?.path ?? '';
       splitSideMenus.value = _splitSideMenus;
     }
 
     if (_splitSideMenus.length === 0) {
-      navigation(key);
+      navigation(navigationPath);
     } else if (rootMenu && preferences.sidebar.autoActivateChild) {
       navigation(
         defaultSubMap.has(rootMenu.path)
           ? (defaultSubMap.get(rootMenu.path) as string)
-          : rootMenu.path,
+          : getMenuNavigationPath(rootMenu),
       );
     }
   };
@@ -115,8 +122,11 @@ function useMixedMenu() {
    */
   const handleMenuOpen = (key: string, parentsPath: string[]) => {
     if (parentsPath.length <= 1 && preferences.sidebar.autoActivateChild) {
+      const selectedMenu = findMenuByPath(menus.value, key);
       navigation(
-        defaultSubMap.has(key) ? (defaultSubMap.get(key) as string) : key,
+        defaultSubMap.has(key)
+          ? (defaultSubMap.get(key) as string)
+          : getMenuNavigationPath(selectedMenu, key),
       );
     }
   };

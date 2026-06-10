@@ -6,7 +6,16 @@
     "description": "提供仪表盘、系统管理、平台运维、租户、权限、日志、文件和系统参数等基础后台能力。",
     "view_root": "stc/view",
     "language_root": "stc/languages",
-    "migration_root": "stc/migrations"
+    "migration_root": "stc/migrations",
+    "guide_entry": {
+      "name": "系统后台",
+      "description": "系统管理员进入权限、组织、租户、日志、文件和平台参数维护中心。",
+      "icon": "lucide:shield-check",
+      "home_path": "/auth/login",
+      "login_path": "/auth/login",
+      "sort": -100,
+      "enabled": true
+    }
   },
   "apps": [
     {

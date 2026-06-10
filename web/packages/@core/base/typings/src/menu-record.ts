@@ -67,6 +67,10 @@ interface MenuRecordRaw extends MenuRecordBadgeRaw {
    */
   path: string;
   /**
+   * 菜单点击跳转路径。目录菜单本身可作为唯一 key 保留，点击时进入真实页面。
+   */
+  redirectPath?: string;
+  /**
    * 是否显示菜单
    * @default true
    */

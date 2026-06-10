@@ -76,7 +76,7 @@ final class SystemRoleCodeRemovalTest extends TestCase
     private function installValidateHelperContainer(): void
     {
         $origin = $this->originContainer;
-        $request = $this->createMock(RequestInterface::class);
+        $request = $this->createStub(RequestInterface::class);
         $translator = $origin?->get(TranslatorInterface::class);
         $helper = new ValidateHelper($request, new ValidatorFactory($translator));
 

@@ -15,6 +15,7 @@ use Hyperf\Context\ApplicationContext;
 use Hyperf\Contract\TranslatorInterface;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Library\Auth\Token;
+use Lcobucci\JWT\Token as JwtToken;
 use Library\Exception\ErrorResponseException;
 use Library\Exception\UnauthorizedResponseException;
 use Library\Interfaces\UserModelInterface;
@@ -50,7 +51,7 @@ final class AuthControllerTest extends TestCase
 
         $controller = new AuthController(
             $this->newInstanceWithoutConstructor(UserService::class),
-            $this->getMockBuilder(Token::class)->disableOriginalConstructor()->getMock(),
+            $this->tokenStub(),
             $this->newInstanceWithoutConstructor(MenuService::class),
             $this->newInstanceWithoutConstructor(DataService::class),
             $this->newInstanceWithoutConstructor(PasswordCryptoService::class),
@@ -65,11 +66,7 @@ final class AuthControllerTest extends TestCase
 
     public function testRefreshThrowsUnauthorizedWhenCurrentUserCannotBeResolved(): void
     {
-        $token = $this->getMockBuilder(Token::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['refresh'])
-            ->getMock();
-        $token->expects($this->never())->method('refresh');
+        $token = $this->tokenStub(refresh: static fn (): never => throw new \RuntimeException('refresh should not be called'));
 
         $controller = new AuthController(
             $this->makeUnauthorizedUserService(),
@@ -88,11 +85,7 @@ final class AuthControllerTest extends TestCase
     public function testProfileRejectsRawClaimsWithoutEffectiveLoginUser(): void
     {
         $originalContainer = ApplicationContext::getContainer();
-        $claimsToken = $this->getMockBuilder(Token::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['getParserData'])
-            ->getMock();
-        $claimsToken->method('getParserData')->willReturn([
+        $claimsToken = $this->tokenStub(parserData: [
             'uid' => 123,
             'class' => 'System\Model\SystemUser',
         ]);
@@ -102,7 +95,7 @@ final class AuthControllerTest extends TestCase
         try {
             $controller = new AuthController(
                 $this->makeUnauthorizedUserService(),
-                $this->getMockBuilder(Token::class)->disableOriginalConstructor()->getMock(),
+                $this->tokenStub(),
                 $this->newInstanceWithoutConstructor(MenuService::class),
                 $this->newInstanceWithoutConstructor(DataService::class),
                 $this->newInstanceWithoutConstructor(PasswordCryptoService::class),
@@ -163,11 +156,7 @@ final class AuthControllerTest extends TestCase
         ));
 
         try {
-            $token = $this->getMockBuilder(Token::class)
-                ->disableOriginalConstructor()
-                ->onlyMethods(['refresh'])
-                ->getMock();
-            $token->method('refresh')->willThrowException(new \RuntimeException('refresh failed'));
+            $token = $this->tokenStub(refresh: static fn (): never => throw new \RuntimeException('refresh failed'));
 
             $controller = new AuthController(
                 $this->newInstanceWithoutConstructor(UserService::class),
@@ -239,7 +228,7 @@ final class AuthControllerTest extends TestCase
         try {
             $controller = new AuthController(
                 $this->newInstanceWithoutConstructor(UserService::class),
-                $this->getMockBuilder(Token::class)->disableOriginalConstructor()->getMock(),
+                $this->tokenStub(),
                 $this->newInstanceWithoutConstructor(MenuService::class),
                 $this->newInstanceWithoutConstructor(DataService::class),
                 $this->newInstanceWithoutConstructor(PasswordCryptoService::class),
@@ -260,7 +249,7 @@ final class AuthControllerTest extends TestCase
     {
         $controller = new AuthController(
             $this->newInstanceWithoutConstructor(UserService::class),
-            $this->getMockBuilder(Token::class)->disableOriginalConstructor()->getMock(),
+            $this->tokenStub(),
             $this->newInstanceWithoutConstructor(MenuService::class),
             $this->newInstanceWithoutConstructor(DataService::class),
             $this->newInstanceWithoutConstructor(PasswordCryptoService::class),
@@ -286,17 +275,47 @@ final class AuthControllerTest extends TestCase
     {
         $service = $this->newInstanceWithoutConstructor(UserService::class);
         $sessions = $this->newInstanceWithoutConstructor(SystemUserSessionService::class);
-        $token = $this->getMockBuilder(Token::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['getHeaderToken', 'getParserData'])
-            ->getMock();
-        $token->method('getHeaderToken')->willReturn('');
-        $token->method('getParserData')->willReturn([]);
+        $token = $this->tokenStub(headerToken: '', parserData: []);
 
         $this->setProtectedProperty($sessions, 'token', $token);
         $this->setProtectedProperty($service, 'sessions', $sessions);
 
         return $service;
+    }
+
+    private function tokenStub(string $headerToken = '', array $parserData = [], ?callable $refresh = null): Token
+    {
+        $refreshCallback = $refresh instanceof \Closure ? $refresh : ($refresh === null ? null : \Closure::fromCallable($refresh));
+
+        return new class($headerToken, $parserData, $refreshCallback) extends Token {
+            /**
+             * @param array<string, mixed> $parserData
+             */
+            public function __construct(
+                private readonly string $headerToken = '',
+                private readonly array $parserData = [],
+                private readonly ?\Closure $refreshCallback = null,
+            ) {}
+
+            public function getHeaderToken(): string
+            {
+                return $this->headerToken;
+            }
+
+            public function getParserData(?string $token = null): array
+            {
+                return $this->parserData;
+            }
+
+            public function refresh(?string $token = null): JwtToken|string
+            {
+                if ($this->refreshCallback) {
+                    return ($this->refreshCallback)($token);
+                }
+
+                return '';
+            }
+        };
     }
 
     private function makeTranslator(): TranslatorInterface
@@ -328,13 +347,7 @@ final class AuthControllerTest extends TestCase
 
     private function makeClaimsToken(array $claims): Token
     {
-        $token = $this->getMockBuilder(Token::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['getParserData'])
-            ->getMock();
-        $token->method('getParserData')->willReturn($claims);
-
-        return $token;
+        return $this->tokenStub(parserData: $claims);
     }
 
     private function makeLoginService(callable $resolver): object
