@@ -646,7 +646,7 @@ const handleResetPassword = (record: UserType) => {
   Modal.confirm({
     title: `重置密码：${record.username}`,
     content: h(InputPassword, {
-      placeholder: '请输入新密码（至少6位）',
+      placeholder: '请输入新密码（至少5位）',
       onInput: (e: any) => {
         nextPassword = e?.target?.value ?? '';
       },
@@ -658,8 +658,8 @@ const handleResetPassword = (record: UserType) => {
     cancelText: '取消',
     onOk: async () => {
       const password = nextPassword.trim();
-      if (password.length < 6) {
-        message.error('密码长度不能小于 6 位');
+      if (password.length < 5) {
+        message.error('密码长度不能小于 5 位');
         return Promise.reject(new Error('invalid password'));
       }
       await userApiService.resetUserPassword(record.id, password);

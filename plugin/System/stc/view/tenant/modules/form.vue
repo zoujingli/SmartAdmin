@@ -151,7 +151,7 @@ const formRules: any = {
   ],
   admin_password: [
     { required: true, message: '请输入管理员初始密码', trigger: 'blur' },
-    { min: 6, max: 20, message: '管理员初始密码长度为 6-20 个字符', trigger: 'blur' },
+    { min: 5, max: 20, message: '管理员初始密码长度为 5-20 个字符', trigger: 'blur' },
   ],
 };
 

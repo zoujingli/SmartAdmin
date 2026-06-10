@@ -249,7 +249,7 @@ final class TenantService extends CoreService
             'admin_username.required' => '租户管理员用户名不能为空',
             'admin_username.max:20' => '租户管理员用户名最多 20 位',
             'admin_password.required' => '租户管理员初始密码不能为空',
-            'admin_password.min:6' => '租户管理员初始密码至少 6 位',
+            'admin_password.min:5' => '租户管理员初始密码至少 5 位',
             'admin_password.max:255' => '租户管理员初始密码格式错误',
             'admin_nickname.max:30' => '租户管理员昵称最多 30 位',
             'admin_phone.max:11' => '租户管理员手机号最多 11 位',

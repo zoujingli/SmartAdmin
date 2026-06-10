@@ -22,6 +22,11 @@ use System\Model\SystemUser;
  */
 final class UserPasswordCredentialService
 {
+    /**
+     * System 后台账号允许 5 位起步；各入口复用同一阈值，避免前后台提示不一致。
+     */
+    private const PASSWORD_MIN_LENGTH = 5;
+
     public function __construct(
         private readonly UserMapper $mapper,
     ) {}
@@ -37,8 +42,8 @@ final class UserPasswordCredentialService
         if ($password === '') {
             throw new ErrorResponseException('密码不能为空');
         }
-        if (strlen($password) < 6) {
-            throw new ErrorResponseException('密码长度至少 6 位');
+        if (strlen($password) < self::PASSWORD_MIN_LENGTH) {
+            throw new ErrorResponseException('密码长度至少 5 位');
         }
     }
 
@@ -59,8 +64,8 @@ final class UserPasswordCredentialService
             return $data;
         }
 
-        if (strlen((string)$data['password']) < 6) {
-            throw new ErrorResponseException('密码长度至少 6 位');
+        if (strlen((string)$data['password']) < self::PASSWORD_MIN_LENGTH) {
+            throw new ErrorResponseException('密码长度至少 5 位');
         }
 
         return $data;
@@ -74,8 +79,8 @@ final class UserPasswordCredentialService
         if ($newPassword === '') {
             throw new ErrorResponseException('新密码不能为空');
         }
-        if (strlen($newPassword) < 6) {
-            throw new ErrorResponseException('新密码长度至少 6 位');
+        if (strlen($newPassword) < self::PASSWORD_MIN_LENGTH) {
+            throw new ErrorResponseException('新密码长度至少 5 位');
         }
 
         $user = $this->mapper->read($userId, ['*'], false);
@@ -99,8 +104,8 @@ final class UserPasswordCredentialService
         if ($password === '') {
             throw new ErrorResponseException('密码不能为空');
         }
-        if (strlen($password) < 6) {
-            throw new ErrorResponseException('密码长度至少 6 位');
+        if (strlen($password) < self::PASSWORD_MIN_LENGTH) {
+            throw new ErrorResponseException('密码长度至少 5 位');
         }
         if (!$this->mapper->changePassword($id, $password)) {
             throw new ErrorResponseException('用户不存在或无权限操作');

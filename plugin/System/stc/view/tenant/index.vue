@@ -375,7 +375,7 @@ const importColumns = [
   { key: 'expired_at', title: '到期时间', example: '2026-12-31 23:59:59', rule: '可选，建议使用 YYYY-MM-DD HH:mm:ss。' },
   { key: 'status', title: '状态', example: '启用', parser: (value: any) => parseStatus(value, 1), rule: '支持 启用/禁用 或 1/0，留空默认启用。' },
   { key: 'admin_username', title: '管理员用户名', required: true, example: 'tenant_admin_demo', rule: '新建租户必须同步创建管理员账号，用户名全局唯一。' },
-  { key: 'admin_password', title: '管理员初始密码', required: true, example: 'Admin@123456', rule: '至少 6 位，导入后请提示租户管理员尽快修改。' },
+  { key: 'admin_password', title: '管理员初始密码', required: true, example: 'Admin@123456', rule: '至少 5 位，导入后请提示租户管理员尽快修改。' },
   { key: 'admin_nickname', title: '管理员昵称', example: '租户管理员', rule: '可选，留空默认租户管理员。' },
   { key: 'remark', title: '备注', example: '导入样例', rule: '可选，最多填写业务备注。' },
 ];

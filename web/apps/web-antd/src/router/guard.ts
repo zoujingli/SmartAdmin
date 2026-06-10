@@ -30,7 +30,10 @@ import { systemNoticeRoute } from '#/router/routes/static-system';
 import { useAuthStore } from '#/store';
 
 import { generateAccess } from './access';
-import { shouldRebuildAccessRoutes as shouldRebuildAccessRoutesForEntry } from './guard-routes';
+import {
+  shouldPreserveModuleGuideHistory,
+  shouldRebuildAccessRoutes as shouldRebuildAccessRoutesForEntry,
+} from './guard-routes';
 
 /**
  * 通用守卫配置
@@ -149,7 +152,7 @@ function setupAccessGuard(router: Router) {
     accessStore.setIsAccessChecked(false);
   }
 
-  function replaceByResolvedPath(target: string): RouteLocationRaw {
+  function replaceByResolvedPath(target: string, replace = true): RouteLocationRaw {
     const resolved = router.resolve(target);
 
     // 重新进入当前地址时只返回原始路由字段，不能把 router.resolve() 的 matched/meta 快照带回守卫；
@@ -158,7 +161,7 @@ function setupAccessGuard(router: Router) {
       hash: resolved.hash,
       path: resolved.path,
       query: resolved.query,
-      replace: true,
+      replace,
     };
   }
 
@@ -305,7 +308,8 @@ function setupAccessGuard(router: Router) {
             to.fullPath === preferences.app.defaultHomePath
               ? {}
               : { redirect: encodeURIComponent(to.fullPath) },
-          replace: true,
+          // 从模块入口页点击进入未登录业务时，保留 /entry 历史，允许浏览器返回重新选择入口。
+          replace: !shouldPreserveModuleGuideHistory(from),
         };
       }
       return to;
@@ -410,7 +414,7 @@ function setupAccessGuard(router: Router) {
       fallbackPath,
     );
 
-    return replaceByResolvedPath(redirectPath);
+    return replaceByResolvedPath(redirectPath, !shouldPreserveModuleGuideHistory(from));
   });
 }
 

@@ -74,6 +74,14 @@ function handleKeydown(event: KeyboardEvent) {
   text-underline-offset: 2px;
 }
 .reference-rich-content :deep(img) { max-width: 100%; height: auto; border-radius: 8px; }
+.reference-rich-content :deep(video) {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  max-height: min(420px, 70vh);
+  border-radius: 8px;
+  background: #000;
+}
 .reference-rich-content :deep(a[data-project-file='1']) {
   display: inline-flex;
   gap: 8px;

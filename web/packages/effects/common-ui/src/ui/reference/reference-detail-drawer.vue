@@ -484,6 +484,14 @@ watch(() => [props.open, activeReference.value?.raw, activeReference.value?.id, 
 .reference-detail-rich-content :deep(p) { margin: 0 0 0.75em; }
 .reference-detail-rich-content :deep(p:last-child) { margin-bottom: 0; }
 .reference-detail-rich-content :deep(img) { max-width: 100%; height: auto; border-radius: 10px; }
+.reference-detail-rich-content :deep(video) {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  max-height: min(420px, 70vh);
+  border-radius: 10px;
+  background: #000;
+}
 .reference-detail-rich-content :deep(a[data-project-file='1']) {
   display: inline-flex;
   gap: 8px;

@@ -2,7 +2,7 @@ import type { RouteLocationNormalized } from 'vue-router';
 
 import { describe, expect, it } from 'vitest';
 
-import { routeReentry, shouldRebuildAccessRoutes } from '../guard-routes';
+import { routeReentry, shouldPreserveModuleGuideHistory, shouldRebuildAccessRoutes } from '../guard-routes';
 
 function route(value: {
   ignoreAccess?: boolean;
@@ -92,5 +92,22 @@ describe('shouldRebuildAccessRoutes', () => {
     });
     expect(result).not.toHaveProperty('matched');
     expect(result).not.toHaveProperty('meta');
+  });
+
+  it('preserves module guide history when entering from /entry', () => {
+    expect(shouldPreserveModuleGuideHistory({ path: '/entry' } as RouteLocationNormalized)).toBe(true);
+    expect(shouldPreserveModuleGuideHistory({ path: '/entry?from=card' } as RouteLocationNormalized)).toBe(true);
+    expect(shouldPreserveModuleGuideHistory({ path: '/project/portal' } as RouteLocationNormalized)).toBe(false);
+
+    expect(routeReentry({
+      hash: '',
+      path: '/project/portal',
+      query: {},
+    }, { replace: false })).toEqual({
+      hash: '',
+      path: '/project/portal',
+      query: {},
+      replace: false,
+    });
   });
 });

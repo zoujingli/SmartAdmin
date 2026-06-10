@@ -47,7 +47,7 @@ export function useFormSchema(): VbenFormSchema[] {
         placeholder: '请输入密码',
         maxLength: 20,
       },
-      rules: z.string().min(6, '密码至少 6 位').max(20, '密码最多 20 位').optional(),
+      rules: z.string().min(5, '密码至少 5 位').max(20, '密码最多 20 位').optional(),
     },
     {
       component: 'Textarea',

@@ -7,7 +7,7 @@
     :destroy-on-close="destroyOnClose"
     :height="height"
     :keyboard="canClose"
-    :mask-closable="canClose && maskClosable"
+    :mask-closable="canClose && resolvedMaskClosable"
     :open="open"
     :placement="placement"
     :root-class-name="drawerRootClassName"
@@ -123,7 +123,7 @@ const props = withDefaults(defineProps<{
   destroyOnClose: false,
   height: undefined,
   loading: false,
-  maskClosable: true,
+  maskClosable: undefined,
   okDanger: false,
   okDisabled: false,
   okText: '保存',
@@ -146,6 +146,8 @@ const emit = defineEmits<{
 const attrs = useAttrs();
 const canClose = computed(() => !props.confirmLoading);
 const drawerWidth = computed(() => props.width || popupWidth[props.widthSize]);
+// 默认区分抽屉语义：带底部按钮的编辑/表单抽屉禁止遮罩关闭，只读明细抽屉允许点空白关闭。
+const resolvedMaskClosable = computed(() => props.maskClosable ?? !props.showFooter);
 const panelClassName = computed(() => attrs.class as any);
 const drawerRootClassName = computed(() => ['app-drawer', attrs.rootClassName].filter(Boolean).join(' '));
 const forwardedAttrs = computed(() => {

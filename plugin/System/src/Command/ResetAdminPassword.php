@@ -60,8 +60,8 @@ final class ResetAdminPassword extends HyperfCommand
         if ($password === null) {
             return $this->fail('Password is required or confirmation does not match. Use --password, --default, or run interactively.', $json);
         }
-        if ($password !== SystemBootstrapSeed::DEFAULT_PASSWORD && strlen($password) < 6) {
-            return $this->fail('Password length must be at least 6 characters.', $json);
+        if ($password !== SystemBootstrapSeed::DEFAULT_PASSWORD && strlen($password) < 5) {
+            return $this->fail('Password length must be at least 5 characters.', $json);
         }
 
         /** @var null|SystemUser $user */
