@@ -149,9 +149,9 @@ const drawerWidth = computed(() => props.width || popupWidth[props.widthSize]);
 // 默认区分抽屉语义：带底部按钮的编辑/表单抽屉禁止遮罩关闭，只读明细抽屉允许点空白关闭。
 const resolvedMaskClosable = computed(() => props.maskClosable ?? !props.showFooter);
 const panelClassName = computed(() => attrs.class as any);
-const drawerRootClassName = computed(() => ['app-drawer', attrs.rootClassName].filter(Boolean).join(' '));
+const drawerRootClassName = computed(() => ['app-drawer', attrs.rootClassName || attrs['root-class-name']].filter(Boolean).join(' '));
 const forwardedAttrs = computed(() => {
-  const { class: _class, rootClassName: _rootClassName, style: _style, ...rest } = attrs;
+  const { class: _class, rootClassName: _rootClassName, 'root-class-name': _kebabRootClassName, style: _style, ...rest } = attrs;
 
   return rest;
 });

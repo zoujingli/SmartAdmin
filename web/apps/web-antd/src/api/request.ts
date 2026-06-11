@@ -144,6 +144,10 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
 
 export const requestClient = createRequestClient(ENV_CONFIG.apiUrl, {
   responseReturn: 'data',
+  timeout: REQUEST_CONFIG_FINAL.timeout,
 });
 
-export const baseRequestClient = new RequestClient({ baseURL: ENV_CONFIG.apiUrl });
+export const baseRequestClient = new RequestClient({
+  baseURL: ENV_CONFIG.apiUrl,
+  timeout: REQUEST_CONFIG_FINAL.timeout,
+});

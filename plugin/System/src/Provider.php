@@ -13,6 +13,9 @@ namespace System;
 
 use Library\Interfaces\NodeNameResolverInterface;
 use Library\Interfaces\OperateLogWriterInterface;
+use System\Contract\ScheduledTaskExecutorInterface;
+use System\Listener\SystemProcessRegisterListener;
+use System\Service\ScheduledTaskExecutor;
 use System\Service\LogsActionService;
 use System\Service\MenuService;
 
@@ -28,10 +31,13 @@ final class Provider
     public function __invoke(): array
     {
         return [
-            'listeners' => [],
+            'listeners' => [
+                SystemProcessRegisterListener::class,
+            ],
             'dependencies' => [
                 NodeNameResolverInterface::class => MenuService::class,
                 OperateLogWriterInterface::class => LogsActionService::class,
+                ScheduledTaskExecutorInterface::class => ScheduledTaskExecutor::class,
             ],
             'xadmin' => [
                 'common_capabilities' => [

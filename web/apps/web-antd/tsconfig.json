@@ -150,6 +150,18 @@
       ],
       "@wangeditor/editor-for-vue": [
         "./node_modules/@wangeditor/editor-for-vue"
+      ],
+      "@vue-flow/core": [
+        "./node_modules/@vue-flow/core"
+      ],
+      "vitest": [
+        "../../node_modules/vitest"
+      ],
+      "vitest/*": [
+        "../../node_modules/vitest/*"
+      ],
+      "@vue-flow/core/*": [
+        "./node_modules/@vue-flow/core/*"
       ]
     },
     "types": []

@@ -152,6 +152,26 @@ function setupAccessGuard(router: Router) {
     accessStore.setIsAccessChecked(false);
   }
 
+  async function refreshAccessCodes(force = false) {
+    const accessStore = useAccessStore();
+    const userInfo = useUserStore().userInfo;
+    if (!accessStore.accessToken || (!force && accessStore.accessCodes.length > 0)) {
+      return;
+    }
+    if (!userInfo || !isUserInfoForAuthEntry(userInfo)) {
+      return;
+    }
+
+    try {
+      // 新增前台菜单权限后，旧页面会话可能还持有过期 accessCodes；强制刷新用于从隐藏 403 路由恢复。
+      const accessCodes = await coreAuthApiService.getAccessCodes();
+      accessStore.setAccessCodes(Array.isArray(accessCodes) ? accessCodes : []);
+    } catch (error) {
+      console.warn('刷新权限码失败:', error);
+      accessStore.setAccessCodes([]);
+    }
+  }
+
   function replaceByResolvedPath(target: string, replace = true): RouteLocationRaw {
     const resolved = router.resolve(target);
 
@@ -216,23 +236,7 @@ function setupAccessGuard(router: Router) {
   }
 
   async function refreshAccessCodesIfNeeded() {
-    const accessStore = useAccessStore();
-    const userInfo = useUserStore().userInfo;
-    if (!accessStore.accessToken || accessStore.accessCodes.length > 0) {
-      return;
-    }
-    if (!userInfo || !isUserInfoForAuthEntry(userInfo)) {
-      return;
-    }
-
-    try {
-      // 多认证入口共用一套路由守卫，但权限码接口按当前入口配置切换。
-      const accessCodes = await coreAuthApiService.getAccessCodes();
-      accessStore.setAccessCodes(Array.isArray(accessCodes) ? accessCodes : []);
-    } catch (error) {
-      console.warn('刷新权限码失败:', error);
-      accessStore.setAccessCodes([]);
-    }
+    await refreshAccessCodes(false);
   }
 
   function hasStableMenuOrder(menus: any[]): boolean {
@@ -351,6 +355,12 @@ function setupAccessGuard(router: Router) {
           accessRouteRebuildPaths.delete(to.fullPath);
           return true;
         }
+      }
+      if (to.meta.menuVisibleWithForbidden === true && !accessRouteRebuildPaths.has(to.fullPath)) {
+        accessRouteRebuildPaths.add(to.fullPath);
+        await refreshAccessCodes(true);
+        resetDynamicRoutesForRebuild();
+        shouldForceRebuildAccess = true;
       }
       if (!shouldForceRebuildAccess) {
         accessRouteRebuildPaths.delete(to.fullPath);

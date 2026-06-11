@@ -8,6 +8,9 @@ jobs:
   build:
     name: Build Smoke
     runs-on: ubuntu-latest
+    env:
+      # Vite 构建和前端依赖预处理在公开仓同步后会复用同一套配置，保持与 Test/Release 的 Node 内存边界一致。
+      NODE_OPTIONS: --max-old-space-size=4096
 
     steps:
       - name: Checkout

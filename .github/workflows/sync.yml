@@ -23,6 +23,8 @@ env:
   SMARTADMIN_RELEASE_DB_PORT: 3306
   SMARTADMIN_RELEASE_DB_USERNAME: root
   SMARTADMIN_RELEASE_DB_PASSWORD: root
+  # 公开仓导出校验会执行 composer web:build，其中 vue-tsc 需要高于 Node 默认堆限制。
+  NODE_OPTIONS: --max-old-space-size=4096
 
 jobs:
   sync:

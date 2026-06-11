@@ -62,6 +62,63 @@
           ]
         },
         {
+          "id": 185,
+          "name": "任务管理",
+          "code": "system.scheduler.task.index",
+          "route": "/system/scheduler/task",
+          "icon": "lucide:calendar-clock",
+          "sort": 22,
+          "view": "scheduler/task/index.vue",
+          "module": {
+            "key": "scheduler-task",
+            "summary": "System 默认调度进程、白名单任务计划和执行日志管理中心。",
+            "features": [
+              "白名单任务",
+              "可视化周期",
+              "立即执行",
+              "执行日志"
+            ]
+          },
+          "permissions": [
+            {
+              "id": 1851,
+              "name": "新增任务",
+              "code": "system.scheduler.task.create",
+              "sort": 10
+            },
+            {
+              "id": 1852,
+              "name": "编辑任务",
+              "code": "system.scheduler.task.update",
+              "sort": 20
+            },
+            {
+              "id": 1853,
+              "name": "删除任务",
+              "code": "system.scheduler.task.delete",
+              "sort": 30
+            },
+            {
+              "id": 1854,
+              "name": "更新任务状态",
+              "code": "system.scheduler.task.status",
+              "sort": 40
+            },
+            {
+              "id": 1855,
+              "name": "立即执行任务",
+              "code": "system.scheduler.task.run",
+              "sort": 50
+            },
+            {
+              "id": 1856,
+              "name": "查看执行日志",
+              "code": "system.scheduler.log.index",
+              "sort": 60
+            }
+          ]
+        },
+        {
           "id": 190,
           "name": "系统参数",
           "code": "system.setting.index",

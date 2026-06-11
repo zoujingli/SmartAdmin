@@ -256,12 +256,15 @@ const editorConfig = computed<Partial<IEditorConfig>>(() => ({
       allowedFileTypes: ['video/*'],
       maxNumberOfFiles: 1,
       // 富文本视频需要保存可长期播放的公开地址，不能写入短期签名下载链接。
-      customUpload(file: File, _insertFn: (src: string, poster: string) => void) {
+      customUpload(file: File, insertFn: (src: string, poster: string) => void) {
         void uploadEditorAsset('video', file)
           .then((asset) => {
             const url = getVideoAssetUrl(asset);
             if (!url) throw new Error('视频上传成功但未返回访问地址');
-            insertUploadedMedia('video', asset, file);
+            // wangEditor 视频模块依赖自身 insertFn 创建 type=video 节点；直接插入原生 video 会导致编辑态回显异常。
+            insertFn(url, '');
+            contentValue.value = richEditorRef.value?.getHtml() || contentValue.value || '';
+            message.success('媒体已上传并插入正文');
           })
           .catch((error) => handleEditorUploadError(error));
       },
@@ -295,14 +298,14 @@ async function handleViewModeChange() {
   // 从源码模式回到可视化编辑时，用当前 HTML 重建编辑器节点，避免源码与可视化内容不同步。
   if (viewMode.value === 'visual') {
     await nextTick();
-    richEditorRef.value?.setHtml(contentValue.value || '');
+    richEditorRef.value?.setHtml(normalizeVideoHtmlForEditor(contentValue.value || ''));
   }
 }
 
 function handleEditorCreated(editor: IDomEditor) {
   richEditorRef.value = editor;
   getAttachmentUploadHandlers().set(editor, openFilePicker);
-  editor.setHtml(contentValue.value || '');
+  editor.setHtml(normalizeVideoHtmlForEditor(contentValue.value || ''));
 }
 
 function handleEditorAlert(info: string, type: 'error' | 'info' | 'success' | 'warning') {
@@ -443,7 +446,7 @@ function buildVideoHtml(asset: UploadAsset, file: File) {
   const url = getVideoAssetUrl(asset);
   if (!url) return '';
   const fileName = asset.origin_name || file.name || '视频';
-  return `<p><video src="${escapeHtml(url)}" controls preload="metadata" playsinline>${escapeHtml(fileName)}</video></p>`;
+  return `<div data-w-e-type="video" data-w-e-is-void><video controls preload="metadata" playsinline><source src="${escapeHtml(url)}" type="${escapeHtml(asset.mime_type || file.type || 'video/mp4')}" />${escapeHtml(fileName)}</video></div>`;
 }
 
 function buildFileHtml(asset: UploadAsset, file: File) {
@@ -475,6 +478,33 @@ function sanitizePreviewHtml(value: string) {
     .replace(/\s(href|poster|src)\s*=\s*(['"])\s*(javascript:|data:)[\s\S]*?\2/gi, '');
 }
 
+function normalizeVideoHtmlForEditor(value: string) {
+  const html = String(value || '');
+  if (!html || typeof DOMParser === 'undefined') {
+    return html;
+  }
+
+  try {
+    const document = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html');
+    const root = document.body.firstElementChild;
+    if (!root) return html;
+    root.querySelectorAll('video').forEach((video) => {
+      if (video.closest('[data-w-e-type="video"]')) {
+        return;
+      }
+      const wrapper = document.createElement('div');
+      wrapper.setAttribute('data-w-e-type', 'video');
+      wrapper.setAttribute('data-w-e-is-void', '');
+      video.parentNode?.insertBefore(wrapper, video);
+      wrapper.appendChild(video);
+    });
+
+    return root.innerHTML;
+  } catch {
+    return html;
+  }
+}
+
 function buildPreviewStyle() {
   return `body{margin:0;padding:18px 22px;color:CanvasText;background:Canvas;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.85;}img{max-width:100%;height:auto;border-radius:8px;}video{display:block;max-width:100%;height:auto;max-height:min(420px,70vh);border-radius:8px;background:#000;}a[data-project-file="1"]{display:inline-flex;align-items:center;gap:8px;max-width:100%;padding:8px 10px;border:1px solid ButtonBorder;border-radius:8px;background:color-mix(in srgb, CanvasText 5%, Canvas);color:LinkText;text-decoration:none;font-weight:500;overflow-wrap:anywhere;}a[data-project-file="1"]::before{content:"📎";flex:none;}a[data-project-file="1"]:hover{text-decoration:underline;text-underline-offset:2px;}table{width:100%;border-collapse:collapse;}td,th{padding:8px;border:1px solid ButtonBorder;}blockquote{margin:8px 0;padding:8px 12px;border-left:4px solid Highlight;background:color-mix(in srgb, Highlight 8%, Canvas);}pre{padding:12px;overflow:auto;background:color-mix(in srgb, CanvasText 6%, Canvas);border-radius:8px;}.empty{color:GrayText;}`;
 }
@@ -483,7 +513,7 @@ async function mountEditor() {
   if (editorMounted.value) return;
   editorMounted.value = true;
   await nextTick();
-  richEditorRef.value?.setHtml(contentValue.value || '');
+  richEditorRef.value?.setHtml(normalizeVideoHtmlForEditor(contentValue.value || ''));
 }
 
 function destroyEditor() {
@@ -506,7 +536,7 @@ watch(() => props.visible, (visible) => {
 watch(() => props.modelValue, (value) => {
   const next = value || '';
   if (richEditorRef.value && next !== richEditorRef.value.getHtml()) {
-    richEditorRef.value.setHtml(next);
+    richEditorRef.value.setHtml(normalizeVideoHtmlForEditor(next));
   }
 });
 

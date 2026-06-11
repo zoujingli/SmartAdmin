@@ -49,6 +49,8 @@ const wangEditorVueEntry = path.resolve(
   appNodeModules,
   '@wangeditor/editor-for-vue/dist/index.esm.js',
 );
+const vueFlowEntry = path.resolve(appNodeModules, '@vue-flow/core/dist/vue-flow-core.mjs');
+const vueFlowStyle = path.resolve(appNodeModules, '@vue-flow/core/dist/style.css');
 const vueRouterEntry = path.resolve(appNodeModules, 'vue-router');
 const vueEntry = path.resolve(
   appNodeModules,
@@ -576,6 +578,8 @@ const configure: DefineApplicationOptions = async (config?: ConfigEnv) => {
             replacement: wangEditorStyle,
           },
           { find: /^@wangeditor\/editor-for-vue$/, replacement: wangEditorVueEntry },
+          { find: /^@vue-flow\/core$/, replacement: vueFlowEntry },
+          { find: /^@vue-flow\/core\/dist\/style\.css$/, replacement: vueFlowStyle },
           {
             find: /^dayjs\/locale\/(.*)$/,
             replacement: `${dayjsLocaleRoot}/$1.js`,

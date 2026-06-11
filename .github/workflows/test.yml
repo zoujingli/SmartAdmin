@@ -49,6 +49,9 @@ jobs:
   frontend:
     name: Frontend / Typecheck / Build
     runs-on: ubuntu-latest
+    env:
+      # vue-tsc 在 GitHub 托管 runner 上容易触达 Node 默认堆限制；前端类型检查统一提高堆内存，避免非代码错误导致 CI 失败。
+      NODE_OPTIONS: --max-old-space-size=4096
 
     steps:
       - name: Checkout
