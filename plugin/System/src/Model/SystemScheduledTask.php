@@ -27,22 +27,22 @@ use Library\CoreModel;
  * @property string $name 任务名称
  * @property string $group_name 任务分组
  * @property string $schedule_type 周期类型
- * @property array $schedule_config 周期配置
- * @property array $params 执行参数
- * @property int $timeout 超时时间
+ * @property int $timeout 超时时间秒
  * @property string $next_run_at 下次执行时间
  * @property string $last_run_at 最后执行时间
  * @property string $last_status 最后执行状态
  * @property string $last_message 最后执行消息
  * @property int $running 是否执行中
  * @property string $locked_until 锁过期时间
- * @property int $status 状态
+ * @property int $status 状态(1启用,0禁用)
  * @property string $remark 备注
  * @property int $created_by 创建者
  * @property int $updated_by 更新者
  * @property Carbon $created_at 创建时间
  * @property Carbon $updated_at 更新时间
  * @property string $deleted_at 删除时间
+ * @property array|mixed $schedule_config 周期配置JSON
+ * @property array|mixed $params 执行参数JSON
  */
 final class SystemScheduledTask extends CoreModel
 {
@@ -58,34 +58,7 @@ final class SystemScheduledTask extends CoreModel
 
     protected ?string $table = 'system_scheduled_task';
 
-    protected array $fillable = [
-        'id',
-        'tenant_id',
-        'owner_plugin',
-        'owner_type',
-        'owner_id',
-        'owner_name',
-        'code',
-        'name',
-        'group_name',
-        'schedule_type',
-        'schedule_config',
-        'params',
-        'timeout',
-        'next_run_at',
-        'last_run_at',
-        'last_status',
-        'last_message',
-        'running',
-        'locked_until',
-        'status',
-        'remark',
-        'created_by',
-        'updated_by',
-        'created_at',
-        'updated_at',
-        'deleted_at',
-    ];
+    protected array $fillable = ['id', 'tenant_id', 'owner_plugin', 'owner_type', 'owner_id', 'owner_name', 'code', 'name', 'group_name', 'schedule_type', 'schedule_config', 'params', 'timeout', 'next_run_at', 'last_run_at', 'last_status', 'last_message', 'running', 'locked_until', 'status', 'remark', 'created_by', 'updated_by', 'created_at', 'updated_at', 'deleted_at'];
 
     protected array $logRules = [
         'name' => '定时任务',

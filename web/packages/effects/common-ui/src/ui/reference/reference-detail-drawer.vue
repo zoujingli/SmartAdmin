@@ -110,6 +110,7 @@
         <div
           v-if="section.content_html"
           class="reference-detail-rich-content"
+          :class="{ 'is-thumbnail-media': richContentMode === 'thumbnail' }"
           v-html="renderSectionHtml(section.content_html)"
           @click="handleRichReference"
           @keydown.enter="handleRichReference"
@@ -190,11 +191,13 @@ const props = withDefaults(defineProps<{
   open?: boolean;
   providerKey?: string;
   reference?: null | ReferenceItem;
+  richContentMode?: 'inline' | 'thumbnail';
 }>(), {
   maskClosable: true,
   open: false,
   providerKey: 'default',
   reference: null,
+  richContentMode: 'inline',
 });
 
 const emit = defineEmits<{
@@ -491,6 +494,33 @@ watch(() => [props.open, activeReference.value?.raw, activeReference.value?.id, 
   max-height: min(420px, 70vh);
   border-radius: 10px;
   background: #000;
+}
+.reference-detail-rich-content.is-thumbnail-media :deep(img) {
+  display: inline-block;
+  width: 64px;
+  height: 64px;
+  max-width: 64px;
+  max-height: 64px;
+  padding: 2px;
+  margin: 2px 4px 2px 0;
+  border: 1px solid var(--ant-colorBorderSecondary, hsl(var(--border)));
+  border-radius: 6px;
+  background: var(--ant-colorFillQuaternary, hsl(var(--muted)));
+  object-fit: cover;
+  vertical-align: middle;
+}
+.reference-detail-rich-content.is-thumbnail-media :deep(video) {
+  display: inline-block;
+  width: 96px;
+  height: 64px;
+  max-width: 96px;
+  max-height: 64px;
+  margin: 2px 4px 2px 0;
+  border: 1px solid var(--ant-colorBorderSecondary, hsl(var(--border)));
+  border-radius: 6px;
+  background: var(--ant-colorBgSpotlight, #000);
+  object-fit: cover;
+  vertical-align: middle;
 }
 .reference-detail-rich-content :deep(a[data-project-file='1']) {
   display: inline-flex;

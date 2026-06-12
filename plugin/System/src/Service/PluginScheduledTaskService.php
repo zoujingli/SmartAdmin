@@ -18,8 +18,8 @@ use System\Contract\ScheduledTaskExecutorInterface;
 use System\Mapper\ScheduledTaskLogMapper;
 use System\Mapper\ScheduledTaskMapper;
 use System\Model\SystemScheduledTask;
-use System\Support\Scheduler\ScheduledTaskRegistry;
 use System\Support\Scheduler\ScheduleCalculator;
+use System\Support\Scheduler\ScheduledTaskRegistry;
 
 /**
  * 插件复用的调度计划服务。
@@ -66,9 +66,7 @@ final class PluginScheduledTaskService
         }
 
         /** @var SystemScheduledTask $created */
-        $created = $this->tasks->create($payload);
-
-        return $created;
+        return $this->tasks->create($payload);
     }
 
     public function readByOwner(string $ownerPlugin, string $ownerType, int $ownerId, string $code): ?SystemScheduledTask

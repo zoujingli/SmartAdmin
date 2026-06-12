@@ -11,7 +11,6 @@ declare(strict_types=1);
 
 namespace System\Annotation;
 
-use Attribute;
 use Hyperf\Di\Annotation\AbstractAnnotation;
 
 /**
@@ -19,7 +18,7 @@ use Hyperf\Di\Annotation\AbstractAnnotation;
  *
  * 注解只暴露任务元信息，不接受后台输入任意命令；具体执行逻辑必须由实现类控制参数、租户和异常边界。
  */
-#[Attribute(Attribute::TARGET_CLASS)]
+#[\Attribute(\Attribute::TARGET_CLASS)]
 final class ScheduledTask extends AbstractAnnotation
 {
     public function __construct(

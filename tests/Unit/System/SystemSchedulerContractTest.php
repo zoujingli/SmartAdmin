@@ -184,7 +184,7 @@ final class SystemSchedulerContractTest extends TestCase
             'system.cache.clear' => $cache,
             'system.database.optimize' => $database,
         ] as $code => $source) {
-            self::assertStringContainsString("#[ScheduledTask(", $source);
+            self::assertStringContainsString('#[ScheduledTask(', $source);
             self::assertStringContainsString($code, $source);
             self::assertStringContainsString('ScheduledTaskHandlerInterface', $source);
         }

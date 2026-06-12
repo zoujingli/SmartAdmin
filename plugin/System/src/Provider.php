@@ -15,9 +15,9 @@ use Library\Interfaces\NodeNameResolverInterface;
 use Library\Interfaces\OperateLogWriterInterface;
 use System\Contract\ScheduledTaskExecutorInterface;
 use System\Listener\SystemProcessRegisterListener;
-use System\Service\ScheduledTaskExecutor;
 use System\Service\LogsActionService;
 use System\Service\MenuService;
+use System\Service\ScheduledTaskExecutor;
 
 final class Provider
 {

@@ -11,7 +11,6 @@ declare(strict_types=1);
 
 namespace System\Annotation;
 
-use Attribute;
 use Hyperf\Di\Annotation\AbstractAnnotation;
 
 /**
@@ -19,7 +18,7 @@ use Hyperf\Di\Annotation\AbstractAnnotation;
  *
  * default=true 表示不依赖环境开关，是否执行具体业务由任务状态和计划配置控制。
  */
-#[Attribute(Attribute::TARGET_CLASS)]
+#[\Attribute(\Attribute::TARGET_CLASS)]
 final class SystemProcess extends AbstractAnnotation
 {
     public function __construct(

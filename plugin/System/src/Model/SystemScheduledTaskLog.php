@@ -27,12 +27,12 @@ use Library\CoreModel;
  * @property string $trigger_type 触发方式
  * @property string $status 状态
  * @property string $message 结果消息
- * @property array $result 结果摘要
  * @property string $started_at 开始时间
  * @property string $finished_at 结束时间
  * @property int $duration_ms 耗时毫秒
  * @property Carbon $created_at 创建时间
  * @property Carbon $updated_at 更新时间
+ * @property array|mixed $result 结果摘要JSON
  */
 final class SystemScheduledTaskLog extends CoreModel
 {
@@ -42,26 +42,7 @@ final class SystemScheduledTaskLog extends CoreModel
 
     protected ?string $table = 'system_scheduled_task_log';
 
-    protected array $fillable = [
-        'id',
-        'tenant_id',
-        'task_id',
-        'owner_plugin',
-        'owner_type',
-        'owner_id',
-        'owner_name',
-        'task_code',
-        'task_name',
-        'trigger_type',
-        'status',
-        'message',
-        'result',
-        'started_at',
-        'finished_at',
-        'duration_ms',
-        'created_at',
-        'updated_at',
-    ];
+    protected array $fillable = ['id', 'tenant_id', 'task_id', 'owner_plugin', 'owner_type', 'owner_id', 'owner_name', 'task_code', 'task_name', 'trigger_type', 'status', 'message', 'result', 'started_at', 'finished_at', 'duration_ms', 'created_at', 'updated_at'];
 
     public function setResultAttribute(mixed $value): string
     {

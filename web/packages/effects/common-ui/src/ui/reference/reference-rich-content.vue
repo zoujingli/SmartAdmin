@@ -1,7 +1,7 @@
 <template>
   <div class="reference-rich-content-wrap">
     <div class="reference-rich-content" v-html="html" @click="handleClick" @keydown.enter="handleKeydown" @keydown.space="handleKeydown"></div>
-    <ReferenceDetailDrawer v-model:open="drawerOpen" :mask-closable="maskClosable" :provider-key="providerKey" :reference="selectedReference" />
+    <ReferenceDetailDrawer v-model:open="drawerOpen" :mask-closable="maskClosable" :provider-key="providerKey" :reference="selectedReference" :rich-content-mode="richContentMode" />
   </div>
 </template>
 
@@ -17,10 +17,12 @@ const props = withDefaults(defineProps<{
   onReferenceClick?: (reference: ReferenceItem) => boolean | void;
   maskClosable?: boolean;
   providerKey?: string;
+  richContentMode?: 'inline' | 'thumbnail';
   value?: string;
 }>(), {
   maskClosable: true,
   providerKey: 'default',
+  richContentMode: 'inline',
   value: '',
 });
 
