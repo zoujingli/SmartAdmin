@@ -223,7 +223,7 @@ import {
   Tooltip,
 } from 'ant-design-vue';
 
-import { roleApiService } from '#/api';
+import { roleApiService } from '@plugin/System/stc/view/api';
 import {
   exportCrudXlsx,
   openCrudImport,

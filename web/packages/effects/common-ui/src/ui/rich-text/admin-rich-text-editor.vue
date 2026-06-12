@@ -194,13 +194,13 @@ const resolvedDescription = computed(() => props.description || (props.allowVide
   ? `支持常用排版、链接、列表、表格、代码块，以及图片、视频${props.allowFile ? '和普通附件' : ''}上传。`
   : `支持常用排版、链接、列表、表格、代码块，以及图片${props.allowFile ? '和普通附件' : ''}上传。`));
 const resolvedFooterText = computed(() => props.footerText || (props.allowVideo
-  ? `图片和视频可通过工具栏上传，${props.allowFile ? '普通文件可通过“上传附件”插入下载链接，' : ''}也可直接从剪贴板粘贴；上传内容统一走系统文件流程。`
-  : `图片可通过工具栏上传，${props.allowFile ? '普通文件可通过“上传附件”插入下载链接，' : ''}也可直接从剪贴板粘贴；上传内容统一走系统文件流程。`));
+  ? `图片和视频可通过工具栏上传，${props.allowFile ? '普通文件可通过“上传附件”插入下载链接，' : ''}也可直接从剪贴板粘贴；上传内容统一走已配置的文件上传服务。`
+  : `图片可通过工具栏上传，${props.allowFile ? '普通文件可通过“上传附件”插入下载链接，' : ''}也可直接从剪贴板粘贴；上传内容统一走已配置的文件上传服务。`));
 const resolvedPlaceholder = computed(() => props.placeholder || (props.allowVideo
   ? `请输入正文内容，可通过工具栏上传或直接粘贴图片/视频${props.allowFile ? '，也可插入附件下载链接' : ''}。`
   : `请输入正文内容，可通过工具栏上传或直接粘贴图片${props.allowFile ? '，也可插入附件下载链接' : ''}。`));
 const mediaToolbarKeys = computed<NonNullable<IToolbarConfig['toolbarKeys']>>(() => {
-  // 业务编辑场景保留常用排版能力，仅把图片/视频上传收口到系统文件流程。
+  // 业务编辑场景保留常用排版能力；上传能力由宿主或插件注册的文件服务提供。
   return [
     'headerSelect',
     '|',
@@ -241,7 +241,7 @@ const editorConfig = computed<Partial<IEditorConfig>>(() => ({
     uploadImage: {
       allowedFileTypes: ['image/*'],
       maxNumberOfFiles: 10,
-      // 富文本图片必须复用后台统一上传入口，禁止插入 base64 或绕过 system_file 文件记录。
+      // 富文本图片必须复用已注册的统一上传入口，禁止插入 base64。
       customUpload(file: File, _insertFn: (src: string, alt: string, href: string) => void) {
         void uploadEditorAsset('image', file)
           .then((asset) => {
@@ -332,7 +332,7 @@ function handleEditorPaste(editor: IDomEditor, event: ClipboardEvent, setResult:
 
 async function uploadEditorAsset(scene: 'file' | 'image' | 'video', file: File) {
   if (!props.uploadable) {
-    throw new Error('缺少系统文件上传权限');
+    throw new Error('缺少文件上传权限');
   }
   if (scene === 'video' && !props.allowVideo) {
     throw new Error('当前编辑器未启用视频上传');
@@ -408,7 +408,7 @@ function insertUploadedMedia(scene: 'image' | 'video', asset: UploadAsset, file:
 
 function openFilePicker() {
   if (!props.uploadable) {
-    message.warning('缺少系统文件上传权限');
+    message.warning('缺少文件上传权限');
     return;
   }
   fileInputRef.value?.click();

@@ -11,8 +11,8 @@
       "name": "系统后台",
       "description": "系统管理员进入权限、组织、租户、日志、文件和平台参数维护中心。",
       "icon": "lucide:shield-check",
-      "home_path": "/auth/login",
-      "login_path": "/auth/login",
+      "home_path": "/dashboard/workspace",
+      "login_path": "/system/login",
       "sort": -100,
       "enabled": true
     }
@@ -791,7 +791,7 @@
       "icon": "lucide:layout-dashboard",
       "sort": 300,
       "type": "D",
-      "redirect": "/dashboard/analytics",
+      "redirect": "/dashboard/workspace",
       "module_root": false,
       "menus": [
         {
@@ -801,17 +801,7 @@
           "route": "/dashboard/workspace",
           "icon": "carbon:workspace",
           "sort": 10,
-          "component": "/dashboard/workspace/index"
-        },
-        {
-          "id": 11,
-          "name": "分析页",
-          "code": "dashboard.analytics",
-          "route": "/dashboard/analytics",
-          "icon": "lucide:area-chart",
-          "sort": 20,
-          "affix_tab": 1,
-          "component": "/dashboard/analytics/index"
+          "component": "@plugin/System/views/dashboard/workspace/index.vue"
         }
       ]
     }

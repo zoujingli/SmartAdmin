@@ -77,7 +77,7 @@
 import { reactive, ref, watch } from 'vue';
 import { Form, FormItem, Input, InputNumber, Col, message, Radio, RadioGroup, Row, Textarea, TreeSelect } from 'ant-design-vue';
 
-import { deptApiService } from '#/api/system/dept';
+import { deptApiService } from '@plugin/System/stc/view/api';
 
 import type { DeptType } from '../types';
 import AppDrawer from '#/components/app-drawer.vue';

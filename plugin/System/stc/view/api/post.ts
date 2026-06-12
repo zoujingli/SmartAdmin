@@ -1,8 +1,8 @@
 /**
  * 岗位管理 API。
  */
-import { SystemApiService } from '../base';
-import { createPageParams, createSearchParams } from '../utils';
+import { AdminApiService } from '#/api/base';
+import { createPageParams, createSearchParams } from '#/api/utils';
 
 // 岗位相关类型定义
 export namespace PostApi {
@@ -60,7 +60,7 @@ export namespace PostApi {
 /**
  * 岗位管理 API 服务。
  */
-export class PostApiService extends SystemApiService {
+export class PostApiService extends AdminApiService {
   constructor() {
     super();
   }

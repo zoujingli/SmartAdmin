@@ -7,7 +7,7 @@ import { useAccess } from '@vben/access';
 import { useAccessStore, useUserStore } from '@vben/stores';
 import { Button, Col, Form, FormItem, Input, InputPassword, message, RadioGroup, Row, Select, Switch, Textarea, TreeSelect } from 'ant-design-vue';
 
-import { tenantApiService, userApiService } from '#/api';
+import { tenantApiService, userApiService } from '@plugin/System/stc/view/api';
 import AppDrawer from '#/components/app-drawer.vue';
 
 const emit = defineEmits(['success']);

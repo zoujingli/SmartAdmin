@@ -18,11 +18,13 @@ declare module 'virtual:xadmin-plugin-auth-entries' {
 
   interface PluginAuthEntryConfig {
     authBase: string;
+    default?: boolean;
     entry: string;
     homePath: string;
     loginPath: string;
     menus?: RouteRecordStringComponent[];
     name: string;
+    passwordPurposes?: Partial<Record<string, string>>;
     permissionPrefixes?: string[];
     profile?: PluginAuthEntryProfileConfig;
     profilePath?: string;
@@ -34,6 +36,10 @@ declare module 'virtual:xadmin-plugin-auth-entries' {
   const authEntries: PluginAuthEntryConfig[];
 
   export default authEntries;
+}
+
+declare module 'virtual:xadmin-plugin-setups' {
+  export function setupPlugins(appContext?: Record<string, unknown>): Promise<void>;
 }
 
 declare module 'virtual:xadmin-plugin-backend-homes' {

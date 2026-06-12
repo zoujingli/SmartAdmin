@@ -212,7 +212,7 @@ import { computed, reactive, ref, watch } from 'vue';
 import { Button, Checkbox, Col, Collapse, CollapsePanel, Form, FormItem, FormItemRest, Input, InputNumber, message, RadioGroup, Row, Space, theme } from 'ant-design-vue';
 
 import AppDrawer from '#/components/app-drawer.vue';
-import { roleApiService } from '#/api/system/role';
+import { roleApiService } from '@plugin/System/stc/view/api';
 
 import { ROLE_SCOPE_DEFAULT, ROLE_SCOPE_OPTIONS } from '../constants';
 import type { RoleFormData, RoleType } from '../types';

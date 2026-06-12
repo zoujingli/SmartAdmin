@@ -24,10 +24,12 @@ describe('shouldRebuildAccessRoutes', () => {
   it('rebuilds backend plugin fallback routes that still belong to the current entry', () => {
     const result = shouldRebuildAccessRoutes(route({
       name: 'FallbackNotFound',
-      path: '/system/material/region',
+      path: '/admin/material/region',
     }), {
       coreRouteNames,
-      isEntryPath: (path) => path === '/system/material/region',
+      isEntryPath: (path) => path === '/admin/material/region',
+      // 后台插件入口来自 plugin.json apps，首跳可能早于后端菜单动态路由生成。
+      isKnownAccessPath: (path) => path === '/admin/material/region',
     });
 
     expect(result).toBe(true);
@@ -37,10 +39,11 @@ describe('shouldRebuildAccessRoutes', () => {
     const result = shouldRebuildAccessRoutes(route({
       matchedNames: ['Root', 'FallbackNotFound'],
       name: 'Root',
-      path: '/system/material/region',
+      path: '/admin/material/region',
     }), {
       coreRouteNames: [],
-      isEntryPath: (path) => path.startsWith('/system/material'),
+      isEntryPath: (path) => path.startsWith('/admin/material'),
+      isKnownAccessPath: (path) => path === '/admin/material/region',
     });
 
     expect(result).toBe(true);
@@ -49,19 +52,21 @@ describe('shouldRebuildAccessRoutes', () => {
   it('does not rebuild core or ignored routes', () => {
     expect(shouldRebuildAccessRoutes(route({
       name: 'Login',
-      path: '/auth/login',
+      path: '/demo/login',
     }), {
       coreRouteNames,
       isEntryPath: () => true,
+      isKnownAccessPath: () => true,
     })).toBe(false);
 
     expect(shouldRebuildAccessRoutes(route({
       ignoreAccess: true,
       name: 'FallbackNotFound',
-      path: '/system/material/region',
+      path: '/admin/material/region',
     }), {
       coreRouteNames,
       isEntryPath: () => true,
+      isKnownAccessPath: () => true,
     })).toBe(false);
   });
 
@@ -71,7 +76,21 @@ describe('shouldRebuildAccessRoutes', () => {
       path: '/unknown/not-exists',
     }), {
       coreRouteNames,
-      isEntryPath: (path) => path.startsWith('/system/'),
+      isEntryPath: (path) => path.startsWith('/admin/'),
+      isKnownAccessPath: () => false,
+    });
+
+    expect(result).toBe(false);
+  });
+
+  it('does not rebuild deprecated paths that only match an auth-entry prefix', () => {
+    const result = shouldRebuildAccessRoutes(route({
+      name: 'FallbackNotFound',
+      path: '/admin/demo/deprecated',
+    }), {
+      coreRouteNames,
+      isEntryPath: (path) => path.startsWith('/admin/demo'),
+      isKnownAccessPath: (path) => path === '/admin/demo/workspace',
     });
 
     expect(result).toBe(false);
@@ -80,13 +99,13 @@ describe('shouldRebuildAccessRoutes', () => {
   it('re-enters fallback paths without carrying stale matched or meta snapshots', () => {
     const result = routeReentry({
       hash: '#section',
-      path: '/system/material/region',
+      path: '/admin/material/region',
       query: { tab: 'data' },
     });
 
     expect(result).toEqual({
       hash: '#section',
-      path: '/system/material/region',
+      path: '/admin/material/region',
       query: { tab: 'data' },
       replace: true,
     });

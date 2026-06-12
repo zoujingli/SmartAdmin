@@ -1,4 +1,4 @@
-﻿import { SystemApiService } from '../base';
+﻿import { AdminApiService } from '#/api/base';
 
 export namespace DataApi {
   export interface Statistics {
@@ -125,7 +125,7 @@ export namespace DataApi {
   }
 }
 
-class DataApiService extends SystemApiService {
+class DataApiService extends AdminApiService {
   async getStatistics() {
     return this.get<DataApi.Statistics>('system/data/index');
   }

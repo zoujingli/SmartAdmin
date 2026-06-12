@@ -1,8 +1,8 @@
 /**
  * 数据字典 API。
  */
-import { SystemApiService } from '../base';
-import { createPageParams, createSearchParams } from '../utils';
+import { AdminApiService } from '#/api/base';
+import { createPageParams, createSearchParams } from '#/api/utils';
 
 export namespace DictApi {
   export interface DictInfo {
@@ -60,7 +60,7 @@ export namespace DictApi {
   }
 }
 
-class DictApiService extends SystemApiService {
+class DictApiService extends AdminApiService {
   async getDictList(params: DictApi.DictListParams = {}) {
     const searchParams = createSearchParams(params);
     const pageParams = createPageParams(params.page, params.pageSize);

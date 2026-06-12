@@ -15,6 +15,7 @@ import { $t } from '#/locales';
 import pluginPageMap from 'virtual:xadmin-plugin-pages';
 
 const forbiddenComponent = () => import('#/views/_core/fallback/forbidden.vue');
+const loadingMenuMessageKey = 'xadmin-loading-menu';
 
 async function generateAccess(options: GenerateMenuAndRoutesOptions) {
   const pageMap: ComponentRecordType = {
@@ -32,9 +33,14 @@ async function generateAccess(options: GenerateMenuAndRoutesOptions) {
     fetchMenuListAsync: async () => {
       message.loading({
         content: `${$t('common.loadingMenu')}...`,
-        duration: 1.5,
+        duration: 0,
+        key: loadingMenuMessageKey,
       });
-      return await coreMenuApiService.getUserMenus();
+      try {
+        return await coreMenuApiService.getUserMenus();
+      } finally {
+        message.destroy(loadingMenuMessageKey);
+      }
     },
     // 可以指定没有权限跳转403页面
     forbiddenComponent,

@@ -155,9 +155,9 @@ import { CrudNoticeAlert, IconPicker } from '@vben/common-ui';
 import { IconifyIcon } from '@vben/icons';
 import { AutoComplete, Button, Col, Form, FormItem, Input, InputNumber, message, RadioGroup, Row, Tag, TreeSelect, theme } from 'ant-design-vue';
 
-import { menuApiService } from '#/api/system/menu';
+import { menuApiService } from '@plugin/System/stc/view/api';
 
-import type { MenuApi } from '#/api/system/menu';
+import type { MenuApi } from '@plugin/System/stc/view/api';
 
 import type { MenuFormData, MenuType } from '../types';
 import AppDrawer from '#/components/app-drawer.vue';

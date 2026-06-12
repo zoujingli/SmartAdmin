@@ -1,5 +1,7 @@
 import { createApp, watchEffect } from 'vue';
 
+import { setupPlugins } from 'virtual:xadmin-plugin-setups';
+
 import { registerAccessDirective } from '@vben/access';
 import { registerLoadingDirective } from '@vben/common-ui/es/loading';
 import { preferences } from '@vben/preferences';
@@ -9,7 +11,7 @@ import '@vben/styles/antd';
 
 import { useTitle } from '@vueuse/core';
 
-import { coreAuthApiService } from '#/api';
+import { activateAuthEntry, coreAuthApiService, getAuthEntryByRoutePath, getDefaultAuthEntry, getLoginEntryByPath } from '#/api';
 import { $t, setupI18n } from '#/locales';
 import { applyUiMetaPreferences } from '#/preferences/user-preferences';
 
@@ -48,6 +50,11 @@ async function bootstrap(namespace: string) {
 
   // 配置 pinia-tore
   await initStores(app, { namespace });
+
+  // 插件运行期能力必须先注册，再读取登录品牌、菜单、上传和通知等 provider。
+  await setupPlugins({ app, namespace });
+  const bootPath = router.resolve(window.location.hash.replace(/^#/, '') || window.location.pathname).path;
+  activateAuthEntry(getLoginEntryByPath(bootPath) || getAuthEntryByRoutePath(bootPath) || getDefaultAuthEntry().entry);
 
   try {
     applyUiMetaPreferences(await coreAuthApiService.getUiMeta());

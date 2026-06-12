@@ -41,7 +41,7 @@ final class SyncMenuSeeds extends HyperfCommand
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Show the diff without writing to the database')
             ->addOption('details', null, InputOption::VALUE_NONE, 'Print menu details for add and update changes')
             ->addOption('json', null, InputOption::VALUE_NONE, 'Emit the full report as JSON for CI or scripts')
-            ->addOption('exit-code', null, InputOption::VALUE_NONE, 'Return a bitmask exit code: added=1, updated=2');
+            ->addOption('exit-code', null, InputOption::VALUE_NONE, 'Return a bitmask exit code: added=1, updated=2, removed=4');
 
         if (System::isPharMode()) {
             // 发布包中的菜单同步仅作为极端修复入口保留，正常升级依赖 release 安装包和构建期同步结果。
@@ -67,6 +67,9 @@ final class SyncMenuSeeds extends HyperfCommand
         if (($result['updated'] ?? 0) > 0) {
             $exitCode |= 2;
         }
+        if (($result['removed'] ?? 0) > 0) {
+            $exitCode |= 4;
+        }
 
         if ($json) {
             $payload = [
@@ -79,11 +82,13 @@ final class SyncMenuSeeds extends HyperfCommand
                 'summary' => [
                     'added' => (int)($result['added'] ?? 0),
                     'updated' => (int)($result['updated'] ?? 0),
+                    'removed' => (int)($result['removed'] ?? 0),
                     'touched' => (int)($result['touched'] ?? 0),
                 ],
                 'details' => [
                     'added_menus' => $details ? (array)($result['added_menus'] ?? []) : [],
                     'updated_menus' => $details ? (array)($result['updated_menus'] ?? []) : [],
+                    'removed_menus' => $details ? (array)($result['removed_menus'] ?? []) : [],
                     'details_included' => $details,
                 ],
             ];
@@ -98,10 +103,11 @@ final class SyncMenuSeeds extends HyperfCommand
             ? 'Sync skipped: system_menu table does not exist'
             : ($dryRun ? 'Dry run complete' : 'Sync complete');
         $this->line(sprintf(
-            '%s: added %d, updated %d, touched %d',
+            '%s: added %d, updated %d, removed %d, touched %d',
             $prefix,
             $result['added'],
             $result['updated'],
+            $result['removed'] ?? 0,
             $result['touched']
         ));
 
@@ -112,6 +118,10 @@ final class SyncMenuSeeds extends HyperfCommand
             }
             $this->line('--- Updated Menus ---');
             foreach ($result['updated_menus'] as $menu) {
+                $this->line((string)$menu);
+            }
+            $this->line('--- Removed Menus ---');
+            foreach (($result['removed_menus'] ?? []) as $menu) {
                 $this->line((string)$menu);
             }
         }

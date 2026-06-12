@@ -26,63 +26,63 @@ function menu(name: string, path: string, code: string, component: string) {
   };
 }
 
-const systemEntry = {
-  authBase: '/system/auth',
-  entry: 'system',
-  homePath: '/dashboard',
-  loginPath: '/auth/login',
-  name: '系统后台',
-  permissionPrefixes: ['system.'],
-  profilePath: '/account/profile',
-  routePrefixes: ['/system', '/dashboard'],
-  userModel: 'System\\Model\\SystemUser',
-  userModelIncludes: ['SystemUser'],
+const demoEntry = {
+  authBase: '/demo/auth',
+  entry: 'demo',
+  homePath: '/demo/portal',
+  loginPath: '/demo/login',
+  name: '演示模块',
+  permissionPrefixes: ['demo.'],
+  profilePath: '/demo/profile',
+  routePrefixes: ['/demo'],
+  userModel: 'Plugin\\Demo\\Model\\DemoUser',
+  userModelIncludes: ['DemoUser'],
   menus: [
     {
-      name: 'system_manage',
-      path: '/system',
-      route: '/system',
+      name: 'demo_manage',
+      path: '/demo/manage',
+      route: '/demo/manage',
       component: '',
       code: '',
       permission: '',
-      redirect: '/system/user',
+      redirect: '/demo/portal',
       meta: {
-        title: '系统管理',
+        title: '模块管理',
         typeCode: 'D',
       },
       children: [
         menu(
-          'system_user',
-          '/system/user',
-          'system.user.index',
-          '@plugin/System/views/user/index.vue',
+          'demo_portal',
+          '/demo/portal',
+          'demo.portal.index',
+          '@plugin/Demo/views/portal/index.vue',
         ),
         menu(
-          'system_role',
-          '/system/role',
-          'system.role.index',
-          '@plugin/System/views/role/index.vue',
+          'demo_task',
+          '/demo/task',
+          'demo.task.index',
+          '@plugin/Demo/views/task/index.vue',
         ),
       ],
     },
     {
-      name: 'system_ops',
-      path: '/system/ops',
-      route: '/system/ops',
+      name: 'demo_tools',
+      path: '/demo/tools',
+      route: '/demo/tools',
       component: '',
       code: '',
       permission: '',
-      redirect: '/system/ops/notice',
+      redirect: '/demo/tools/permission',
       meta: {
-        title: '运维管理',
+        title: '模块工具',
         typeCode: 'D',
       },
       children: [
         menu(
-          'system_notice',
-          '/system/ops/notice',
-          'system.notice.index',
-          '@plugin/System/views/notice/index.vue',
+          'demo_permission',
+          '/demo/tools/permission',
+          'demo.permission.index',
+          '@plugin/Demo/views/permission/index.vue',
         ),
       ],
     },
@@ -106,30 +106,30 @@ function findRoute(rows: any[], path: string): any {
 }
 
 describe('filterAuthEntryMenus', () => {
-  it('keeps System allowed nodes visible and declared denied nodes as hidden 403 routes', async () => {
-    const menus = filterAuthEntryMenus(systemEntry.menus, ['system.user.index']) as any[];
+  it('keeps allowed nodes visible and declared denied nodes as hidden 403 routes', async () => {
+    const menus = filterAuthEntryMenus(demoEntry.menus, ['demo.portal.index']) as any[];
 
-    const manage = findRoute(menus, '/system');
-    const user = findRoute(menus, '/system/user');
-    const role = findRoute(menus, '/system/role');
-    const ops = findRoute(menus, '/system/ops');
-    const notice = findRoute(menus, '/system/ops/notice');
+    const manage = findRoute(menus, '/demo/manage');
+    const portal = findRoute(menus, '/demo/portal');
+    const task = findRoute(menus, '/demo/task');
+    const tools = findRoute(menus, '/demo/tools');
+    const permission = findRoute(menus, '/demo/tools/permission');
 
     expect(manage?.meta?.hideInMenu).not.toBe(true);
-    expect(user?.meta?.hideInMenu).not.toBe(true);
-    expect(user?.meta?.menuVisibleWithForbidden).toBeUndefined();
+    expect(portal?.meta?.hideInMenu).not.toBe(true);
+    expect(portal?.meta?.menuVisibleWithForbidden).toBeUndefined();
 
-    expect(role?.meta).toMatchObject({
+    expect(task?.meta).toMatchObject({
       hideInMenu: true,
       menuVisibleWithForbidden: true,
     });
-    expect(notice?.meta).toMatchObject({
+    expect(permission?.meta).toMatchObject({
       hideInMenu: true,
       menuVisibleWithForbidden: true,
     });
-    expect(ops?.meta?.hideInMenu).toBe(true);
-    expect(findRoute(menus, '/system/not-exists')).toBeUndefined();
-    expect(findRoute(systemEntry.menus, '/system/role')?.meta?.menuVisibleWithForbidden)
+    expect(tools?.meta?.hideInMenu).toBe(true);
+    expect(findRoute(menus, '/demo/not-exists')).toBeUndefined();
+    expect(findRoute(demoEntry.menus, '/demo/task')?.meta?.menuVisibleWithForbidden)
       .toBeUndefined();
 
     const routes = await generateRoutesByBackend({
@@ -137,33 +137,33 @@ describe('filterAuthEntryMenus', () => {
       forbiddenComponent,
       layoutMap: {},
       pageMap: {
-        '@plugin/System/views/notice/index.vue': permissionComponent,
-        '@plugin/System/views/role/index.vue': taskComponent,
-        '@plugin/System/views/user/index.vue': portalComponent,
+        '@plugin/Demo/views/permission/index.vue': permissionComponent,
+        '@plugin/Demo/views/portal/index.vue': portalComponent,
+        '@plugin/Demo/views/task/index.vue': taskComponent,
       },
     } as any);
 
-    expect(findRoute(routes as RouteRecordRaw[], '/system/user')?.component)
+    expect(findRoute(routes as RouteRecordRaw[], '/demo/portal')?.component)
       .toBe(portalComponent);
-    expect(findRoute(routes as RouteRecordRaw[], '/system/role')?.component)
+    expect(findRoute(routes as RouteRecordRaw[], '/demo/task')?.component)
       .toBe(forbiddenComponent);
-    expect(findRoute(routes as RouteRecordRaw[], '/system/ops/notice')?.component)
+    expect(findRoute(routes as RouteRecordRaw[], '/demo/tools/permission')?.component)
       .toBe(forbiddenComponent);
-    expect(findRoute(routes as RouteRecordRaw[], '/system/not-exists')).toBeUndefined();
+    expect(findRoute(routes as RouteRecordRaw[], '/demo/not-exists')).toBeUndefined();
 
     const sideMenus = generateMenus(routes as RouteRecordRaw[], { getRoutes: () => [] } as any);
 
-    expect(findRoute(sideMenus as any[], '/system')).toBeTruthy();
-    expect(findRoute(sideMenus as any[], '/system/user')).toBeTruthy();
-    expect(findRoute(sideMenus as any[], '/system/role')).toBeUndefined();
-    expect(findRoute(sideMenus as any[], '/system/ops/notice')).toBeUndefined();
+    expect(findRoute(sideMenus as any[], '/demo/manage')).toBeTruthy();
+    expect(findRoute(sideMenus as any[], '/demo/portal')).toBeTruthy();
+    expect(findRoute(sideMenus as any[], '/demo/task')).toBeUndefined();
+    expect(findRoute(sideMenus as any[], '/demo/tools/permission')).toBeUndefined();
   });
 
-  it('keeps wildcard System permissions as normal visible routes', () => {
-    const menus = filterAuthEntryMenus(systemEntry.menus, ['*']) as any[];
+  it('keeps wildcard permissions as normal visible routes', () => {
+    const menus = filterAuthEntryMenus(demoEntry.menus, ['*']) as any[];
 
-    expect(findRoute(menus, '/system/role')?.meta?.menuVisibleWithForbidden).toBeUndefined();
-    expect(findRoute(menus, '/system/role')?.meta?.hideInMenu).not.toBe(true);
-    expect(findRoute(menus, '/system/ops')?.meta?.hideInMenu).not.toBe(true);
+    expect(findRoute(menus, '/demo/task')?.meta?.menuVisibleWithForbidden).toBeUndefined();
+    expect(findRoute(menus, '/demo/task')?.meta?.hideInMenu).not.toBe(true);
+    expect(findRoute(menus, '/demo/tools')?.meta?.hideInMenu).not.toBe(true);
   });
 });

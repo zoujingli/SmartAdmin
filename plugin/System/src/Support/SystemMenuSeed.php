@@ -26,9 +26,8 @@ final class SystemMenuSeed
         $now ??= date('Y-m-d H:i:s');
 
         return [
-            self::menu($userId, $now, 1, 0, '仪表盘', '', '/dashboard', 'BasicLayout', 'lucide:layout-dashboard', 300, type: MenuType::PATH, redirect: '/dashboard/analytics'),
-            self::menu($userId, $now, 11, 1, '分析页', 'dashboard.analytics', '/dashboard/analytics', '/dashboard/analytics/index', 'lucide:area-chart', 20, affixTab: 1),
-            self::menu($userId, $now, 12, 1, '工作台', 'dashboard.workspace', '/dashboard/workspace', '/dashboard/workspace/index', 'carbon:workspace', 10),
+            self::menu($userId, $now, 1, 0, '仪表盘', '', '/dashboard', 'BasicLayout', 'lucide:layout-dashboard', 300, type: MenuType::PATH, redirect: '/dashboard/workspace'),
+            self::menu($userId, $now, 12, 1, '工作台', 'dashboard.workspace', '/dashboard/workspace', '@plugin/System/views/dashboard/workspace/index.vue', 'carbon:workspace', 10),
 
             self::menu($userId, $now, 100, 0, '系统管理', '', '/system', 'BasicLayout', 'lucide:settings', 200, type: MenuType::PATH, redirect: '/system/user'),
             self::menu($userId, $now, 110, 100, '用户管理', 'system.user.index', '/system/user', '@plugin/System/views/user/index.vue', 'lucide:users', 50),

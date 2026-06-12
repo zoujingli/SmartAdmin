@@ -1,8 +1,8 @@
 /**
  * System 定时任务 API。
  */
-import { SystemApiService } from '../base';
-import { createPageParams, createSearchParams } from '../utils';
+import { AdminApiService } from '#/api/base';
+import { createPageParams, createSearchParams } from '#/api/utils';
 
 export namespace SchedulerApi {
   export interface TaskDefinition {
@@ -119,7 +119,7 @@ export namespace SchedulerApi {
   }
 }
 
-class SchedulerApiService extends SystemApiService {
+class SchedulerApiService extends AdminApiService {
   async getTaskList(params: SchedulerApi.TaskListParams = {}) {
     const pageParams = createPageParams(params.page, params.pageSize);
     return this.getList<SchedulerApi.ScheduledTask>('system/scheduler/task/index', pageParams.page, pageParams.pageSize, createSearchParams(params));

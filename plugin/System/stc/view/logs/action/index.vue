@@ -426,7 +426,7 @@ import {
   Tooltip,
 } from 'ant-design-vue';
 
-import { logsActionApiService } from '#/api';
+import { logsActionApiService } from '@plugin/System/stc/view/api';
 import { exportCrudXlsx } from '#/utils/crud-excel';
 import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';

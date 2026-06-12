@@ -1,16 +1,16 @@
-import type { RouteRecordStringComponent } from '@vben/types';
+import { getAuthEntryMenuProvider } from '#/plugins/menu-provider';
 
-import { requestClient } from '#/api/request';
-
-import { getAuthEntryMenus, isSystemAuthEntry } from './auth';
+import { getAuthEntry, getAuthEntryMenus } from './auth';
 
 export const coreMenuApiService = {
-  getUserMenus() {
-    if (!isSystemAuthEntry()) {
-      // 插件前台菜单由插件 view/auth-entry.ts 声明，web 壳只按当前入口权限码裁剪。
-      return Promise.resolve(getAuthEntryMenus());
+  async getUserMenus() {
+    const entry = getAuthEntry();
+    const provider = getAuthEntryMenuProvider(entry);
+    if (provider) {
+      return provider();
     }
 
-    return requestClient.get<RouteRecordStringComponent[]>('/system/menu/user');
+    // 未注册后端菜单 provider 的认证入口使用插件 auth-entry.ts 中声明的静态菜单。
+    return Promise.resolve(getAuthEntryMenus(entry));
   },
 };

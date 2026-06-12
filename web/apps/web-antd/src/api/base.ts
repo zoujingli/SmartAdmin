@@ -264,9 +264,9 @@ export class BaseApiService {
 }
 
 /**
- * 系统管理API服务基类
+ * 后台 API 服务基类
  */
-export class SystemApiService extends BaseApiService {
+export class AdminApiService extends BaseApiService {
   constructor() {
     super(''); // 不设置基础路径，让子类直接使用完整路径
   }

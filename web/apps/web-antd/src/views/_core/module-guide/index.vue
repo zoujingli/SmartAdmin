@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DataApi } from '#/api';
+import type { ModuleGuideEntry } from '#/plugins/module-guide-provider';
 
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -9,25 +9,15 @@ import { preferences } from '@vben/preferences';
 
 import { Empty, Skeleton, message } from 'ant-design-vue';
 
-import { dataApiService } from '#/api';
+import { getAuthLoginPath } from '#/api';
+import { getModuleGuideProvider } from '#/plugins/module-guide-provider';
 
 const router = useRouter();
 const loading = ref(false);
-const entries = ref<DataApi.ModuleGuideEntry[]>([]);
+const entries = ref<ModuleGuideEntry[]>([]);
 const guideAppName = ref('');
 const appDescription = ref('');
 const appName = computed(() => guideAppName.value || preferences.app.name || 'SmartAdmin');
-const systemGuideEntry: DataApi.ModuleGuideEntry = {
-  code: 'system',
-  description: '系统管理员进入权限、组织、租户、日志、文件和平台参数维护中心。',
-  enabled: true,
-  home_path: '/auth/login',
-  icon: 'lucide:shield-check',
-  login_path: '/auth/login',
-  name: '系统后台',
-  plugin: 'System',
-  sort: -100,
-};
 // 数字雨使用独立短粒子，避免长文本列或整层纹理移动造成“整块背景下落”的观感。
 const binaryRainDropSeeds = [
   ['0', '2%', '18px', '-7.6s', '13.2s', '12px', '0.28'],
@@ -129,8 +119,8 @@ function normalizePath(value: string) {
   return path === '/' ? '/' : path.replace(/\/+$/, '');
 }
 
-function normalizeGuideEntries(source: DataApi.ModuleGuideEntry[]) {
-  const merged = new Map<string, DataApi.ModuleGuideEntry>();
+function normalizeGuideEntries(source: ModuleGuideEntry[]) {
+  const merged = new Map<string, ModuleGuideEntry>();
   for (const entry of source) {
     const code = String(entry.code || '').trim().toLowerCase();
     if (code === '') {
@@ -140,20 +130,7 @@ function normalizeGuideEntries(source: DataApi.ModuleGuideEntry[]) {
     merged.set(code, { ...entry, code });
   }
 
-  // System 是通用后台入口。长驻后端未刷新清单时，前端兜底补齐并固定放在最后，避免小屏误进默认后台。
-  merged.set('system', {
-    ...systemGuideEntry,
-    ...(merged.get('system') || {}),
-    code: 'system',
-  });
-
   return [...merged.values()].sort((left, right) => {
-    const leftIsSystem = left.code === 'system';
-    const rightIsSystem = right.code === 'system';
-    if (leftIsSystem !== rightIsSystem) {
-      return leftIsSystem ? 1 : -1;
-    }
-
     const sortCompare = Number(right.sort || 0) - Number(left.sort || 0);
     return sortCompare === 0 ? left.code.localeCompare(right.code) : sortCompare;
   });
@@ -162,11 +139,16 @@ function normalizeGuideEntries(source: DataApi.ModuleGuideEntry[]) {
 async function loadGuide() {
   loading.value = true;
   try {
-    const guide = await dataApiService.getModuleGuide();
+    const provider = getModuleGuideProvider();
+    if (!provider) {
+      entries.value = [];
+      return;
+    }
+    const guide = await provider();
 
     const guideEntries = normalizeGuideEntries(Array.isArray(guide.entries) ? guide.entries : []);
     if (!guide.enabled || guideEntries.length === 0) {
-      await router.replace('/auth/login');
+      await router.replace(getAuthLoginPath());
       return;
     }
 
@@ -181,8 +163,8 @@ async function loadGuide() {
   }
 }
 
-function openEntry(entry: DataApi.ModuleGuideEntry) {
-  const target = normalizePath(entry.home_path || entry.login_path || '/auth/login');
+function openEntry(entry: ModuleGuideEntry) {
+  const target = normalizePath(entry.home_path || entry.login_path || getAuthLoginPath());
   router.push(target).catch((error) => {
     console.error('open module entry failed', error);
   });
@@ -224,7 +206,7 @@ onMounted(() => {
           <span class="module-guide__brand-mark">
             <IconifyIcon icon="lucide:layout-dashboard" />
           </span>
-          <span>SYSTEM GATEWAY</span>
+          <span>APP GATEWAY</span>
         </div>
       </header>
 
@@ -250,7 +232,7 @@ onMounted(() => {
           <div class="module-guide__console-body">
             <div class="module-guide__metric">
               <span class="module-guide__metric-value">{{ entries.length }}</span>
-              <span class="module-guide__metric-label">ACTIVE SYSTEMS</span>
+              <span class="module-guide__metric-label">ACTIVE ENTRIES</span>
             </div>
             <div class="module-guide__pulse-line"></div>
             <div class="module-guide__console-row">
@@ -352,13 +334,11 @@ onMounted(() => {
   inset: 0;
   pointer-events: none;
   content: "";
-  background-image:
-    linear-gradient(rgb(90 196 255 / 8%) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(90 196 255 / 8%) 1px, transparent 1px);
-  background-position: center top;
-  background-size: 42px 42px;
+  background:
+    radial-gradient(circle at 50% 0%, rgb(146 220 255 / 10%), transparent 36%),
+    linear-gradient(90deg, transparent, rgb(90 196 255 / 6%) 50%, transparent);
   mask-image:
-    linear-gradient(180deg, rgb(0 0 0 / 82%), rgb(0 0 0 / 42%) 48%, transparent 100%);
+    linear-gradient(180deg, rgb(0 0 0 / 72%), rgb(0 0 0 / 24%) 42%, transparent 76%);
 }
 
 .module-guide::after {
@@ -367,10 +347,11 @@ onMounted(() => {
   pointer-events: none;
   content: "";
   background:
-    linear-gradient(90deg, rgb(255 255 255 / 3%), transparent 18%, transparent 82%, rgb(255 255 255 / 3%)),
-    repeating-linear-gradient(0deg, transparent 0 9px, rgb(255 255 255 / 2%) 10px);
+    linear-gradient(90deg, rgb(255 255 255 / 2%), transparent 20%, transparent 80%, rgb(255 255 255 / 2%)),
+    radial-gradient(circle at 20% 24%, rgb(56 189 248 / 8%), transparent 28%),
+    radial-gradient(circle at 78% 18%, rgb(45 212 191 / 7%), transparent 24%);
   mix-blend-mode: screen;
-  opacity: 0.34;
+  opacity: 0.26;
 }
 
 /* 动态背景只作为公开引导页装饰层，避免参与布局和交互，移动端通过媒体查询降噪。 */
@@ -535,12 +516,7 @@ onMounted(() => {
 }
 
 .module-guide__scan {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(90deg, transparent 0%, rgb(56 189 248 / 5%) 48%, transparent 72%),
-    repeating-linear-gradient(180deg, transparent 0 34px, rgb(56 189 248 / 3%) 35px, transparent 36px);
-  opacity: 0.24;
+  display: none;
 }
 
 .module-guide__main {
@@ -587,17 +563,16 @@ onMounted(() => {
 }
 
 .module-guide__hero {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  gap: 16px;
-  align-items: stretch;
-  margin-bottom: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  margin-bottom: 8px;
 }
 
 .module-guide__hero-copy {
   position: relative;
-  min-height: 108px;
-  padding: 16px 22px;
+  min-height: 74px;
+  padding: 10px 18px 11px;
   border: 1px solid var(--guide-line);
   border-radius: 8px;
   overflow: hidden;
@@ -626,22 +601,13 @@ onMounted(() => {
   opacity: 0.86;
 }
 
-.module-guide__hero-copy::after {
-  position: absolute;
-  inset: auto 24px 16px;
-  height: 1px;
-  content: "";
-  background: linear-gradient(90deg, rgb(56 189 248 / 74%), transparent 72%);
-  box-shadow: 0 0 18px rgb(56 189 248 / 46%);
-}
-
 .module-guide__eyebrow {
   position: relative;
   z-index: 1;
   display: inline-flex;
-  gap: 9px;
+  gap: 8px;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: 2px;
   color: rgb(129 231 255);
   font-size: 12px;
   font-weight: 800;
@@ -649,8 +615,8 @@ onMounted(() => {
 }
 
 .module-guide__eyebrow-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 8px;
   background: var(--guide-info);
   box-shadow: 0 0 18px rgb(163 230 53 / 68%);
@@ -662,7 +628,7 @@ onMounted(() => {
   max-width: 820px;
   margin: 0;
   color: var(--guide-text);
-  font-size: 30px;
+  font-size: 26px;
   font-weight: 850;
   line-height: 1.08;
   text-shadow: 0 0 30px rgb(56 189 248 / 18%);
@@ -672,7 +638,7 @@ onMounted(() => {
   position: relative;
   z-index: 1;
   max-width: 720px;
-  margin: 6px 0 0;
+  margin: 2px 0 0;
   color: var(--guide-text-soft);
   font-size: 14px;
   font-weight: 600;
@@ -680,8 +646,13 @@ onMounted(() => {
 }
 
 .module-guide__console {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 2;
   display: flex;
-  min-height: 108px;
+  width: 184px;
+  min-height: 0;
   flex-direction: column;
   border: 1px solid var(--guide-line);
   border-radius: 8px;
@@ -697,17 +668,17 @@ onMounted(() => {
 
 .module-guide__console-head {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
-  min-height: 30px;
-  padding: 0 16px;
-  border-bottom: 1px solid var(--guide-line);
-  background: rgb(255 255 255 / 4%);
+  min-height: 24px;
+  padding: 0 9px;
+  border-bottom: 0;
+  background: rgb(255 255 255 / 5%);
 }
 
 .module-guide__console-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 8px;
   background: rgb(56 189 248 / 74%);
 }
@@ -723,28 +694,25 @@ onMounted(() => {
 .module-guide__console-title {
   margin-left: auto;
   color: var(--guide-text-muted);
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: 0;
 }
 
 .module-guide__console-body {
   display: flex;
-  flex: 1;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 14px;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 8px 8px;
 }
 
 .module-guide__metric {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: none;
 }
 
 .module-guide__metric-value {
   color: var(--guide-text);
-  font-size: 40px;
+  font-size: 28px;
   font-weight: 850;
   line-height: 0.95;
   text-shadow: 0 0 28px rgb(45 212 191 / 26%);
@@ -752,14 +720,15 @@ onMounted(() => {
 
 .module-guide__metric-label {
   color: var(--guide-text-muted);
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0;
 }
 
 .module-guide__pulse-line {
-  height: 18px;
-  margin: 8px 0;
+  display: none;
+  height: 10px;
+  margin: 3px 0;
   background:
     linear-gradient(90deg, transparent, rgb(45 212 191 / 50%), transparent) center / 100% 1px no-repeat,
     linear-gradient(90deg, transparent 0 12%, rgb(45 212 191 / 46%) 12% 15%, transparent 15% 28%, rgb(56 189 248 / 70%) 28% 32%, transparent 32% 48%, rgb(163 230 53 / 62%) 48% 51%, transparent 51% 100%) center / 100% 100% no-repeat;
@@ -770,12 +739,13 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 10px;
+  width: 100%;
+  padding: 4px 8px;
   border: 1px solid var(--guide-line);
   border-radius: 8px;
   color: var(--guide-text-muted);
   background: rgb(255 255 255 / 4%);
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 750;
 }
 
@@ -901,7 +871,7 @@ onMounted(() => {
   --guide-card-soft: rgb(190 242 100 / 12%);
 }
 
-.module-guide__card--system {
+.module-guide__card--default {
   --guide-accent: #cbd5e1;
   --guide-accent-2: #64748b;
   --guide-card-surface: rgb(20 24 32 / 96%);
@@ -1213,7 +1183,7 @@ onMounted(() => {
   }
 
   .module-guide__console {
-    min-height: 100px;
+    display: none;
   }
 
   .module-guide__grid {

@@ -49,7 +49,7 @@ const props = withDefaults(defineProps<Props>(), {
   description: '',
   loading: false,
   showBack: true,
-  loginPath: '/auth/login',
+  loginPath: '',
   submitButtonText: '',
   subTitle: '',
   title: '',
@@ -65,6 +65,10 @@ const qrcode = useQRCode(text, {
 });
 
 function goToLogin() {
+  if (!props.loginPath) {
+    return;
+  }
+
   router.push(props.loginPath);
 }
 </script>

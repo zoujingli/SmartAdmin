@@ -6,15 +6,11 @@ import { useAccessStore } from '@vben/stores';
 
 import { baseRequestClient, requestClient } from '#/api/request';
 
-import type { DataApi } from '../system/data';
 import { filterAuthEntryMenus } from './auth-entry-menus';
-import { encryptPasswordFields, PASSWORD_PURPOSES } from './password-crypto';
+import { encryptPasswordFields, type PasswordPurposeKey } from './password-crypto';
 
 const AUTH_ENTRY_KEY = 'xadmin-auth-entry';
 const AUTH_ENTRY_TOKEN_PREFIX = 'xadmin-auth-token';
-export const SYSTEM_ENTRY = 'system';
-export const SYSTEM_LOGIN_PATH = '/auth/login';
-export const SYSTEM_AUTH_BASE = '/system/auth';
 
 export interface AuthEntryProfileConfig {
   description?: string;
@@ -25,12 +21,14 @@ export interface AuthEntryProfileConfig {
 
 export interface AuthEntryConfig {
   authBase: string;
+  default?: boolean;
   entry: string;
   homePath: string;
   loginPath: string;
   menus: RouteRecordStringComponent[];
   name: string;
   permissionPrefixes: string[];
+  passwordPurposes?: Partial<Record<PasswordPurposeKey, string>>;
   profile?: AuthEntryProfileConfig;
   profilePath?: string;
   routePrefixes: string[];
@@ -38,19 +36,23 @@ export interface AuthEntryConfig {
   userModelIncludes: string[];
 }
 
-const systemAuthEntry: AuthEntryConfig = {
-  authBase: SYSTEM_AUTH_BASE,
-  entry: SYSTEM_ENTRY,
-  homePath: '/dashboard',
-  loginPath: SYSTEM_LOGIN_PATH,
-  menus: [],
-  name: '系统后台',
-  permissionPrefixes: ['system.'],
-  profilePath: '/account/profile',
-  routePrefixes: ['/dashboard', '/system', '/account/profile'],
-  userModel: 'System\\Model\\SystemUser',
-  userModelIncludes: ['SystemUser'],
-};
+export interface AuthUiMeta {
+  app_name: string;
+  app_version: string;
+  app_description: string;
+  login_title: string;
+  login_description: string;
+  logo_url: string;
+  logo_file_id: number;
+  copyright: {
+    enable: boolean;
+    companyName: string;
+    companySiteLink: string;
+    date: string;
+    icp: string;
+    icpLink: string;
+  };
+}
 
 function normalizePath(value: unknown): string {
   const path = `/${String(value || '').trim().replace(/^\/+/, '')}`;
@@ -68,18 +70,22 @@ function normalizeAuthEntry(raw: any): AuthEntryConfig | null {
   const authBase = normalizePath(raw?.authBase);
   const loginPath = normalizePath(raw?.loginPath);
   const homePath = normalizePath(raw?.homePath);
-  if (!entry || !authBase || !loginPath || !homePath || entry === SYSTEM_ENTRY) {
+  if (!entry || !authBase || !loginPath || !homePath) {
     return null;
   }
 
   return {
     authBase,
+    default: raw?.default === true,
     entry,
     homePath,
     loginPath,
     menus: Array.isArray(raw?.menus) ? raw.menus : [],
     name: String(raw?.name || entry),
     permissionPrefixes: normalizeStringArray(raw?.permissionPrefixes),
+    passwordPurposes: raw?.passwordPurposes && typeof raw.passwordPurposes === 'object'
+      ? raw.passwordPurposes
+      : undefined,
     profile: raw?.profile && typeof raw.profile === 'object' ? raw.profile : undefined,
     profilePath: raw?.profilePath ? normalizePath(raw.profilePath) : undefined,
     routePrefixes: normalizeStringArray(raw?.routePrefixes).map(normalizePath),
@@ -88,24 +94,33 @@ function normalizeAuthEntry(raw: any): AuthEntryConfig | null {
   };
 }
 
-const pluginEntryConfigs = (Array.isArray(pluginAuthEntries) ? pluginAuthEntries : [])
+const authEntryConfigs = (Array.isArray(pluginAuthEntries) ? pluginAuthEntries : [])
   .map(normalizeAuthEntry)
   .filter(Boolean) as AuthEntryConfig[];
 
-const authEntryConfigs: AuthEntryConfig[] = [systemAuthEntry, ...pluginEntryConfigs];
+const defaultAuthEntry = authEntryConfigs.find((entry) => entry.default) || authEntryConfigs[0];
+
+export function getDefaultAuthEntry(): AuthEntryConfig {
+  if (!defaultAuthEntry) {
+    throw new Error('未找到默认认证入口，请检查插件 auth-entry.ts 配置');
+  }
+
+  return defaultAuthEntry;
+}
 
 export function getAuthEntryConfigs() {
   return authEntryConfigs;
 }
 
 function getStoredAuthEntry() {
-  if (typeof window === 'undefined') return SYSTEM_ENTRY;
-  return window.localStorage.getItem(AUTH_ENTRY_KEY) || SYSTEM_ENTRY;
+  const fallbackEntry = getDefaultAuthEntry().entry;
+  if (typeof window === 'undefined') return fallbackEntry;
+  return window.localStorage.getItem(AUTH_ENTRY_KEY) || fallbackEntry;
 }
 
 export function getAuthEntryConfig(entry?: string): AuthEntryConfig {
   const currentEntry = entry || getStoredAuthEntry();
-  return authEntryConfigs.find((item) => item.entry === currentEntry) || systemAuthEntry;
+  return authEntryConfigs.find((item) => item.entry === currentEntry) || getDefaultAuthEntry();
 }
 
 export function getAuthEntry(): string {
@@ -121,13 +136,15 @@ export function clearAuthEntry() {
   if (typeof window !== 'undefined') window.localStorage.removeItem(AUTH_ENTRY_KEY);
 }
 
-export function isSystemAuthEntry(entry = getAuthEntry()) {
-  return getAuthEntryConfig(entry).entry === SYSTEM_ENTRY;
+export function isDefaultAuthEntry(entry = getAuthEntry()) {
+  return getAuthEntryConfig(entry).entry === getDefaultAuthEntry().entry;
 }
 
-export function isPluginAuthEntry(entry = getAuthEntry()) {
-  return !isSystemAuthEntry(entry);
+export function isSecondaryAuthEntry(entry = getAuthEntry()) {
+  return !isDefaultAuthEntry(entry);
 }
+
+export const isPluginAuthEntry = isSecondaryAuthEntry;
 
 export function getAuthLoginPath(entry = getAuthEntry()) {
   return getAuthEntryConfig(entry).loginPath;
@@ -142,7 +159,16 @@ export function getAuthHomePath(entry = getAuthEntry()) {
 }
 
 export function getAuthProfilePath(entry = getAuthEntry()) {
-  return getAuthEntryConfig(entry).profilePath || systemAuthEntry.profilePath || '/account/profile';
+  return getAuthEntryConfig(entry).profilePath || getDefaultAuthEntry().profilePath || '/account/profile';
+}
+
+export function getAuthPasswordPurpose(key: PasswordPurposeKey, entry = getAuthEntry()): string {
+  const purpose = getAuthEntryConfig(entry).passwordPurposes?.[key];
+  if (!purpose) {
+    throw new Error(`当前认证入口未配置密码加密用途: ${key}`);
+  }
+
+  return purpose;
 }
 
 export function getLoginEntryByPath(path: string) {
@@ -163,7 +189,7 @@ export function getCurrentClientPath() {
 
 export function getAuthEntryByRoutePath(path: string) {
   const normalized = normalizePath(path);
-  return pluginEntryConfigs.find((entry) => {
+  return authEntryConfigs.find((entry) => {
     if (entry.loginPath === normalized || entry.profilePath === normalized) {
       return true;
     }
@@ -229,7 +255,7 @@ export function activateAuthEntry(entry: string) {
   setAuthEntry(currentEntry);
 
   // 每个认证入口独立保存 Token。入口切换时只恢复当前入口 Token，
-  // 避免插件前台账号和 System 后台账号在同一前端壳里互相污染。
+  // 避免多个认证入口的账号在同一前端壳里互相污染。
   const accessStore = useAccessStore();
   const token = getStoredEntryToken(currentEntry);
   if (previousEntry !== currentEntry || accessStore.accessToken !== token) {
@@ -247,7 +273,7 @@ export function getAuthEntryMenus(entry = getAuthEntry()): RouteRecordStringComp
 }
 
 function currentLoginEntry() {
-  return getLoginEntryByPath(getCurrentClientPath()) || SYSTEM_ENTRY;
+  return getLoginEntryByPath(getCurrentClientPath()) || getDefaultAuthEntry().entry;
 }
 
 export namespace AuthApi {
@@ -255,7 +281,7 @@ export namespace AuthApi {
   export interface LoginResult { token: string; user: any; auth_user_model?: string }
   export interface StandardResponse<T = unknown> { path: string; info: string; code: number; data: T }
   export type RefreshTokenResult = StandardResponse<string>;
-  export type UiMeta = DataApi.UiMeta;
+  export type UiMeta = AuthUiMeta;
 }
 
 function getAuthHeaders() {
@@ -268,14 +294,14 @@ export const coreAuthApiService = {
     return requestClient.get<string[]>(`${getAuthBase()}/codes`);
   },
   getUiMeta() {
-    return requestClient.get<AuthApi.UiMeta>('/system/auth/ui-meta');
+    return requestClient.get<AuthApi.UiMeta>(`${getAuthBase()}/ui-meta`);
   },
   async login(data: AuthApi.LoginParams) {
     const entry = currentLoginEntry();
     const base = getAuthBase(entry);
     const payload = await encryptPasswordFields(
       data as Record<string, any>,
-      { password: PASSWORD_PURPOSES.authLogin },
+      { password: getAuthPasswordPurpose('authLogin', entry) },
       { parametersUrl: `${base}/password-crypto` },
     );
     const result = await requestClient.post<AuthApi.LoginResult>(`${base}/login`, payload);

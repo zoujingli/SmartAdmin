@@ -25,12 +25,12 @@ defineOptions({
 });
 
 const props = withDefaults(defineProps<Props>(), {
-  codeLoginPath: '/auth/code-login',
-  forgetPasswordPath: '/auth/forget-password',
+  codeLoginPath: '',
+  forgetPasswordPath: '',
   formSchema: () => [],
   loading: false,
-  qrCodeLoginPath: '/auth/qrcode-login',
-  registerPath: '/auth/register',
+  qrCodeLoginPath: '',
+  registerPath: '',
   showCodeLogin: true,
   showForgetPassword: true,
   showQrcodeLogin: true,
@@ -81,6 +81,10 @@ async function handleSubmit() {
 }
 
 function handleGo(path: string) {
+  if (!path) {
+    return;
+  }
+
   router.push(path);
 }
 

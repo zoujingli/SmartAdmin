@@ -1,5 +1,5 @@
-import { SystemApiService } from '../base';
-import { createPageParams, createSearchParams } from '../utils';
+import { AdminApiService } from '#/api/base';
+import { createPageParams, createSearchParams } from '#/api/utils';
 
 export namespace NoticeApi {
   export type NoticeLevel = 'error' | 'info' | 'success' | 'warning';
@@ -69,7 +69,7 @@ export namespace NoticeApi {
   }
 }
 
-class NoticeApiService extends SystemApiService {
+class NoticeApiService extends AdminApiService {
   async getNoticeList(params: NoticeApi.NoticeListParams = {}) {
     const searchParams = createSearchParams(params);
     const pageParams = createPageParams(params.page, params.pageSize);

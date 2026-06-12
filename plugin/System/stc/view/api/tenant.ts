@@ -1,9 +1,14 @@
 /**
  * 租户管理 API。
  */
-import { SystemApiService } from '../base';
-import { encryptPasswordFields, PASSWORD_PURPOSES } from '../core/password-crypto';
-import { createPageParams, createSearchParams } from '../utils';
+import { AdminApiService } from '#/api/base';
+import { encryptPasswordFields } from '#/api/core/password-crypto';
+import { createPageParams, createSearchParams } from '#/api/utils';
+
+const PASSWORD_CRYPTO_URL = '/system/auth/password-crypto';
+const PASSWORD_PURPOSES = {
+  userCreate: 'system.user.create.password',
+} as const;
 
 export namespace TenantApi {
   export interface TenantInfo {
@@ -56,7 +61,7 @@ export namespace TenantApi {
 
 }
 
-export class TenantApiService extends SystemApiService {
+export class TenantApiService extends AdminApiService {
   async getTenantList(params: TenantApi.TenantListParams = {}) {
     const searchParams = createSearchParams(params);
     const pageParams = createPageParams(params.page, params.pageSize);
@@ -78,7 +83,7 @@ export class TenantApiService extends SystemApiService {
   async createTenant(data: TenantApi.TenantFormData) {
     const payload = await encryptPasswordFields(data, {
       admin_password: PASSWORD_PURPOSES.userCreate,
-    });
+    }, { parametersUrl: PASSWORD_CRYPTO_URL });
 
     return this.create<TenantApi.TenantInfo>('system/tenant/create', payload);
   }

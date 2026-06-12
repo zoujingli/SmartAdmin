@@ -216,7 +216,7 @@ import {
   Tooltip,
 } from 'ant-design-vue';
 
-import { deptApiService } from '#/api';
+import { deptApiService } from '@plugin/System/stc/view/api';
 import {
   exportCrudXlsx,
   flattenTreeRows,

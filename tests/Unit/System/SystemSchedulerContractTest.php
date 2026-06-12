@@ -77,8 +77,11 @@ final class SystemSchedulerContractTest extends TestCase
         $migration = (string)file_get_contents($root . '/plugin/System/stc/migrations/2026_06_11_000001_system_scheduler.php');
         $menuSeed = (string)file_get_contents($root . '/plugin/System/src/Support/SystemMenuSeed.php');
         $manifest = json_decode((string)file_get_contents($root . '/plugin/System/plugin.json'), true, flags: JSON_THROW_ON_ERROR);
-        $api = (string)file_get_contents($root . '/web/apps/web-antd/src/api/system/scheduler.ts');
+        $api = (string)file_get_contents($root . '/plugin/System/stc/view/api/scheduler.ts');
         $view = (string)file_get_contents($root . '/plugin/System/stc/view/scheduler/task/index.vue');
+        $systemSetup = (string)file_get_contents($root . '/plugin/System/stc/view/setup.ts');
+        $vite = (string)file_get_contents($root . '/web/apps/web-antd/vite.config.mts');
+        $bootstrap = (string)file_get_contents($root . '/web/apps/web-antd/src/bootstrap.ts');
 
         self::assertStringContainsString('system_scheduled_task', $migration);
         self::assertStringContainsString('system_scheduled_task_log', $migration);
@@ -98,6 +101,14 @@ final class SystemSchedulerContractTest extends TestCase
         self::assertStringContainsString('system/scheduler/log/index', $api);
         self::assertStringContainsString('owner_plugin: string', $api);
         self::assertStringContainsString('owner_name: string', $api);
+        self::assertStringContainsString("const pluginSetupsModuleId = 'virtual:xadmin-plugin-setups'", $vite);
+        self::assertStringContainsString('function getPluginSetupFiles(): string[]', $vite);
+        self::assertStringContainsString("for (const setupFile of ['setup.ts', 'setup.mts'])", $vite);
+        self::assertStringContainsString('export async function setupPlugins(appContext = {})', $vite);
+        self::assertStringContainsString("import { setupPlugins } from 'virtual:xadmin-plugin-setups'", $bootstrap);
+        self::assertStringContainsString('await setupPlugins({ app, namespace });', $bootstrap);
+        self::assertStringContainsString('configureTaskProgressProvider', $systemSetup);
+        self::assertStringContainsString('/system/task/status', $systemSetup);
         self::assertStringContainsString('CrudTableActions', $view);
         self::assertStringContainsString('confirmTitle', $view);
         self::assertStringContainsString('<Page title="定时任务">', $view);

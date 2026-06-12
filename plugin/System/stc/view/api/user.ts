@@ -1,9 +1,16 @@
 /**
  * 用户管理 API。
  */
-import { SystemApiService } from '../base';
-import { encryptPasswordFields, PASSWORD_PURPOSES } from '../core/password-crypto';
-import { createPageParams, createSearchParams } from '../utils';
+import { AdminApiService } from '#/api/base';
+import { encryptPasswordFields } from '#/api/core/password-crypto';
+import { createPageParams, createSearchParams } from '#/api/utils';
+
+const PASSWORD_CRYPTO_URL = '/system/auth/password-crypto';
+const PASSWORD_PURPOSES = {
+  userCreate: 'system.user.create.password',
+  userReset: 'system.user.reset_password.password',
+  userUpdate: 'system.user.update.password',
+} as const;
 
 // 用户相关类型定义
 export namespace UserApi {
@@ -124,7 +131,7 @@ export namespace UserApi {
 /**
  * 用户管理 API 服务。
  */
-class UserApiService extends SystemApiService {
+class UserApiService extends AdminApiService {
   /**
    * 获取用户列表。
    */
@@ -153,7 +160,7 @@ class UserApiService extends SystemApiService {
   async createUser(data: UserApi.UserFormData) {
     const payload = await encryptPasswordFields(data, {
       password: PASSWORD_PURPOSES.userCreate,
-    });
+    }, { parametersUrl: PASSWORD_CRYPTO_URL });
 
     return this.create<UserApi.UserInfo>('system/user/create', payload);
   }
@@ -164,7 +171,7 @@ class UserApiService extends SystemApiService {
   async updateUser(id: number, data: UserApi.UserFormData) {
     const payload = await encryptPasswordFields(data, {
       password: PASSWORD_PURPOSES.userUpdate,
-    });
+    }, { parametersUrl: PASSWORD_CRYPTO_URL });
 
     return this.update<UserApi.UserInfo>('system/user/update', id, payload);
   }
@@ -204,7 +211,7 @@ class UserApiService extends SystemApiService {
   async resetUserPassword(id: number, password: string) {
     const payload = await encryptPasswordFields({ password }, {
       password: PASSWORD_PURPOSES.userReset,
-    });
+    }, { parametersUrl: PASSWORD_CRYPTO_URL });
 
     return this.put(`system/user/reset-password/${id}`, payload);
   }

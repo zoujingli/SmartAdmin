@@ -1,8 +1,8 @@
 /**
  * 操作日志 API - 重构版本
  */
-import { SystemApiService } from '../base';
-import { createPageParams, formatDateParams } from '../utils';
+import { AdminApiService } from '#/api/base';
+import { createPageParams, formatDateParams } from '#/api/utils';
 import {
   asRecord,
   fillNumberRange,
@@ -120,7 +120,7 @@ function normalizeActionLogStatistics(value: unknown): LogsActionApi.LogsActionS
       ? Math.max(0, total - successCount - warningCount)
       : toFiniteNumber(record.error_count);
 
-  // 日志分析会被工作台、分析页和日志页复用，统一在 API 层收敛后端空值/字符串数字差异。
+  // 日志分析会被工作台和日志页复用，统一在 API 层收敛后端空值/字符串数字差异。
   return {
     total,
     today: toFiniteNumber(record.today ?? byTime.today),
@@ -161,7 +161,7 @@ function normalizeAnalysisReport(value: unknown): LogsActionApi.LogsActionAnalys
 /**
  * 操作日志 API 服务
  */
-class LogsActionApiService extends SystemApiService {
+class LogsActionApiService extends AdminApiService {
   constructor() {
     super();
   }

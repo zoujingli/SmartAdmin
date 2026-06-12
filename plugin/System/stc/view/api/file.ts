@@ -1,5 +1,5 @@
-import { SystemApiService } from '../base';
-import { createPageParams, createSearchParams, getPageData } from '../utils';
+import { AdminApiService } from '#/api/base';
+import { createPageParams, createSearchParams, getPageData } from '#/api/utils';
 
 export namespace FileApi {
   export interface FileRecord {
@@ -81,7 +81,7 @@ export namespace FileApi {
   }
 }
 
-class FileApiService extends SystemApiService {
+class FileApiService extends AdminApiService {
   async getFileList(params: FileApi.FileListParams = {}) {
     const response = await this.get<any>('system/file/index', {
       ...createPageParams(params.page, params.pageSize),

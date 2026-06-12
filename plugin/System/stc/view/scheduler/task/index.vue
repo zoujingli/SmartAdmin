@@ -379,7 +379,7 @@ import {
   Tooltip,
 } from 'ant-design-vue';
 
-import { schedulerApiService, type SchedulerApi } from '#/api/system/scheduler';
+import { schedulerApiService, type SchedulerApi } from '@plugin/System/stc/view/api';
 import AppDrawer from '#/components/app-drawer.vue';
 import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';

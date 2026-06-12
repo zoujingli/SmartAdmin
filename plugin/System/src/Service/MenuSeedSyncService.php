@@ -51,6 +51,16 @@ final class MenuSeedSyncService
     ];
 
     /**
+     * 已从插件清单移除的历史种子菜单。
+     *
+     * 菜单同步只负责维护项目内置种子，不能扫描删除用户自建菜单；这里用明确 ID + code 白名单软删，
+     * 防止旧数据库继续向前端返回已不存在的页面路由。
+     */
+    private const DEPRECATED_SEED_MENUS = [
+        11 => 'dashboard.analytics',
+    ];
+
+    /**
      * 执行菜单种子同步并输出变更报告。
      *
      * @return array{
@@ -59,19 +69,22 @@ final class MenuSeedSyncService
      *   touched:int,
      *   added_menus:array<int, string>,
      *   updated_menus:array<int, string>,
+     *   removed:int,
+     *   removed_menus:array<int, string>,
      *   skipped:bool
      * }
      */
     public function syncWithReport(bool $dryRun = false): array
     {
         if (!Schema::hasTable('system_menu')) {
-            return $this->buildReport(0, 0, 0, [], [], true);
+            return $this->buildReport(0, 0, 0, 0, [], [], [], true);
         }
 
         $now = date('Y-m-d H:i:s');
         $actorId = $this->resolveActorId();
         $desired = $this->buildDesiredMenus($actorId, $now);
         $existing = $this->loadExistingMenus(array_keys($desired));
+        $deprecated = $this->loadDeprecatedMenus();
 
         $missing = [];
         $dirty = [];
@@ -91,9 +104,11 @@ final class MenuSeedSyncService
             return $this->buildReport(
                 count($missing),
                 count($dirty),
+                count($deprecated),
                 count($desired),
                 $this->formatMenus($missing),
                 $this->formatMenus($dirty),
+                $this->formatDeprecatedMenus($deprecated),
                 false
             );
         }
@@ -114,6 +129,18 @@ final class MenuSeedSyncService
                 Db::table('system_menu')->where('id', (int)$id)->update($payload);
             }
 
+            foreach ($deprecated as $menu) {
+                Db::table('system_menu')
+                    ->where('id', (int)$menu->id)
+                    ->where('code', (string)$menu->code)
+                    ->whereNull('deleted_at')
+                    ->update([
+                        'deleted_at' => $now,
+                        'updated_at' => $now,
+                        'updated_by' => $actorId,
+                    ]);
+            }
+
             Db::commit();
         } catch (\Throwable $exception) {
             Db::rollBack();
@@ -123,9 +150,11 @@ final class MenuSeedSyncService
         return $this->buildReport(
             count($missing),
             count($dirty),
+            count($deprecated),
             count($desired),
             $this->formatMenus($missing),
             $this->formatMenus($dirty),
+            $this->formatDeprecatedMenus($deprecated),
             false
         );
     }
@@ -174,6 +203,30 @@ final class MenuSeedSyncService
             ->whereIn('id', $ids)
             ->get(self::COLUMNS)
             ->keyBy('id')
+            ->all();
+    }
+
+    /**
+     * 读取明确标记为已废弃的历史种子菜单。
+     *
+     * @return array<int, object>
+     */
+    private function loadDeprecatedMenus(): array
+    {
+        if (self::DEPRECATED_SEED_MENUS === []) {
+            return [];
+        }
+
+        return Db::table('system_menu')
+            ->whereNull('deleted_at')
+            ->where(function ($query): void {
+                foreach (self::DEPRECATED_SEED_MENUS as $id => $code) {
+                    $query->orWhere(function ($subQuery) use ($id, $code): void {
+                        $subQuery->where('id', (int)$id)->where('code', (string)$code);
+                    });
+                }
+            })
+            ->get(['id', 'code', 'name'])
             ->all();
     }
 
@@ -244,6 +297,18 @@ final class MenuSeedSyncService
     }
 
     /**
+     * @param array<int, object> $rows
+     * @return array<int, string>
+     */
+    private function formatDeprecatedMenus(array $rows): array
+    {
+        return array_values(array_map(
+            static fn (object $row): string => sprintf('%d:%s', (int)($row->id ?? 0), (string)($row->code ?? $row->name ?? '')),
+            $rows
+        ));
+    }
+
+    /**
      * 解析同步操作者 ID。
      *
      * Web 场景优先当前登录用户；CLI 场景回退到 `APP_SUPER_USER`。
@@ -268,23 +333,28 @@ final class MenuSeedSyncService
      *
      * @param array<int, string> $addedMenus
      * @param array<int, string> $updatedMenus
+     * @param array<int, string> $removedMenus
      * @return array{
      *   added:int,
      *   updated:int,
+     *   removed:int,
      *   touched:int,
      *   added_menus:array<int, string>,
      *   updated_menus:array<int, string>,
+     *   removed_menus:array<int, string>,
      *   skipped:bool
      * }
      */
-    private function buildReport(int $added, int $updated, int $touched, array $addedMenus, array $updatedMenus, bool $skipped): array
+    private function buildReport(int $added, int $updated, int $removed, int $touched, array $addedMenus, array $updatedMenus, array $removedMenus, bool $skipped): array
     {
         return [
             'added' => $added,
             'updated' => $updated,
+            'removed' => $removed,
             'touched' => $touched,
             'added_menus' => $addedMenus,
             'updated_menus' => $updatedMenus,
+            'removed_menus' => $removedMenus,
             'skipped' => $skipped,
         ];
     }

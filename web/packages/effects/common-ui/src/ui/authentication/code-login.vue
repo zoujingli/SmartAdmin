@@ -48,7 +48,7 @@ defineOptions({
 const props = withDefaults(defineProps<Props>(), {
   loading: false,
   showBack: true,
-  loginPath: '/auth/login',
+  loginPath: '',
   submitButtonText: '',
   subTitle: '',
   title: '',
@@ -80,6 +80,10 @@ async function handleSubmit() {
 }
 
 function goToLogin() {
+  if (!props.loginPath) {
+    return;
+  }
+
   router.push(props.loginPath);
 }
 

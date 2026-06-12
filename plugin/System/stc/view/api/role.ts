@@ -1,8 +1,8 @@
 /**
  * 角色管理 API。
  */
-import { SystemApiService } from '../base';
-import { createPageParams, createSearchParams } from '../utils';
+import { AdminApiService } from '#/api/base';
+import { createPageParams, createSearchParams } from '#/api/utils';
 
 export namespace RoleApi {
   export interface RoleInfo {
@@ -62,7 +62,7 @@ export namespace RoleApi {
 
 }
 
-class RoleApiService extends SystemApiService {
+class RoleApiService extends AdminApiService {
   constructor() {
     super();
   }

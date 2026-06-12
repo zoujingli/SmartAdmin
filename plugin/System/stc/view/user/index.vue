@@ -282,7 +282,7 @@ import {
   TreeSelect,
 } from 'ant-design-vue';
 
-import { deptApiService, userApiService } from '#/api';
+import { deptApiService, userApiService } from '@plugin/System/stc/view/api';
 import {
   exportCrudXlsx,
   openCrudImport,

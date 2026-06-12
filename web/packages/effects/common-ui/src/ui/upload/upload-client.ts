@@ -10,6 +10,17 @@ import type { UploadAsset, UploadRuntimeConfig } from './types';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT';
 
+export interface UploadEndpointConfig {
+  abort: string;
+  complete: string;
+  list: string;
+  partSign: string;
+  prepare: string;
+  relay: string;
+  relayChunk: string;
+  runtime: string;
+}
+
 type UploadPrepareResponse = {
   asset?: UploadAsset;
   complete_token?: string;
@@ -27,6 +38,21 @@ type UploadPrepareResponse = {
 };
 
 let uploadRuntimeCache: null | UploadRuntimeConfig = null;
+let uploadEndpoints: null | UploadEndpointConfig = null;
+
+export function configureUploadEndpoints(config: UploadEndpointConfig) {
+  uploadEndpoints = { ...config };
+  resetUploadRuntimeConfig();
+}
+
+function uploadEndpoint(key: keyof UploadEndpointConfig): string {
+  const endpoint = uploadEndpoints?.[key];
+  if (!endpoint) {
+    throw new Error('未配置上传服务端点');
+  }
+
+  return endpoint;
+}
 
 function buildRequestHeaders() {
   const accessStore = useAccessStore();
@@ -275,7 +301,7 @@ async function uploadRelaySingle(
   form.append('upload_session_id', uploadSessionId);
   form.append('file', file);
 
-  return requestFormByXhr<UploadAsset>('/system/file/upload/relay', form, {
+  return requestFormByXhr<UploadAsset>(uploadEndpoint('relay'), form, {
     onProgress: (loaded, total) => {
       if (total > 0) {
         reportProgress(Math.min(99, Math.round((loaded / total) * 100)));
@@ -289,7 +315,7 @@ export async function getUploadRuntimeConfig(force = false) {
     return uploadRuntimeCache;
   }
 
-  uploadRuntimeCache = await request<UploadRuntimeConfig>('GET', '/system/file/upload/runtime');
+  uploadRuntimeCache = await request<UploadRuntimeConfig>('GET', uploadEndpoint('runtime'));
   return uploadRuntimeCache;
 }
 
@@ -298,7 +324,7 @@ export function resetUploadRuntimeConfig() {
 }
 
 export async function listUploadAssets(params: Record<string, any> = {}) {
-  return request<{ items: UploadAsset[]; pageInfo: { total: number } }>('GET', '/system/file/index', params);
+  return request<{ items: UploadAsset[]; pageInfo: { total: number } }>('GET', uploadEndpoint('list'), params);
 }
 
 export async function uploadFile(
@@ -325,7 +351,7 @@ export async function uploadFile(
 
   reportProgress(0);
   const hash = await md5File(file);
-  const prepare = await request<UploadPrepareResponse>('POST', '/system/file/upload/prepare', {
+  const prepare = await request<UploadPrepareResponse>('POST', uploadEndpoint('prepare'), {
     hash,
     driver: options.driver,
     mime_type: file.type || 'application/octet-stream',
@@ -368,7 +394,7 @@ export async function uploadFile(
         form.append('total_chunks', String(totalChunks));
         form.append('file', chunk, `${file.name}.part`);
 
-        const response = await requestFormByXhr<any>('/system/file/upload/relay-chunk', form, {
+        const response = await requestFormByXhr<any>(uploadEndpoint('relayChunk'), form, {
           onProgress: (loaded, total) => {
             const effectiveTotal = total || chunk.size;
             const currentUploaded = start + Math.min(loaded, effectiveTotal);
@@ -415,7 +441,7 @@ export async function uploadFile(
         return asset;
       }
 
-      const asset = await request<UploadAsset>('POST', '/system/file/upload/complete', {
+      const asset = await request<UploadAsset>('POST', uploadEndpoint('complete'), {
         complete_token: prepare.complete_token,
         upload_session_id: prepare.upload_session_id,
       });
@@ -442,7 +468,7 @@ export async function uploadFile(
           headers?: Record<string, string>;
           method?: string;
           upload_url: string;
-        }>('POST', '/system/file/upload/part-sign', {
+        }>('POST', uploadEndpoint('partSign'), {
           part_number: partNumber,
           upload_session_id: prepare.upload_session_id,
         });
@@ -464,7 +490,7 @@ export async function uploadFile(
         });
       }
 
-      const asset = await request<UploadAsset>('POST', '/system/file/upload/complete', {
+      const asset = await request<UploadAsset>('POST', uploadEndpoint('complete'), {
         complete_token: prepare.complete_token,
         parts,
         upload_session_id: prepare.upload_session_id,
@@ -477,7 +503,7 @@ export async function uploadFile(
     throw new Error(`不支持的上传方式: ${prepare.transport}`);
   } catch (error) {
     // 失败时通知后端清理上传会话和可能存在的远端分片，清理失败不覆盖真正的上传错误。
-    await request('POST', '/system/file/upload/abort', {
+    await request('POST', uploadEndpoint('abort'), {
       upload_session_id: prepare.upload_session_id,
     }).catch(() => undefined);
     openUploadErrorNotification(noticeKey, file.name, error);

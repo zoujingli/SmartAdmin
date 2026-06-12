@@ -17,10 +17,10 @@
 
 | 页面 | 前端路由 | 主要用途 |
 |------|----------|----------|
-| System 后台登录 | `/auth/login` | 后台用户登录并获取 System Token |
+| System 后台登录 | `/system/login` | 后台用户登录并获取 System Token |
 | Project 应用登录 | `/project/login` | ProjectAccount 登录并进入项目应用，入口由 Project 插件声明 |
 | 工作台 | `/dashboard/workspace` | 查看待办、系统概览和快捷入口 |
-| 数据分析 | `/dashboard/analytics` | 查看日志趋势、系统规模、业务热度 |
+| 工作台 | `/dashboard/workspace` | 查看系统规模、待办提醒、快捷入口和运行概览 |
 | 个人资料 | `/account/profile` | 修改资料、头像、密码和界面偏好 |
 | 用户管理 | `/system/user` | 用户 CRUD、状态、密码重置、角色/部门/岗位分配 |
 | 角色管理 | `/system/role` | 角色 CRUD、权限树授权、角色用户查看 |

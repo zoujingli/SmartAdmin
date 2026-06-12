@@ -45,7 +45,7 @@ function pushCandidate(candidates: HomeCandidate[], routePrefix: unknown, homePa
  * 解析异常页“返回首页”的目标。
  *
  * 业务插件的后台入口来自 plugin.json，前台独立入口来自 auth-entry.ts；
- * 同一路径命中多个前缀时取最长前缀，避免 /system/project/report 被 /system/project 提前截断。
+ * 同一路径命中多个前缀时取最长前缀，避免 /admin/project/report 被 /admin/project 提前截断。
  */
 export function resolveFallbackHomePath(path: unknown, options: ResolveFallbackHomeOptions): string {
   const currentPath = normalizePath(path);
@@ -57,10 +57,6 @@ export function resolveFallbackHomePath(path: unknown, options: ResolveFallbackH
   }
 
   for (const entry of options.authEntries || []) {
-    if (entry.entry === 'system') {
-      continue;
-    }
-
     for (const prefix of entry.routePrefixes || []) {
       pushCandidate(candidates, prefix, entry.homePath);
     }

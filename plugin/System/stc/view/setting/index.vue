@@ -217,8 +217,8 @@ import {
 } from 'ant-design-vue';
 import { computed, onMounted, reactive, ref } from 'vue';
 
-import { dataApiService, settingApiService } from '#/api';
-import type { SettingApi } from '#/api';
+import { dataApiService, settingApiService } from '@plugin/System/stc/view/api';
+import type { SettingApi } from '@plugin/System/stc/view/api';
 import { applyUiMetaPreferences } from '#/preferences/user-preferences';
 
 const { hasAccessByCodes } = useAccess();

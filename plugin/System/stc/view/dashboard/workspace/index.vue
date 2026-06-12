@@ -25,9 +25,9 @@ import { openWindow } from '@vben/utils';
 
 import { message } from 'ant-design-vue';
 
-import { dataApiService, logsActionApiService, tenantApiService } from '#/api';
+import { dataApiService, logsActionApiService, tenantApiService } from '@plugin/System/stc/view/api';
 
-import AnalyticsVisitsSource from '../analytics/analytics-visits-source.vue';
+import WorkspaceVisitSourceChart from './workspace-visit-source-chart.vue';
 
 const userStore = useUserStore();
 const accessStore = useAccessStore();
@@ -59,7 +59,6 @@ const canAccessTenants = computed(() => accessStore.accessCodes.includes('*'));
 
 const quickNavSource: QuickNavConfig[] = [
   { code: 'dashboard.workspace', color: '#1fdaca', icon: 'ion:home-outline', title: '工作台', url: '/dashboard/workspace' },
-  { code: 'dashboard.analytics', color: '#bf0c2c', icon: 'ion:grid-outline', title: '分析页', url: '/dashboard/analytics' },
   { code: 'system.user.index', color: '#e18525', icon: 'ion:people-outline', title: '用户管理', url: '/system/user' },
   { code: 'system.role.index', color: '#3fb27f', icon: 'ion:settings-outline', title: '角色管理', url: '/system/role' },
   { code: 'system.menu.index', color: '#4daf1bc9', icon: 'ion:key-outline', title: '菜单管理', url: '/system/menu' },
@@ -267,7 +266,7 @@ onMounted(() => {
         />
         <WorkbenchTodo :items="todoItems" class="mt-5" title="待处理事项" />
         <AnalysisChartCard class="mt-5" title="响应分布">
-          <AnalyticsVisitsSource :items="visitSourceItems" />
+          <WorkspaceVisitSourceChart :items="visitSourceItems" />
         </AnalysisChartCard>
       </div>
     </div>

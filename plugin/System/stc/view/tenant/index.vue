@@ -211,7 +211,7 @@ import {
   Tooltip,
 } from 'ant-design-vue';
 
-import { tenantApiService } from '#/api/system/tenant';
+import { tenantApiService } from '@plugin/System/stc/view/api';
 import {
   exportCrudXlsx,
   openCrudImport,

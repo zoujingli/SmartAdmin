@@ -1,7 +1,7 @@
 import type { SupportedLanguagesType } from '@vben/locales';
 import type { Preferences } from '@vben/preferences';
 import type { DeepPartial, UserInfo } from '@vben/types';
-import type { DataApi } from '#/api';
+import type { AuthApi } from '#/api';
 
 import { reactive, readonly } from 'vue';
 
@@ -21,14 +21,14 @@ interface PreferenceSchema {
   [key: string]: PreferenceSchema | true;
 }
 
-interface SystemUiMetaState {
+interface RuntimeUiMetaState {
   appDescription: string;
   appVersion: string;
   loginDescription: string;
   loginTitle: string;
 }
 
-const systemUiMetaState = reactive<SystemUiMetaState>({
+const runtimeUiMetaState = reactive<RuntimeUiMetaState>({
   appDescription: '',
   appVersion: '',
   loginDescription: '',
@@ -36,12 +36,12 @@ const systemUiMetaState = reactive<SystemUiMetaState>({
 });
 
 /**
- * 后台系统参数中的运行期元信息，不写入用户偏好缓存。
+ * 认证入口提供的运行期元信息，不写入用户偏好缓存。
  *
  * app_version 只用于 Logo 等品牌展示，避免和 app.name 混在一起后影响浏览器标题、
  * 本地偏好差异计算和用户可保存的界面配置。
  */
-const systemUiMeta = readonly(systemUiMetaState);
+const runtimeUiMeta = readonly(runtimeUiMetaState);
 
 const PERSISTABLE_UI_PREFERENCE_SCHEMA = {
   app: {
@@ -242,17 +242,17 @@ function normalizeMetaText(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function applyUiMetaPreferences(uiMeta: null | undefined | DataApi.UiMeta) {
+function applyUiMetaPreferences(uiMeta: null | undefined | AuthApi.UiMeta) {
   if (!uiMeta) {
     return;
   }
 
-  systemUiMetaState.appDescription = normalizeMetaText(uiMeta.app_description);
-  systemUiMetaState.appVersion = normalizeMetaText(uiMeta.app_version);
-  systemUiMetaState.loginDescription = normalizeMetaText(
+  runtimeUiMetaState.appDescription = normalizeMetaText(uiMeta.app_description);
+  runtimeUiMetaState.appVersion = normalizeMetaText(uiMeta.app_version);
+  runtimeUiMetaState.loginDescription = normalizeMetaText(
     uiMeta.login_description,
   );
-  systemUiMetaState.loginTitle = normalizeMetaText(uiMeta.login_title);
+  runtimeUiMetaState.loginTitle = normalizeMetaText(uiMeta.login_title);
 
   const copyrightEnable = uiMeta.copyright?.enable ?? true;
   const payload: DeepPartial<Preferences> = {
@@ -268,7 +268,7 @@ function applyUiMetaPreferences(uiMeta: null | undefined | DataApi.UiMeta) {
       icpLink: uiMeta.copyright?.icpLink || '',
     },
     footer: {
-      // 系统参数里的版权开关是全局展示开关；同步页脚可见性，避免主后台启用版权但页脚默认隐藏。
+      // 认证入口元信息中的版权开关是全局展示开关；同步页脚可见性，避免主后台启用版权但页脚默认隐藏。
       enable: copyrightEnable,
     },
     logo: {
@@ -285,7 +285,7 @@ async function applySavedUiPreferences(userInfo: null | UserInfo) {
 
   try {
     // UI 元信息属于登录前也需要读取的品牌配置；多认证入口共用前端壳，
-    // 登录后仍必须走公开认证入口，不能调用只面向特定后台鉴权链路的系统数据接口。
+    // 登录后仍必须走公开认证入口，不能调用只面向特定后台鉴权链路的入口私有数据接口。
     applyUiMetaPreferences(await coreAuthApiService.getUiMeta());
   } catch {
     // 后台元信息读取失败时使用内置配置兜底。
@@ -311,5 +311,5 @@ export {
   applySavedUiPreferences,
   buildPersistableUiPreferencesPayload,
   extractSavedUiPreferences,
-  systemUiMeta,
+  runtimeUiMeta,
 };

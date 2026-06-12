@@ -24,10 +24,15 @@ const commonUiEntry = path.resolve(
   __dirname,
   '../../packages/effects/common-ui/src/index.ts',
 );
+const preferencesEntry = path.resolve(
+  __dirname,
+  '../../packages/preferences/src/index.ts',
+);
 const storesEntry = path.resolve(
   __dirname,
   '../../packages/stores/src/index.ts',
 );
+const utilsEntry = path.resolve(__dirname, '../../packages/utils/src/index.ts');
 const pluginEchartsEntry = path.resolve(
   __dirname,
   '../../packages/effects/plugins/src/echarts/index.ts',
@@ -64,6 +69,8 @@ const pluginAuthEntriesModuleId = 'virtual:xadmin-plugin-auth-entries';
 const resolvedPluginAuthEntriesModuleId = `\0${pluginAuthEntriesModuleId}`;
 const pluginBackendHomesModuleId = 'virtual:xadmin-plugin-backend-homes';
 const resolvedPluginBackendHomesModuleId = `\0${pluginBackendHomesModuleId}`;
+const pluginSetupsModuleId = 'virtual:xadmin-plugin-setups';
+const resolvedPluginSetupsModuleId = `\0${pluginSetupsModuleId}`;
 
 interface PluginManifest {
   apps?: unknown;
@@ -193,18 +200,6 @@ function createPluginPagesModule(): string {
         `plugin/${pluginName}/${viewRoot}/${view}`,
       ];
 
-      if (pluginName === 'System' && viewRoot === 'stc/view') {
-        const systemView = view.replace(/\.vue$/, '');
-        aliases.push(
-          `/system/${systemView}`,
-          `/system/${view}`,
-          `system/${systemView}`,
-          `system/${view}`,
-          `#/views/system/${systemView}`,
-          `#/views/system/${view}`,
-        );
-      }
-
       for (const alias of aliases) {
         entries.push(`  ${JSON.stringify(alias)}: () => import(${JSON.stringify(importPath)}),`);
       }
@@ -277,6 +272,37 @@ function getPluginAuthEntryFiles(): string[] {
   return files.sort();
 }
 
+function getPluginSetupFiles(): string[] {
+  if (!fs.existsSync(pluginRoot)) {
+    return [];
+  }
+
+  const files: string[] = [];
+  for (const plugin of fs.readdirSync(pluginRoot, { withFileTypes: true })) {
+    if (!plugin.isDirectory()) {
+      continue;
+    }
+
+    const pluginDir = path.join(pluginRoot, plugin.name);
+    const manifest = readPluginManifest(path.join(pluginDir, 'plugin.json'));
+    const viewRoot = normalizePluginResourcePath(
+      manifest?.plugin?.view_root ?? manifest?.view_root,
+    );
+    if (!viewRoot) {
+      continue;
+    }
+
+    for (const setupFile of ['setup.ts', 'setup.mts']) {
+      const file = path.join(pluginDir, viewRoot, setupFile);
+      if (fs.existsSync(file) && fs.statSync(file).isFile()) {
+        files.push(file);
+      }
+    }
+  }
+
+  return files.sort();
+}
+
 function createPluginRoutesModule(): string {
   const files = getPluginRouteFiles();
   if (files.length === 0) {
@@ -310,16 +336,27 @@ function createPluginAuthEntriesModule(): string {
     + 'export default authEntries;\n';
 }
 
+function createPluginSetupsModule(): string {
+  const files = getPluginSetupFiles();
+  if (files.length === 0) {
+    return 'export async function setupPlugins() {}\n';
+  }
+
+  const imports = files.map((file, index) => (
+    `import setupModule${index} from ${JSON.stringify(fsImportPath(file))};`
+  ));
+  const calls = files.map((_, index) => `await normalizeSetup(setupModule${index})(appContext);`);
+
+  return `${imports.join('\n')}\n`
+    + 'function normalizeSetup(module) { return typeof module === "function" ? module : typeof module?.setupPlugin === "function" ? module.setupPlugin : async () => {}; }\n'
+    + `export async function setupPlugins(appContext = {}) {\n  ${calls.join('\n  ')}\n}\n`;
+}
+
 function createPluginBackendHomesModule(): string {
   const entries: Array<{ homePath: string; routePrefix: string }> = [];
 
   for (const file of getPluginManifestFiles()) {
     const manifest = readPluginManifest(file);
-    const pluginCode = String(manifest?.plugin?.code || '').toLowerCase();
-    if (pluginCode === 'system') {
-      continue;
-    }
-
     for (const app of Array.isArray(manifest?.apps) ? manifest.apps : []) {
       const item = app as Record<string, unknown>;
       const routePrefix = normalizeRoutePath(item.route);
@@ -358,6 +395,12 @@ function isPluginAuthEntryFile(file: string): boolean {
   return getPluginAuthEntryFiles().some((configFile) => configFile.replaceAll('\\', '/') === normalized);
 }
 
+function isPluginSetupFile(file: string): boolean {
+  const normalized = file.replaceAll('\\', '/');
+
+  return getPluginSetupFiles().some((setupFile) => setupFile.replaceAll('\\', '/') === normalized);
+}
+
 function pluginPagesVirtualModule(): Plugin {
   return {
     name: 'xadmin-plugin-pages',
@@ -365,6 +408,7 @@ function pluginPagesVirtualModule(): Plugin {
       const viewRoots = getPluginViewRoots();
       const routeFiles = getPluginRouteFiles();
       const authEntryFiles = getPluginAuthEntryFiles();
+      const setupFiles = getPluginSetupFiles();
       const manifestFiles = getPluginManifestFiles();
       if (viewRoots.length > 0) {
         server.watcher.add(viewRoots);
@@ -375,6 +419,9 @@ function pluginPagesVirtualModule(): Plugin {
       if (authEntryFiles.length > 0) {
         server.watcher.add(authEntryFiles);
       }
+      if (setupFiles.length > 0) {
+        server.watcher.add(setupFiles);
+      }
       if (manifestFiles.length > 0) {
         server.watcher.add(manifestFiles);
       }
@@ -383,8 +430,9 @@ function pluginPagesVirtualModule(): Plugin {
       const isViewFile = isPluginViewFile(ctx.file);
       const isRouteFile = isPluginRouteFile(ctx.file);
       const isAuthEntryFile = isPluginAuthEntryFile(ctx.file);
+      const isSetupFile = isPluginSetupFile(ctx.file);
       const isManifestFile = isPluginManifestFile(ctx.file);
-      if (!isViewFile && !isRouteFile && !isAuthEntryFile && !isManifestFile) {
+      if (!isViewFile && !isRouteFile && !isAuthEntryFile && !isSetupFile && !isManifestFile) {
         return;
       }
 
@@ -416,6 +464,13 @@ function pluginPagesVirtualModule(): Plugin {
         ctx.server.moduleGraph.invalidateModule(backendHomesModule);
       }
 
+      const setupsModule = ctx.server.moduleGraph.getModuleById(
+        resolvedPluginSetupsModuleId,
+      );
+      if (setupsModule) {
+        ctx.server.moduleGraph.invalidateModule(setupsModule);
+      }
+
       // 已加载的插件 .vue 文件继续交给 @vitejs/plugin-vue 做组件级 HMR；
       // routes.ts / auth-entry.ts / plugin.json 仅让虚拟模块下次读取时重新生成。
       return;
@@ -433,6 +488,9 @@ function pluginPagesVirtualModule(): Plugin {
       if (id === pluginBackendHomesModuleId) {
         return resolvedPluginBackendHomesModuleId;
       }
+      if (id === pluginSetupsModuleId) {
+        return resolvedPluginSetupsModuleId;
+      }
       return undefined;
     },
     load(id) {
@@ -447,6 +505,9 @@ function pluginPagesVirtualModule(): Plugin {
       }
       if (id === resolvedPluginBackendHomesModuleId) {
         return createPluginBackendHomesModule();
+      }
+      if (id === resolvedPluginSetupsModuleId) {
+        return createPluginSetupsModule();
       }
       return undefined;
     },
@@ -566,7 +627,9 @@ const configure: DefineApplicationOptions = async (config?: ConfigEnv) => {
           { find: /^@plugin\/(.*)$/, replacement: `${pluginRoot}/$1` },
           { find: /^@vben\/access$/, replacement: accessEntry },
           { find: /^@vben\/common-ui$/, replacement: commonUiEntry },
+          { find: /^@vben\/preferences$/, replacement: preferencesEntry },
           { find: /^@vben\/stores$/, replacement: storesEntry },
+          { find: /^@vben\/utils$/, replacement: utilsEntry },
           { find: /^@vben\/plugins\/echarts$/, replacement: pluginEchartsEntry },
           { find: /^@vben\/icons$/, replacement: iconsEntry },
           { find: /^ant-design-vue$/, replacement: antdEntry },

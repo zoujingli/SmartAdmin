@@ -170,7 +170,7 @@
 </template>
 
 <script setup lang="ts">
-import type { LogsChangeApi } from '#/api';
+import type { LogsChangeApi } from '@plugin/System/stc/view/api';
 
 import { computed, onMounted, reactive, ref } from 'vue';
 import dayjs from 'dayjs';
@@ -206,7 +206,7 @@ import {
   Tooltip,
 } from 'ant-design-vue';
 
-import { logsChangeApiService } from '#/api';
+import { logsChangeApiService } from '@plugin/System/stc/view/api';
 import { exportCrudXlsx } from '#/utils/crud-excel';
 import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';

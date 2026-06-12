@@ -1,8 +1,8 @@
 /**
  * 菜单管理 API - 重构版本
  */
-import { SystemApiService } from '../base';
-import { createSearchParams } from '../utils';
+import { AdminApiService } from '#/api/base';
+import { createSearchParams } from '#/api/utils';
 
 // 菜单相关类型定义
 export namespace MenuApi {
@@ -73,7 +73,7 @@ export namespace MenuApi {
 /**
  * 菜单管理 API 服务
  */
-class MenuApiService extends SystemApiService {
+class MenuApiService extends AdminApiService {
   constructor() {
     super();
   }

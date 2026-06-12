@@ -6,7 +6,7 @@ import { computed, ref } from 'vue';
 import { Button, message } from 'ant-design-vue';
 
 import { useVbenForm } from '#/adapter/form';
-import { userApiService } from '#/api/system/user';
+import { userApiService } from '@plugin/System/stc/view/api';
 
 import { useFormSchema } from '../data';
 import AppDrawer from '#/components/app-drawer.vue';

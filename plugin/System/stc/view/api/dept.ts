@@ -1,7 +1,7 @@
 /**
  * 部门管理 API - 重构版本
  */
-import { SystemApiService } from '../base';
+import { AdminApiService } from '#/api/base';
 
 // 部门相关类型定义
 export namespace DeptApi {
@@ -62,7 +62,7 @@ export namespace DeptApi {
 /**
  * 部门管理 API 服务
  */
-class DeptApiService extends SystemApiService {
+class DeptApiService extends AdminApiService {
   constructor() {
     super();
   }

@@ -283,7 +283,7 @@ import {
   theme,
 } from 'ant-design-vue';
 
-import { menuApiService } from '#/api';
+import { menuApiService } from '@plugin/System/stc/view/api';
 import {
   exportCrudXlsx,
   flattenTreeRows,

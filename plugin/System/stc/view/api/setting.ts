@@ -1,4 +1,4 @@
-import { SystemApiService } from '../base';
+import { AdminApiService } from '#/api/base';
 
 export namespace SettingApi {
   export interface SystemSetting {
@@ -19,7 +19,7 @@ export namespace SettingApi {
   }
 }
 
-class SettingApiService extends SystemApiService {
+class SettingApiService extends AdminApiService {
   async getInfo() {
     return this.get<SettingApi.SystemSetting>('system/setting/info');
   }

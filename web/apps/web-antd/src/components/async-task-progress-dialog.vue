@@ -47,7 +47,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Alert, Button, Empty, message, Modal, Progress, Space } from 'ant-design-vue';
-import { requestClient } from '#/api/request';
+import { getTaskProgressProvider } from '#/plugins/task-progress-provider';
 import { popupWidth } from '#/utils/popup';
 
 type TaskProgress = {
@@ -119,9 +119,11 @@ async function loadStatus() {
   }
   polling.value = true;
   try {
-    const data = await requestClient.get<any>('system/task/status', {
-      params: { task_id: props.taskId, limit: 50 },
-    });
+    const provider = getTaskProgressProvider();
+    if (!provider) {
+      throw new Error('当前入口未配置任务状态查询能力');
+    }
+    const data = await provider(props.taskId, 50);
     stat.value = String(data?.stat || 'unknown');
     progress.value = data?.progress || null;
     logs.value = Array.isArray(data?.logs) ? data.logs : [];

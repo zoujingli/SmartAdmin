@@ -691,7 +691,7 @@ import {
   resetUploadRuntimeConfig,
 } from '@vben/common-ui';
 
-import { fileApiService, type FileApi } from '#/api';
+import { fileApiService, type FileApi } from '@plugin/System/stc/view/api';
 import { exportCrudXlsx } from '#/utils/crud-excel';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
 import { popupWidth } from '#/utils/popup';

@@ -3,7 +3,6 @@ import type { Recordable, UserInfo } from '@vben/types';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { preferences } from '@vben/preferences';
 import { resetAllStores, useAccessStore, useUserStore } from '@vben/stores';
 
 import { message, notification } from 'ant-design-vue';
@@ -12,6 +11,7 @@ import { defineStore } from 'pinia';
 import {
   coreAuthApiService,
   coreUserApiService,
+  getAuthHomePath,
   getAuthLoginPath,
   isAuthLoginPath,
 } from '#/api';
@@ -68,7 +68,7 @@ export const useAuthStore = defineStore('auth', () => {
           onSuccess
             ? await onSuccess?.()
             : await router.push(
-                userInfo.homePath || preferences.app.defaultHomePath,
+                userInfo.homePath || getAuthHomePath(),
               );
         }
 
@@ -101,7 +101,7 @@ export const useAuthStore = defineStore('auth', () => {
     const shouldCarryRedirect = redirect
       && currentRoute.path !== loginPath
       && !isAuthLoginPath(currentRoute.path)
-      && !currentRoute.path.startsWith('/auth/');
+      && currentRoute.path !== '/';
     try {
       await Promise.race([
         coreAuthApiService.logout(),

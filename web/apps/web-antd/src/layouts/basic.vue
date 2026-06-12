@@ -20,16 +20,18 @@ import {
   getAuthEntry,
   getAuthEntryByUserInfo,
   getAuthEntryConfig,
+  getAuthHomePath,
   getAuthProfilePath,
+  isDefaultAuthEntry,
   isPluginAuthEntry,
   profileApiService,
 } from '#/api';
-import { dataApiService } from '#/api/system/data';
-import { noticeApiService } from '#/api/system/notice';
 import {
   buildPersistableUiPreferencesPayload,
-  systemUiMeta,
+  runtimeUiMeta,
 } from '#/preferences/user-preferences';
+import { getCacheClearProvider } from '#/plugins/cache-provider';
+import { getNotificationProvider } from '#/plugins/notification-provider';
 import { useAuthStore } from '#/store';
 import LoginForm from '#/views/_core/authentication/login.vue';
 
@@ -46,28 +48,15 @@ const { destroyWatermark, updateWatermark } = useWatermark();
 const currentEntry = computed(() => getAuthEntryByUserInfo(userStore.userInfo) || getAuthEntry());
 const currentEntryConfig = computed(() => getAuthEntryConfig(currentEntry.value));
 const isPluginClient = computed(() => isPluginAuthEntry(currentEntry.value));
-const showDot = computed(() => !isPluginClient.value && unreadCount.value > 0);
-const canRefreshCache = computed(() => !isPluginClient.value && Boolean(accessStore.accessToken));
-
-function formatNoticeDate(value?: null | string) {
-  return value || '刚刚';
-}
-
-function toNotificationItem(item: any): NotificationItem {
-  return {
-    id: item.id,
-    date: formatNoticeDate(item.published_at || item.created_at),
-    isRead: !!item.is_read,
-    level: item.level,
-    link: item.link || '/system/notice',
-    message: item.content || '系统公告',
-    query: item.link ? undefined : { tab: 'inbox' },
-    title: item.title,
-  };
-}
+const isDefaultEntry = computed(() => isDefaultAuthEntry(currentEntry.value));
+const notificationProvider = computed(() => getNotificationProvider());
+const cacheClearProvider = computed(() => getCacheClearProvider());
+const showDot = computed(() => isDefaultEntry.value && unreadCount.value > 0);
+const canRefreshCache = computed(() => isDefaultEntry.value && Boolean(accessStore.accessToken) && Boolean(cacheClearProvider.value));
 
 async function loadNotifications() {
-  if (!accessStore.accessToken || isPluginClient.value) {
+  const provider = notificationProvider.value;
+  if (!accessStore.accessToken || !isDefaultEntry.value || !provider) {
     notifications.value = [];
     unreadCount.value = 0;
     return;
@@ -75,11 +64,11 @@ async function loadNotifications() {
 
   try {
     const [inbox, unread] = await Promise.all([
-      noticeApiService.getInbox({ page: 1, pageSize: 10 }),
-      noticeApiService.getUnreadCount(),
+      provider.getInbox(),
+      provider.getUnreadCount(),
     ]);
-    notifications.value = (inbox.items || []).map(toNotificationItem);
-    unreadCount.value = unread.count || 0;
+    notifications.value = inbox;
+    unreadCount.value = unread;
   } catch (error) {
     console.error('load notifications failed', error);
   }
@@ -112,7 +101,12 @@ const menus = computed(() => {
             ? '将清理全站业务缓存白名单，不会影响 JWT 黑名单和当前登录令牌。'
             : '将清理当前登录用户的缓存、标签页和本地偏好。',
           async onOk() {
-            const result = await dataApiService.clearCache();
+            const provider = cacheClearProvider.value;
+            if (!provider) {
+              message.warning('当前入口未提供缓存清理能力');
+              return;
+            }
+            const result = await provider();
             resetPreferences();
             preferencesManager.clearCache();
             tabbarStore.$reset();
@@ -162,7 +156,7 @@ const userRoleTag = computed(() => {
 
 /** Logo 版本角标：统一补齐 v 前缀，仅展示后台系统参数中的运行版本，不参与浏览器标题。 */
 const appVersionTag = computed(() => {
-  const version = systemUiMeta.appVersion.trim();
+  const version = runtimeUiMeta.appVersion.trim();
   if (!version) {
     return '';
   }
@@ -188,25 +182,26 @@ async function handleSavePreferences() {
 }
 
 function handleNoticeClear() {
-  noticeApiService.archiveAll().then(refreshNotifications);
+  notificationProvider.value?.archiveAll().then(refreshNotifications);
 }
 
 function handleMakeAll() {
-  noticeApiService.readAll().then(refreshNotifications);
+  notificationProvider.value?.readAll().then(refreshNotifications);
 }
 
 function handleReadNotice(item: NotificationItem) {
-  noticeApiService.read([Number(item.id)]).then(refreshNotifications);
+  notificationProvider.value?.read([Number(item.id)]).then(refreshNotifications);
 }
 
 function handleRemoveNotice(item: NotificationItem) {
-  noticeApiService.archive([Number(item.id)]).then(refreshNotifications);
+  notificationProvider.value?.archive([Number(item.id)]).then(refreshNotifications);
 }
 
 function handleViewAllNotices() {
+  const provider = notificationProvider.value;
   router.push({
-    path: '/system/notice',
-    query: { tab: 'inbox' },
+    path: provider?.viewAllPath || getAuthHomePath(currentEntry.value),
+    query: provider?.viewAllQuery,
   });
 }
 watch(
@@ -275,7 +270,7 @@ onMounted(() => {
         @logout="handleLogout"
       />
     </template>
-    <template v-if="!isPluginClient" #notification>
+    <template v-if="isDefaultEntry && notificationProvider" #notification>
       <Notification
         :dot="showDot"
         :notifications="notifications"

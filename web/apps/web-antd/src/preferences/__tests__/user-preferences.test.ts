@@ -16,7 +16,7 @@ import {
   applySavedUiPreferences,
   buildPersistableUiPreferencesPayload,
   extractSavedUiPreferences,
-  systemUiMeta,
+  runtimeUiMeta,
 } from '../user-preferences';
 import { setupI18n } from '../../locales';
 
@@ -161,7 +161,7 @@ describe('user ui preferences helpers', () => {
     expect(preferences.widget.refresh).toBe(true);
   });
 
-  it('applies system logo and restores builtin logo when cleared', () => {
+  it('applies runtime logo and restores builtin logo when cleared', () => {
     const initialLogo = preferencesManager.getInitialPreferences().logo.source;
     const uiMeta = {
       app_description: '',
@@ -183,7 +183,7 @@ describe('user ui preferences helpers', () => {
 
     applyUiMetaPreferences(uiMeta);
     expect(preferences.logo.source).toBe('https://example.com/logo.png');
-    expect(systemUiMeta.appVersion).toBe('1.0.0');
+    expect(runtimeUiMeta.appVersion).toBe('1.0.0');
 
     applyUiMetaPreferences({
       ...uiMeta,

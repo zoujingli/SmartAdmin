@@ -206,7 +206,7 @@ import {
   Tooltip,
 } from 'ant-design-vue';
 
-import { postApiService } from '#/api/system/post';
+import { postApiService } from '@plugin/System/stc/view/api';
 import {
   exportCrudXlsx,
   openCrudImport,

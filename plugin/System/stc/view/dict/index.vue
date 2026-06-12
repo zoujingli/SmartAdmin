@@ -213,7 +213,7 @@ import {
   Tooltip,
 } from 'ant-design-vue';
 
-import { dictApiService } from '#/api/system/dict';
+import { dictApiService } from '@plugin/System/stc/view/api';
 import { exportCrudXlsx, statusText } from '#/utils/crud-excel';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
 import { popupWidth } from '#/utils/popup';

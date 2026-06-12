@@ -3,8 +3,8 @@ import type { DeepPartial, UserInfo } from '@vben/types';
 
 import { requestClient } from '#/api/request';
 
-import { getAuthBase } from './auth';
-import { encryptPasswordFields, PASSWORD_PURPOSES } from './password-crypto';
+import { getAuthBase, getAuthPasswordPurpose } from './auth';
+import { encryptPasswordFields } from './password-crypto';
 
 export interface UpdateProfileBody {
   nickname?: string;
@@ -24,8 +24,8 @@ export const profileApiService = {
     old_password: string;
   }) {
     const payload = await encryptPasswordFields(data, {
-      old_password: PASSWORD_PURPOSES.authChangeOld,
-      new_password: PASSWORD_PURPOSES.authChangeNew,
+      old_password: getAuthPasswordPurpose('authChangeOld'),
+      new_password: getAuthPasswordPurpose('authChangeNew'),
     }, { parametersUrl: `${authProfileBase()}/password-crypto` });
 
     return requestClient.put(`${authProfileBase()}/password`, payload);

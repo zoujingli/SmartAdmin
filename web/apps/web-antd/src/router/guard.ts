@@ -2,7 +2,6 @@ import type { RouteLocationNormalized, RouteLocationRaw, Router } from 'vue-rout
 
 import backendPluginHomes from 'virtual:xadmin-plugin-backend-homes';
 
-import { LOGIN_PATH } from '@vben/constants';
 import { preferences } from '@vben/preferences';
 import { useAccessStore, useUserStore } from '@vben/stores';
 import { generateMenus, startProgress, stopProgress } from '@vben/utils';
@@ -16,17 +15,15 @@ import {
   getAuthEntryByUserInfo,
   getAuthHomePath,
   getAuthLoginPath,
+  getDefaultAuthEntry,
   getLoginEntryByPath,
   isAuthLoginPath,
-  isPluginAuthEntry,
-  isSystemAuthEntry,
+  isSecondaryAuthEntry,
   isUserInfoForAuthEntry,
   routeBelongsToAuthEntry,
-  SYSTEM_ENTRY,
 } from '#/api';
 import { accessRoutes, coreRouteNames } from '#/router/routes';
 import { createAccountProfileRoute } from '#/router/routes/static-account';
-import { systemNoticeRoute } from '#/router/routes/static-system';
 import { useAuthStore } from '#/store';
 
 import { generateAccess } from './access';
@@ -88,16 +85,15 @@ function setupAccessGuard(router: Router) {
     return backendPluginHomes.some((entry) => pathMatchesPrefix(normalized, normalizeGuardPath(entry.routePrefix)));
   }
 
-  function isSystemPath(path?: string): boolean {
+  function pathMatchesEntry(path: string, entry: string): boolean {
     const normalized = normalizeGuardPath(path);
+    const config = getAuthEntryConfig(entry);
 
-    // System 登录体系不仅包含平台内置 /system/**，也包含由 plugin.json 声明的后台插件入口。
-    return normalized === '/'
-      || normalized === '/dashboard'
-      || normalized.startsWith('/dashboard/')
-      || normalized === '/system'
-      || normalized.startsWith('/system/')
-      || normalized === '/account/profile'
+    if (normalized === '/' || config.loginPath === normalized || config.profilePath === normalized) {
+      return true;
+    }
+
+    return config.routePrefixes.some((prefix) => pathMatchesPrefix(normalized, normalizeGuardPath(prefix)))
       || isBackendPluginPath(normalized);
   }
 
@@ -126,20 +122,36 @@ function setupAccessGuard(router: Router) {
   }
 
   function pathBelongsToEntry(path: string, entry: string): boolean {
-    if (entry === SYSTEM_ENTRY) {
-      return isSystemPath(path);
-    }
+    return pathMatchesEntry(path, entry);
+  }
 
-    return getAuthEntryByRoutePath(path) === entry;
+  function treeHasPath(nodes: any[], path: string): boolean {
+    const normalized = normalizeGuardPath(path);
+
+    return nodes.some((node) => {
+      const routePath = normalizeGuardPath(node?.path || node?.route);
+      const redirectPath = normalizeGuardPath(node?.redirect);
+      const matched = routePath === normalized || redirectPath === normalized;
+
+      return matched || (Array.isArray(node?.children) && treeHasPath(node.children, normalized));
+    });
+  }
+
+  function isKnownAccessPath(path: string): boolean {
+    const accessStore = useAccessStore();
+
+    return treeHasPath(accessStore.accessMenus as any, path)
+      || treeHasPath(accessStore.accessRoutes as any, path)
+      || treeHasPath(accessRoutes as any, path)
+      || isBackendPluginPath(path);
   }
 
   function shouldRebuildAccessRoutes(to: RouteLocationNormalized): boolean {
     const entry = getAuthEntry();
     return shouldRebuildAccessRoutesForEntry(to, {
       coreRouteNames,
-      isEntryPath: (path) => isPluginAuthEntry(entry)
-        ? pathBelongsToEntry(path, entry)
-        : isSystemPath(path),
+      isEntryPath: (path) => pathBelongsToEntry(path, entry),
+      isKnownAccessPath,
     });
   }
 
@@ -189,7 +201,7 @@ function setupAccessGuard(router: Router) {
     if (!path.startsWith('/') || path.startsWith('//')) {
       return false;
     }
-    if (path === LOGIN_PATH || isAuthLoginPath(path) || path.startsWith('/auth/')) {
+    if (isAuthLoginPath(path)) {
       return false;
     }
     if (['/403', '/404', '/500'].includes(path) || path.startsWith('/_core/fallback')) {
@@ -221,7 +233,7 @@ function setupAccessGuard(router: Router) {
         const selfInEntry = routeBelongsToAuthEntry(node, entry);
 
         // 插件用户端菜单由插件入口配置声明；动态生成后再次按入口边界过滤，
-        // 避免切换账号时混入 System 或其他插件的菜单与路由。
+        // 避免切换账号时混入其他认证入口的菜单与路由。
         if (children.length === 0 && !(selfInEntry && rawChildren.length === 0)) {
           return null;
         }
@@ -252,8 +264,8 @@ function setupAccessGuard(router: Router) {
   function activateEntryForPath(path: string, userInfo: any) {
     const loginEntry = getLoginEntryByPath(path);
     const routeEntry = loginEntry || getAuthEntryByRoutePath(path);
-    // 未命中插件前台入口的路径统一归到 System 入口，避免上一个 Project/Points/Asset 前台入口污染平台 404 或后台插件深链。
-    const nextEntry = routeEntry || SYSTEM_ENTRY;
+    // 未命中具体入口的路径回到默认认证入口，避免上一个前台入口污染公共 404 或后台插件深链。
+    const nextEntry = routeEntry || getDefaultAuthEntry().entry;
 
     activateAuthEntry(nextEntry);
     if (userInfo && !isUserInfoForAuthEntry(userInfo, nextEntry)) {
@@ -329,7 +341,7 @@ function setupAccessGuard(router: Router) {
     if (accessStore.isAccessChecked) {
       await refreshAccessCodesIfNeeded();
       const entry = getAuthEntry();
-      if (isPluginAuthEntry(entry)) {
+      if (isSecondaryAuthEntry(entry)) {
         if (!pathBelongsToEntry(to.path, entry)) {
           return { path: getAuthHomePath(entry), replace: true };
         }
@@ -342,7 +354,7 @@ function setupAccessGuard(router: Router) {
         && !hasStableMenuOrder(accessStore.accessMenus)
       ) {
         const menus = generateMenus(accessStore.accessRoutes, router);
-        accessStore.setAccessMenus(isPluginAuthEntry(entry) ? filterEntryTree(menus as any, entry) as any : menus);
+        accessStore.setAccessMenus(isSecondaryAuthEntry(entry) ? filterEntryTree(menus as any, entry) as any : menus);
       }
       if (shouldRebuildAccessRoutes(to)) {
         if (!accessRouteRebuildPaths.has(to.fullPath)) {
@@ -388,7 +400,7 @@ function setupAccessGuard(router: Router) {
     await refreshAccessCodesIfNeeded();
     const entry = getAuthEntryByUserInfo(userInfo) || getAuthEntry();
     const userRoles = userInfo?.roles ?? [];
-    if (isPluginAuthEntry(entry) && !pathBelongsToEntry(to.path, entry)) {
+    if (isSecondaryAuthEntry(entry) && !pathBelongsToEntry(to.path, entry)) {
       return { path: getAuthHomePath(entry), replace: true };
     }
 
@@ -398,17 +410,14 @@ function setupAccessGuard(router: Router) {
       router,
       routes: accessRoutes,
     });
-    const finalMenus = isPluginAuthEntry(entry)
+    const finalMenus = isSecondaryAuthEntry(entry)
       ? filterEntryTree(accessibleMenus as any, entry) as typeof accessibleMenus
       : accessibleMenus;
-    const finalRoutes = isPluginAuthEntry(entry)
+    const finalRoutes = isSecondaryAuthEntry(entry)
       ? filterEntryTree(accessibleRoutes as any, entry) as typeof accessibleRoutes
       : accessibleRoutes;
 
     ensureProfileRoute(router, entry);
-    if (isSystemAuthEntry(entry) && !router.getRoutes().some((route) => route.path === '/system/notice')) {
-      router.addRoute('Root', systemNoticeRoute);
-    }
 
     // 保存菜单信息和路由信息
     accessStore.setAccessMenus(finalMenus);

@@ -9,6 +9,7 @@ declare(strict_types=1);
  * @document https://zoujingli.github.io/SmartAdmin
  */
 use Library\Logger\Handler\StdoutLoggerHandler;
+use Library\Logger\Processor\ExceptionContextProcessor;
 use Library\Logger\Processor\RequestIdProcessor;
 use Monolog\Formatter\LineFormatter;
 use Monolog\Handler\RotatingFileHandler;
@@ -49,6 +50,9 @@ return [
             'handlers' => $logs,
             'processors' => [
                 [
+                    'class' => ExceptionContextProcessor::class,
+                ],
+                [
                     'class' => RequestIdProcessor::class,
                 ],
             ],
@@ -56,6 +60,9 @@ return [
         'sql' => [
             'handlers' => $sqls,
             'processors' => [
+                [
+                    'class' => ExceptionContextProcessor::class,
+                ],
                 [
                     'class' => RequestIdProcessor::class,
                 ],

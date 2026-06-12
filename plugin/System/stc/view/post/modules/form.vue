@@ -45,7 +45,7 @@
 import { reactive, ref, watch } from 'vue';
 import { Col, Form, FormItem, Input, InputNumber, message, RadioGroup, Row } from 'ant-design-vue';
 
-import { postApiService } from '#/api/system/post';
+import { postApiService } from '@plugin/System/stc/view/api';
 
 import type { PostFormData, PostType } from '../types';
 import AppDrawer from '#/components/app-drawer.vue';

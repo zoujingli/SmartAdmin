@@ -3,8 +3,8 @@
  */
 import type { LogsActionApi } from './logs-action';
 
-import { SystemApiService } from '../base';
-import { createPageParams, formatDateParams } from '../utils';
+import { AdminApiService } from '#/api/base';
+import { createPageParams, formatDateParams } from '#/api/utils';
 import { asRecord, type LogChangeRow, type LogChangeValue, toFiniteNumber, toNumberRecord } from './logs-shared';
 
 export namespace LogsChangeApi {
@@ -54,7 +54,7 @@ function normalizeStatistics(value: unknown): LogsChangeApi.LogsChangeStatistics
   };
 }
 
-class LogsChangeApiService extends SystemApiService {
+class LogsChangeApiService extends AdminApiService {
   constructor() {
     super();
   }

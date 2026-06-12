@@ -19,14 +19,13 @@ interface PasswordCryptoParameters {
 
 const PASSWORD_CRYPTO_CLIENT_ERROR_NAME = 'PasswordCryptoClientError';
 
-export const PASSWORD_PURPOSES = {
-  authLogin: 'system.auth.login.password',
-  authChangeOld: 'system.auth.password.old_password',
-  authChangeNew: 'system.auth.password.new_password',
-  userCreate: 'system.user.create.password',
-  userUpdate: 'system.user.update.password',
-  userReset: 'system.user.reset_password.password',
-} as const;
+export type PasswordPurposeKey =
+  | 'authChangeNew'
+  | 'authChangeOld'
+  | 'authLogin'
+  | 'userCreate'
+  | 'userReset'
+  | 'userUpdate';
 
 /**
  * 对请求体中指定密码字段执行服务端 RSA-OAEP 传输加密。
@@ -36,7 +35,7 @@ export const PASSWORD_PURPOSES = {
 export async function encryptPasswordFields<T extends Record<string, any>>(
   data: T,
   purposes: Partial<Record<keyof T & string, string>>,
-  options: { parametersUrl?: string } = {},
+  options: { parametersUrl: string },
 ): Promise<T> {
   const fields = Object.entries(purposes).filter(([field, purpose]) => {
     return typeof purpose === 'string' && typeof data[field] === 'string';
@@ -45,7 +44,7 @@ export async function encryptPasswordFields<T extends Record<string, any>>(
     return data;
   }
 
-  const params = await requestClient.get<PasswordCryptoParameters>(options.parametersUrl || '/system/auth/password-crypto', {
+  const params = await requestClient.get<PasswordCryptoParameters>(options.parametersUrl, {
     params: { count: fields.length },
   });
   if (!Array.isArray(params.nonces) || params.nonces.length < fields.length) {

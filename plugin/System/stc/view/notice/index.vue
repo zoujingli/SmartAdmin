@@ -335,9 +335,9 @@ import {
 } from '@vben/common-ui';
 import { Button, Card, Col, DescriptionsItem, Form, FormItem, Input, message, Modal, Row, Select, SelectOption, Space, Switch, Table, Tabs, TabPane, Tooltip } from 'ant-design-vue';
 
-import { noticeApiService } from '#/api/system/notice';
-import type { NoticeApi } from '#/api/system/notice';
-import { userApiService } from '#/api/system/user';
+import { noticeApiService } from '@plugin/System/stc/view/api';
+import type { NoticeApi } from '@plugin/System/stc/view/api';
+import { userApiService } from '@plugin/System/stc/view/api';
 import { exportCrudXlsx, openCrudImport, parseStatus, parseStringList } from '#/utils/crud-excel';
 import { buildTableScrollX, estimateVisibleActionColumnWidth } from '#/utils/table';
 import { popupWidth } from '#/utils/popup';
@@ -364,14 +364,14 @@ const levelLabels = {
   success: '成功',
   warning: '警告',
   error: '错误',
-} as const;
+} satisfies Record<NoticeApi.NoticeLevel, string>;
 
 const levelColors = {
   info: 'processing',
   success: 'success',
   warning: 'warning',
   error: 'error',
-} as const;
+} satisfies Record<NoticeApi.NoticeLevel, string>;
 
 type NoticeTab = 'data' | 'inbox' | 'recycle';
 type RecipientOption = { label: string; value: number };

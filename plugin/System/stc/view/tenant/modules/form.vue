@@ -91,7 +91,7 @@
 import { computed, reactive, ref, watch } from 'vue';
 import { Col, Form, FormItem, Input, message, RadioGroup, Row } from 'ant-design-vue';
 
-import { tenantApiService } from '#/api/system/tenant';
+import { tenantApiService } from '@plugin/System/stc/view/api';
 
 import type { TenantFormData, TenantType } from '../types';
 import AppDrawer from '#/components/app-drawer.vue';

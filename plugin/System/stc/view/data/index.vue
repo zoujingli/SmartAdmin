@@ -348,8 +348,8 @@ import {
   Textarea,
 } from 'ant-design-vue';
 
-import { dataApiService } from '#/api';
-import type { DataApi } from '#/api/system/data';
+import { dataApiService } from '@plugin/System/stc/view/api';
+import type { DataApi } from '@plugin/System/stc/view/api';
 import { buildTableScrollX } from '#/utils/table';
 
 type DataTab = 'config' | 'modules' | 'overview';

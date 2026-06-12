@@ -65,7 +65,7 @@
 import { reactive, ref, watch } from 'vue';
 import { Col, Form, FormItem, Input, InputNumber, message, RadioGroup, Row, TreeSelect } from 'ant-design-vue';
 
-import { dictApiService } from '#/api/system/dict';
+import { dictApiService } from '@plugin/System/stc/view/api';
 
 import type { DictFormData, DictInfo } from '../types';
 import AppDrawer from '#/components/app-drawer.vue';
