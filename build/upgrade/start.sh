@@ -51,10 +51,10 @@ upload() {
 remote_upgrade() {
     sshpass -p "$PASS" ssh "${SSH_OPTS[@]}" "$USER@$SERVER" "bash -se" <<EOF_REMOTE
 set -e
-rm -rf "$REMOTE_FILE"
-cp "$REMOTE_TEMP" "$REMOTE_FILE"
-chmod +x "$REMOTE_FILE"
-docker restart "$CONTAINER_NAME"
+install -m 0755 "$REMOTE_TEMP" "$REMOTE_FILE.new"
+docker stop "$CONTAINER_NAME" >/dev/null 2>&1 || true
+mv -f "$REMOTE_FILE.new" "$REMOTE_FILE"
+docker start "$CONTAINER_NAME" >/dev/null
 sleep 2
 docker exec "$CONTAINER_NAME" "$CONTAINER_PATH" --self xadmin:release:restore --install --force
 docker exec "$CONTAINER_NAME" "$CONTAINER_PATH" --self xadmin:website:publish
