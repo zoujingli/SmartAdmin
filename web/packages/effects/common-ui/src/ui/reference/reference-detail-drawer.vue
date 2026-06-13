@@ -112,8 +112,11 @@
           class="reference-detail-rich-content"
           :class="{ 'is-thumbnail-media': richContentMode === 'thumbnail' }"
           v-html="renderSectionHtml(section.content_html)"
+          @click.capture="handleRichMediaClick"
           @click="handleRichReference"
+          @keydown.enter.capture="handleRichMediaKeydown"
           @keydown.enter="handleRichReference"
+          @keydown.space.capture="handleRichMediaKeydown"
           @keydown.space="handleRichReference"
         ></div>
         <p v-else-if="section.content" class="reference-detail-description">
@@ -171,6 +174,19 @@
     </div>
     <Alert v-else show-icon type="info" message="请选择一个引用标签" />
   </AppDrawer>
+  <Modal v-model:open="previewOpen" destroy-on-close :footer="null" :title="previewTitle" :width="previewModalWidth" :z-index="previewZIndex" @cancel="closePreview">
+    <div class="reference-detail-media-preview">
+      <img v-if="previewKind === 'image'" :alt="previewAlt" class="reference-detail-media-preview__image" :src="previewSrc" />
+      <video
+        v-else
+        class="reference-detail-media-preview__video"
+        controls
+        preload="metadata"
+        :poster="previewPoster"
+        :src="previewSrc"
+      ></video>
+    </div>
+  </Modal>
 </template>
 
 <script setup lang="ts">
@@ -180,7 +196,7 @@ import { computed, ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 
-import { Alert, Button, Descriptions, DescriptionsItem, Spin, Tag } from 'ant-design-vue';
+import { Alert, Button, Descriptions, DescriptionsItem, Modal, Spin, Tag } from 'ant-design-vue';
 
 import AppDrawer from '../../components/app-drawer/app-drawer.vue';
 import { getReferenceProvider } from './registry';
@@ -220,9 +236,17 @@ const loading = ref(false);
 const error = ref('');
 const detail = ref<null | ReferenceDetail>(null);
 const activeReference = ref<null | ReferenceItem>(null);
+const previewModalWidth = 'min(92vw, 960px)';
+const previewZIndex = 2400;
+const previewOpen = ref(false);
+const previewKind = ref<'image' | 'video'>('image');
+const previewSrc = ref('');
+const previewAlt = ref('');
+const previewPoster = ref('');
 const displayReference = computed(() => activeReference.value ? referenceDisplayText(withResolvedReferenceLabel(activeReference.value)) : '');
 const detailTitle = computed(() => displayReference.value || detail.value?.title || '引用详情');
 const drawerTitle = computed(() => displayReference.value ? `数据引用 ${displayReference.value}` : '数据引用');
+const previewTitle = computed(() => previewKind.value === 'video' ? '视频预览' : '图片预览');
 const heroIcon = computed(() => {
   const type = String(detail.value?.type || activeReference.value?.code || '').toLowerCase();
   const iconMap: Record<string, string> = {
@@ -364,6 +388,9 @@ function openInlineReference(reference: ReferenceItem) {
 }
 
 function handleRichReference(event: MouseEvent | KeyboardEvent) {
+  if (richMediaElementFromTarget(event.target)) {
+    return;
+  }
   const target = event.target instanceof HTMLElement ? event.target.closest<HTMLElement>('[data-reference-token="1"]') : null;
   if (!target) return;
   const reference = referenceFromDataset(target);
@@ -371,6 +398,112 @@ function handleRichReference(event: MouseEvent | KeyboardEvent) {
   event.preventDefault();
   event.stopPropagation();
   activeReference.value = reference;
+}
+
+function richMediaEnabled(): boolean {
+  return props.richContentMode === 'thumbnail';
+}
+
+function richImageFromTarget(target: EventTarget | null): HTMLImageElement | null {
+  if (!richMediaEnabled() || !(target instanceof HTMLElement)) {
+    return null;
+  }
+  const image = target.closest('img');
+  if (!(image instanceof HTMLImageElement)) {
+    return null;
+  }
+  const src = image.currentSrc || image.src || image.getAttribute('src') || '';
+
+  return src ? image : null;
+}
+
+function richVideoFromTarget(target: EventTarget | null): HTMLVideoElement | null {
+  if (!richMediaEnabled() || !(target instanceof HTMLElement)) {
+    return null;
+  }
+  const video = target.closest('video');
+  if (!(video instanceof HTMLVideoElement)) {
+    return null;
+  }
+  const src = richVideoSource(video);
+
+  return src ? video : null;
+}
+
+function richMediaElementFromTarget(target: EventTarget | null): HTMLImageElement | HTMLVideoElement | null {
+  return richImageFromTarget(target) || richVideoFromTarget(target);
+}
+
+function richImageSource(image: HTMLImageElement): string {
+  return image.currentSrc || image.src || image.getAttribute('src') || '';
+}
+
+function richImageAlt(image: HTMLImageElement): string {
+  return image.getAttribute('alt') || image.getAttribute('title') || '图片预览';
+}
+
+function richVideoSource(video: HTMLVideoElement): string {
+  const source = video.querySelector('source');
+
+  return video.currentSrc || video.src || video.getAttribute('src') || source?.getAttribute('src') || '';
+}
+
+function richVideoTitle(video: HTMLVideoElement): string {
+  return video.getAttribute('title') || video.getAttribute('aria-label') || '视频预览';
+}
+
+function handleRichMediaClick(event: MouseEvent) {
+  const image = richImageFromTarget(event.target);
+  if (image) {
+    event.preventDefault();
+    event.stopPropagation();
+    previewKind.value = 'image';
+    previewSrc.value = richImageSource(image);
+    previewAlt.value = richImageAlt(image);
+    previewPoster.value = '';
+    previewOpen.value = true;
+    return;
+  }
+
+  const video = richVideoFromTarget(event.target);
+  if (!video) {
+    return;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  previewKind.value = 'video';
+  previewSrc.value = richVideoSource(video);
+  previewAlt.value = richVideoTitle(video);
+  previewPoster.value = video.getAttribute('poster') || '';
+  previewOpen.value = true;
+}
+
+function handleRichMediaKeydown(event: KeyboardEvent) {
+  const media = richMediaElementFromTarget(event.target);
+  if (!media) {
+    return;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  if (media instanceof HTMLImageElement) {
+    previewKind.value = 'image';
+    previewSrc.value = richImageSource(media);
+    previewAlt.value = richImageAlt(media);
+    previewPoster.value = '';
+    previewOpen.value = true;
+    return;
+  }
+  previewKind.value = 'video';
+  previewSrc.value = richVideoSource(media);
+  previewAlt.value = richVideoTitle(media);
+  previewPoster.value = media.getAttribute('poster') || '';
+  previewOpen.value = true;
+}
+
+function closePreview() {
+  previewOpen.value = false;
+  previewSrc.value = '';
+  previewPoster.value = '';
 }
 
 watch(() => props.reference, (reference) => {
@@ -493,7 +626,7 @@ watch(() => [props.open, activeReference.value?.raw, activeReference.value?.id, 
   height: auto;
   max-height: min(420px, 70vh);
   border-radius: 10px;
-  background: #000;
+  background: var(--ant-colorBgSpotlight, #000);
 }
 .reference-detail-rich-content.is-thumbnail-media :deep(img) {
   display: inline-block;
@@ -506,6 +639,7 @@ watch(() => [props.open, activeReference.value?.raw, activeReference.value?.id, 
   border: 1px solid var(--ant-colorBorderSecondary, hsl(var(--border)));
   border-radius: 6px;
   background: var(--ant-colorFillQuaternary, hsl(var(--muted)));
+  cursor: zoom-in;
   object-fit: cover;
   vertical-align: middle;
 }
@@ -519,8 +653,14 @@ watch(() => [props.open, activeReference.value?.raw, activeReference.value?.id, 
   border: 1px solid var(--ant-colorBorderSecondary, hsl(var(--border)));
   border-radius: 6px;
   background: var(--ant-colorBgSpotlight, #000);
+  cursor: zoom-in;
   object-fit: cover;
   vertical-align: middle;
+}
+.reference-detail-rich-content.is-thumbnail-media :deep(img:hover),
+.reference-detail-rich-content.is-thumbnail-media :deep(video:hover) {
+  border-color: var(--ant-colorPrimaryBorder, var(--ant-colorPrimary, hsl(var(--primary))));
+  box-shadow: 0 0 0 2px var(--ant-colorPrimaryBg, hsl(var(--primary) / 0.12));
 }
 .reference-detail-rich-content :deep(a[data-project-file='1']) {
   display: inline-flex;
@@ -564,6 +704,24 @@ watch(() => [props.open, activeReference.value?.raw, activeReference.value?.id, 
   justify-content: flex-end;
   padding: 14px 0 0;
   background: linear-gradient(180deg, transparent, var(--ant-colorBgContainer, hsl(var(--card))) 42%);
+}
+.reference-detail-media-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+  background: var(--ant-colorBgContainer, hsl(var(--background)));
+}
+.reference-detail-media-preview__image,
+.reference-detail-media-preview__video {
+  max-width: 100%;
+  max-height: 78vh;
+  border-radius: 8px;
+  object-fit: contain;
+}
+.reference-detail-media-preview__video {
+  width: 100%;
+  background: var(--ant-colorBgSpotlight, #000);
 }
 @media (max-width: 640px) {
   .reference-detail-hero { grid-template-columns: minmax(0, 1fr); }
