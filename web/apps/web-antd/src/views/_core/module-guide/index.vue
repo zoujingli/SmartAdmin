@@ -566,13 +566,13 @@ onMounted(() => {
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  margin-bottom: 8px;
+  margin-bottom: 16px;
 }
 
 .module-guide__hero-copy {
   position: relative;
-  min-height: 74px;
-  padding: 10px 18px 11px;
+  min-height: 108px;
+  padding: 18px 252px 18px 24px;
   border: 1px solid var(--guide-line);
   border-radius: 8px;
   overflow: hidden;
@@ -607,11 +607,12 @@ onMounted(() => {
   display: inline-flex;
   gap: 8px;
   align-items: center;
-  margin-bottom: 2px;
+  margin-bottom: 8px;
   color: rgb(129 231 255);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0;
+  line-height: 1.2;
 }
 
 .module-guide__eyebrow-dot {
@@ -630,19 +631,19 @@ onMounted(() => {
   color: var(--guide-text);
   font-size: 26px;
   font-weight: 850;
-  line-height: 1.08;
+  line-height: 1.18;
   text-shadow: 0 0 30px rgb(56 189 248 / 18%);
 }
 
 .module-guide__desc {
   position: relative;
   z-index: 1;
-  max-width: 720px;
-  margin: 2px 0 0;
+  max-width: 760px;
+  margin: 8px 0 0;
   color: var(--guide-text-soft);
   font-size: 14px;
   font-weight: 600;
-  line-height: 1.5;
+  line-height: 1.65;
 }
 
 .module-guide__console {
@@ -1182,6 +1183,11 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
 
+  .module-guide__hero-copy {
+    min-height: 98px;
+    padding-right: 24px;
+  }
+
   .module-guide__console {
     display: none;
   }
@@ -1246,12 +1252,12 @@ onMounted(() => {
 
   .module-guide__hero {
     gap: 0;
-    margin-bottom: 8px;
+    margin-bottom: 12px;
   }
 
   .module-guide__hero-copy {
-    min-height: 72px;
-    padding: 10px 14px;
+    min-height: 88px;
+    padding: 14px 16px;
   }
 
   .module-guide__name {
