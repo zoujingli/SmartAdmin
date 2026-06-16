@@ -503,14 +503,15 @@ const logTableScroll = computed(() => buildTableScrollX(logColumns.value));
 
 function taskActions(record: SchedulerApi.ScheduledTask) {
   const enabled = Number(record.status || 0) === 1;
+  const running = Number(record.running || 0) === 1;
   const systemOwned = isSystemOwned(record);
   return [
     { label: '查看', onClick: () => handleTaskDetail(record) },
-    { label: '编辑', visible: canUpdateTasks.value && systemOwned, onClick: () => handleEdit(record) },
+    { label: '编辑', visible: canUpdateTasks.value && systemOwned, disabled: running, onClick: () => handleEdit(record) },
     { label: enabled ? '停用' : '启用', visible: canStatusTasks.value && systemOwned, onClick: () => handleStatus(record, enabled ? 0 : 1) },
-    { label: '执行', visible: canRunTasks.value && systemOwned, disabled: Number(record.running || 0) === 1, confirmTitle: '确认立即执行该任务？', onClick: () => handleRun(record) },
+    { label: '执行', visible: canRunTasks.value && systemOwned, disabled: !enabled || running, confirmTitle: '确认立即执行该任务？', onClick: () => handleRun(record) },
     { label: '日志', visible: canViewLogs.value, onClick: () => openTaskLogs(record) },
-    { label: '删除', visible: canDeleteTasks.value && systemOwned, danger: true, confirmTitle: '确认删除该任务？', confirmContent: '删除后该计划不会继续自动执行。', onClick: () => handleDelete(record) },
+    { label: '删除', visible: canDeleteTasks.value && systemOwned, disabled: running, danger: true, confirmTitle: '确认删除该任务？', confirmContent: '删除后该计划不会继续自动执行。', onClick: () => handleDelete(record) },
   ];
 }
 

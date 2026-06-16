@@ -70,19 +70,24 @@ final class SystemSchedulerProcess implements ProcessInterface
     public function tick(): int
     {
         $count = 0;
+        $this->tasks->markInvalidDueTasks();
         foreach ($this->tasks->dueTasks() as $task) {
             if (!$task instanceof SystemScheduledTask) {
                 continue;
             }
 
-            $lockedUntil = date('Y-m-d H:i:s', time() + max(60, (int)$task->timeout));
-            $claimed = $this->tasks->claim((int)$task->id, $lockedUntil);
-            if (!$claimed instanceof SystemScheduledTask) {
-                continue;
-            }
+            try {
+                $lockedUntil = date('Y-m-d H:i:s', time() + max(60, (int)$task->timeout));
+                $claimed = $this->tasks->claim((int)$task->id, $lockedUntil);
+                if (!$claimed instanceof SystemScheduledTask) {
+                    continue;
+                }
 
-            ++$count;
-            $this->executor->execute($claimed);
+                ++$count;
+                $this->executor->execute($claimed);
+            } catch (\Throwable $exception) {
+                $this->logger->error(sprintf('System scheduler task [%s] failed: %s', (string)($task->code ?? $task->id), $exception->getMessage()));
+            }
         }
 
         return $count;

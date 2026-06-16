@@ -55,6 +55,7 @@ final class PluginScheduledTaskService
             if (method_exists($exists, 'trashed') && (bool)$exists->trashed()) {
                 $exists->restore();
             }
+            $this->ensureNotRunning($exists);
             $this->tasks->updateOwned($exists, $payload);
 
             return $this->ownedTask(
@@ -92,6 +93,7 @@ final class PluginScheduledTaskService
     public function delete(string $ownerPlugin, string $ownerType, int $ownerId, string $code): bool
     {
         $task = $this->ownedTask($ownerPlugin, $ownerType, $ownerId, $code);
+        $this->ensureNotRunning($task);
 
         return $this->tasks->deleteOwned($task);
     }
@@ -99,6 +101,9 @@ final class PluginScheduledTaskService
     public function run(string $ownerPlugin, string $ownerType, int $ownerId, string $code): array
     {
         $task = $this->ownedTask($ownerPlugin, $ownerType, $ownerId, $code);
+        if ((int)$task->status !== Status::ENABLED) {
+            throw new ErrorResponseException('任务已禁用，不能立即执行');
+        }
         $claimed = $this->tasks->claim((int)$task->id, date('Y-m-d H:i:s', time() + max(60, (int)$task->timeout)));
         if (!$claimed instanceof SystemScheduledTask) {
             throw new ErrorResponseException('任务正在执行，请稍后再试');
@@ -177,5 +182,12 @@ final class PluginScheduledTaskService
         }
 
         return $task;
+    }
+
+    private function ensureNotRunning(SystemScheduledTask $task): void
+    {
+        if ((int)$task->running === 1) {
+            throw new ErrorResponseException('任务正在执行，请稍后再操作');
+        }
     }
 }

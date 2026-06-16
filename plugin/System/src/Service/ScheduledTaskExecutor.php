@@ -14,6 +14,7 @@ namespace System\Service;
 use Hyperf\DbConnection\Db;
 use Library\Constants\DataField;
 use Library\Support\TenantContext;
+use Swoole\Coroutine;
 use System\Contract\ScheduledTaskExecutorInterface;
 use System\Mapper\ScheduledTaskMapper;
 use System\Model\SystemScheduledTask;
@@ -29,6 +30,12 @@ use System\Support\Scheduler\ScheduledTaskRegistry;
  */
 final class ScheduledTaskExecutor implements ScheduledTaskExecutorInterface
 {
+    private const RESULT_MAX_BYTES = 20000;
+
+    private const RESULT_MAX_DEPTH = 5;
+
+    private const RESULT_MAX_ITEMS = 50;
+
     public function __construct(
         private readonly ScheduledTaskRegistry $registry,
         private readonly ScheduledTaskMapper $tasks,
@@ -51,10 +58,25 @@ final class ScheduledTaskExecutor implements ScheduledTaskExecutorInterface
 
         $started = microtime(true);
         $startedAt = date('Y-m-d H:i:s');
-        $log = $this->createLog($task, $manual, $startedAt);
+        try {
+            $log = $this->createLog($task, $manual, $startedAt);
+        } catch (\Throwable $exception) {
+            $message = mb_substr('执行日志创建失败：' . $exception->getMessage(), 0, 2000);
+            $this->tasks->release($task, [
+                'last_run_at' => date('Y-m-d H:i:s'),
+                'last_status' => SystemScheduledTask::STATUS_FAILED,
+                'last_message' => $message,
+                'next_run_at' => $this->nextRunAt($task),
+            ]);
+            _trace($exception);
+
+            return ['status' => SystemScheduledTask::STATUS_FAILED, 'message' => $message];
+        }
+
         $status = SystemScheduledTask::STATUS_SUCCESS;
         $message = '执行成功';
         $result = [];
+        $heartbeat = $this->startHeartbeat($task);
 
         try {
             $context = new ScheduledTaskContext(
@@ -77,11 +99,20 @@ final class ScheduledTaskExecutor implements ScheduledTaskExecutorInterface
             $message = mb_substr($exception->getMessage(), 0, 2000);
             $result = ['exception' => get_class($exception)];
             _trace($exception);
+        } finally {
+            $heartbeat['running'] = false;
         }
 
         $durationMs = (int)round((microtime(true) - $started) * 1000);
         $finishedAt = date('Y-m-d H:i:s');
-        $this->finishLog($log, $status, $message, $result, $finishedAt, $durationMs);
+        $result = $this->sanitizeResult($result);
+        try {
+            $this->finishLog($log, $status, $message, $result, $finishedAt, $durationMs);
+        } catch (\Throwable $exception) {
+            _trace($exception);
+            $message = mb_substr($message . '；执行日志更新失败：' . $exception->getMessage(), 0, 2000);
+        }
+
         $this->tasks->release($task, [
             'last_run_at' => $finishedAt,
             'last_status' => $status,
@@ -135,16 +166,107 @@ final class ScheduledTaskExecutor implements ScheduledTaskExecutorInterface
      */
     private function finishLog(SystemScheduledTaskLog $log, string $status, string $message, array $result, string $finishedAt, int $durationMs): void
     {
+        $encoded = json_encode($result, JSON_UNESCAPED_UNICODE);
+        if ($encoded === false) {
+            $encoded = json_encode(['message' => '结果摘要编码失败'], JSON_UNESCAPED_UNICODE) ?: '{}';
+        }
+
         Db::table('system_scheduled_task_log')
             ->where('id', (int)$log->id)
             ->update([
                 'status' => $status,
                 'message' => $message,
-                'result' => json_encode($result, JSON_UNESCAPED_UNICODE) ?: '{}',
+                'result' => $encoded,
                 'finished_at' => $finishedAt,
                 'duration_ms' => $durationMs,
                 'updated_at' => $finishedAt,
             ]);
+    }
+
+    /**
+     * 执行锁心跳只续当前 lock_token；进程异常退出后心跳停止，锁按 timeout 失效后才允许重新抢占。
+     *
+     * @return array{running: bool}
+     */
+    private function startHeartbeat(SystemScheduledTask $task): array
+    {
+        $state = ['running' => true];
+        $timeout = max(60, (int)$task->timeout);
+        $interval = max(10, min(60, (int)floor($timeout / 3)));
+
+        Coroutine::create(function () use ($task, &$state, $timeout, $interval): void {
+            while ($state['running']) {
+                Coroutine::sleep($interval);
+                if (!$state['running']) {
+                    break;
+                }
+
+                $lockedUntil = date('Y-m-d H:i:s', time() + $timeout);
+                if (!$this->tasks->heartbeat($task, $lockedUntil)) {
+                    $state['running'] = false;
+                    break;
+                }
+            }
+        });
+
+        return $state;
+    }
+
+    /**
+     * 任务结果只保存可审计摘要，避免插件任务把敏感字段或超大内容写入日志表。
+     *
+     * @param array<string, mixed> $result
+     * @return array<string, mixed>
+     */
+    private function sanitizeResult(array $result): array
+    {
+        $sanitized = $this->sanitizeValue($result);
+        $json = json_encode($sanitized, JSON_UNESCAPED_UNICODE);
+        if ($json !== false && strlen($json) <= self::RESULT_MAX_BYTES) {
+            return is_array($sanitized) ? $sanitized : ['value' => $sanitized];
+        }
+
+        return [
+            'truncated' => true,
+            'message' => '结果摘要超过长度限制，已截断',
+        ];
+    }
+
+    private function sanitizeValue(mixed $value, int $depth = 0): mixed
+    {
+        if ($depth >= self::RESULT_MAX_DEPTH) {
+            return '[DEPTH_LIMIT]';
+        }
+        if (is_array($value)) {
+            $items = [];
+            $index = 0;
+            foreach ($value as $key => $item) {
+                if ($index >= self::RESULT_MAX_ITEMS) {
+                    $items['__truncated_items'] = count($value) - self::RESULT_MAX_ITEMS;
+                    break;
+                }
+                $stringKey = is_string($key) ? $key : (string)$key;
+                $items[$key] = $this->isSensitiveKey($stringKey)
+                    ? '[FILTERED]'
+                    : $this->sanitizeValue($item, $depth + 1);
+                ++$index;
+            }
+
+            return $items;
+        }
+        if (is_string($value)) {
+            return mb_strlen($value) > 2000 ? mb_substr($value, 0, 2000) . '...' : $value;
+        }
+        if (is_scalar($value) || $value === null) {
+            return $value;
+        }
+
+        return '[UNSUPPORTED]';
+    }
+
+    private function isSensitiveKey(string $key): bool
+    {
+        return preg_match('/password|passwd|pwd|token|secret|key|cookie|authorization/i', $key) === 1;
     }
 
     private function nextRunAt(SystemScheduledTask $task, ?string $baseTime = null): string

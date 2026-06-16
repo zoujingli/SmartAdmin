@@ -16,6 +16,7 @@
     <testsuites>
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
+            <directory>plugin/System/tests</directory>
         </testsuite>
     </testsuites>
     <source>

@@ -53,6 +53,7 @@ return new class extends Migration {
             $table->addColumn('string', 'last_message', ['length' => 2000])->nullable()->default('')->comment('最后执行消息');
             $table->addColumn('bigInteger', 'running')->nullable()->default(0)->comment('是否执行中');
             $table->addColumn('timestamp', 'locked_until')->nullable()->comment('锁过期时间');
+            $table->addColumn('string', 'lock_token', ['length' => 64])->nullable()->default('')->comment('执行锁令牌');
             $table->addColumn('bigInteger', 'status')->nullable()->default(1)->comment('状态(1启用,0禁用)');
             $table->addColumn('string', 'remark', ['length' => 1000])->nullable()->default('')->comment('备注');
             $table->addColumn('bigInteger', 'created_by')->nullable()->default(0)->comment('创建者');
@@ -64,6 +65,7 @@ return new class extends Migration {
             $table->index(['tenant_id', 'status', 'next_run_at'], 'idx_sched_task_due');
             $table->index(['owner_plugin', 'owner_type', 'owner_id'], 'idx_sched_task_owner');
             $table->index(['running', 'locked_until'], 'idx_sched_task_lock');
+            $table->index(['lock_token'], 'idx_sched_task_lock_token');
             $table->index(['deleted_at'], 'idx_sched_task_deleted');
             $table->comment('系统定时任务表');
         });
@@ -113,10 +115,12 @@ return new class extends Migration {
             $this->stringColumn('system_scheduled_task', $table, 'owner_type', 60, 'system', '归属类型');
             $this->bigIntegerColumn('system_scheduled_task', $table, 'owner_id', 0, '归属资源ID');
             $this->stringColumn('system_scheduled_task', $table, 'owner_name', 120, '系统任务', '归属资源名称');
+            $this->stringColumn('system_scheduled_task', $table, 'lock_token', 64, '', '执行锁令牌');
         });
         $this->dropTaskIndexIfExists('uni_sched_task_tenant_code', true);
         $this->ensureTaskUniqueIndex('uni_sched_task_owner_code', ['tenant_id', 'owner_plugin', 'owner_type', 'owner_id', 'code']);
         $this->ensureTaskIndex('idx_sched_task_owner', ['owner_plugin', 'owner_type', 'owner_id']);
+        $this->ensureTaskIndex('idx_sched_task_lock_token', ['lock_token']);
     }
 
     private function upgradeLogOwnerColumns(): void

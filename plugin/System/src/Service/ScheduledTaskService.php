@@ -77,6 +77,7 @@ final class ScheduledTaskService extends CoreService
             throw new ErrorResponseException('任务不存在');
         }
         $this->ensureSystemOwned($task);
+        $this->ensureNotRunning($task);
 
         return $this->mapper->update($task, $this->filterData($data, $task->toArray()));
     }
@@ -92,6 +93,7 @@ final class ScheduledTaskService extends CoreService
                 return false;
             }
             $this->ensureSystemOwned($task);
+            $this->ensureNotRunning($task);
         }
 
         return $this->mapper->delete($ids);
@@ -104,6 +106,9 @@ final class ScheduledTaskService extends CoreService
             throw new ErrorResponseException('任务不存在');
         }
         $this->ensureSystemOwned($task);
+        if ((int)$task->status !== Status::ENABLED) {
+            throw new ErrorResponseException('任务已禁用，不能立即执行');
+        }
 
         $claimed = $this->mapper->claim((int)$task->id, date('Y-m-d H:i:s', time() + max(60, (int)$task->timeout)));
         if (!$claimed instanceof SystemScheduledTask) {
@@ -228,6 +233,13 @@ final class ScheduledTaskService extends CoreService
     {
         if ((string)($task->owner_plugin ?: 'system') !== 'system' || (string)($task->owner_type ?: 'system') !== 'system' || (int)$task->owner_id !== 0) {
             throw new ErrorResponseException('业务插件任务请在对应子系统中管理');
+        }
+    }
+
+    private function ensureNotRunning(SystemScheduledTask $task): void
+    {
+        if ((int)$task->running === 1) {
+            throw new ErrorResponseException('任务正在执行，请稍后再操作');
         }
     }
 }

@@ -41,6 +41,7 @@ export namespace SchedulerApi {
     last_message: string;
     running: number;
     locked_until: string | null;
+    lock_token?: string;
     status: number;
     remark: string;
     created_at: string;

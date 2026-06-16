@@ -9,7 +9,7 @@ declare(strict_types=1);
  * @document https://zoujingli.github.io/SmartAdmin
  */
 
-namespace Tests\Unit\System;
+namespace System\Tests\Unit;
 
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -32,7 +32,7 @@ final class SystemSchedulerContractTest extends TestCase
 
     public function testSystemSchedulerBackendContractsStayClosed(): void
     {
-        $root = dirname(__DIR__, 3);
+        $root = dirname(__DIR__, 4);
         $provider = (string)file_get_contents($root . '/plugin/System/src/Provider.php');
         $process = (string)file_get_contents($root . '/plugin/System/src/Process/SystemSchedulerProcess.php');
         $listener = (string)file_get_contents($root . '/plugin/System/src/Listener/SystemProcessRegisterListener.php');
@@ -73,8 +73,9 @@ final class SystemSchedulerContractTest extends TestCase
 
     public function testSystemSchedulerSchemaMenuAndFrontendAreDiscoverable(): void
     {
-        $root = dirname(__DIR__, 3);
+        $root = dirname(__DIR__, 4);
         $migration = (string)file_get_contents($root . '/plugin/System/stc/migrations/2026_06_11_000001_system_scheduler.php');
+        $lockTokenMigration = (string)file_get_contents($root . '/plugin/System/stc/migrations/2026_06_16_000001_system_scheduler_lock_token.php');
         $menuSeed = (string)file_get_contents($root . '/plugin/System/src/Support/SystemMenuSeed.php');
         $manifest = json_decode((string)file_get_contents($root . '/plugin/System/plugin.json'), true, flags: JSON_THROW_ON_ERROR);
         $api = (string)file_get_contents($root . '/plugin/System/stc/view/api/scheduler.ts');
@@ -88,6 +89,11 @@ final class SystemSchedulerContractTest extends TestCase
         self::assertStringContainsString('owner_plugin', $migration);
         self::assertStringContainsString('owner_type', $migration);
         self::assertStringContainsString('owner_id', $migration);
+        self::assertStringContainsString('lock_token', $migration);
+        self::assertStringContainsString('idx_sched_task_lock_token', $migration);
+        self::assertStringContainsString('lock_token', $lockTokenMigration);
+        self::assertStringContainsString('Schema::hasColumn', $lockTokenMigration);
+        self::assertStringContainsString('idx_sched_task_lock_token', $lockTokenMigration);
         self::assertStringContainsString('uni_sched_task_owner_code', $migration);
         self::assertStringContainsString('idx_sched_task_lock', $migration);
         self::assertStringContainsString('@plugin/System/views/scheduler/task/index.vue', $menuSeed);
@@ -101,6 +107,7 @@ final class SystemSchedulerContractTest extends TestCase
         self::assertStringContainsString('system/scheduler/log/index', $api);
         self::assertStringContainsString('owner_plugin: string', $api);
         self::assertStringContainsString('owner_name: string', $api);
+        self::assertStringContainsString('lock_token?: string', $api);
         self::assertStringContainsString("const pluginSetupsModuleId = 'virtual:xadmin-plugin-setups'", $vite);
         self::assertStringContainsString('function getPluginSetupFiles(): string[]', $vite);
         self::assertStringContainsString("for (const setupFile of ['setup.ts', 'setup.mts'])", $vite);
@@ -122,6 +129,8 @@ final class SystemSchedulerContractTest extends TestCase
         self::assertStringContainsString('durationText(record.duration_ms)', $view);
         self::assertStringContainsString('CollapsePanel key="advanced" header="高级设置"', $view);
         self::assertStringContainsString('业务插件任务只能查看，规则请到对应业务页面编辑', $view);
+        self::assertStringContainsString("disabled: !enabled || running", $view);
+        self::assertStringContainsString("disabled: running", $view);
         self::assertStringContainsString("{ title: '任务名称', dataIndex: 'name', key: 'name'", $view);
         self::assertStringContainsString("{ title: '所属模块', key: 'owner'", $view);
         self::assertStringContainsString("{ title: '下次执行', dataIndex: 'next_run_at'", $view);
@@ -140,7 +149,7 @@ final class SystemSchedulerContractTest extends TestCase
 
     public function testSchedulerSharedKernelSupportsPluginOwnedTasks(): void
     {
-        $root = dirname(__DIR__, 3);
+        $root = dirname(__DIR__, 4);
         $annotation = (string)file_get_contents($root . '/plugin/System/src/Annotation/ScheduledTask.php');
         $definition = (string)file_get_contents($root . '/plugin/System/src/Support/Scheduler/ScheduledTaskDefinition.php');
         $context = (string)file_get_contents($root . '/plugin/System/src/Support/Scheduler/ScheduledTaskContext.php');
@@ -172,9 +181,44 @@ final class SystemSchedulerContractTest extends TestCase
         self::assertStringContainsString("'owner_plugin' => (string)(\$task->owner_plugin ?: 'system')", $executor);
     }
 
+    public function testSchedulerLockingFailureAndSanitizingContracts(): void
+    {
+        $root = dirname(__DIR__, 4);
+        $process = (string)file_get_contents($root . '/plugin/System/src/Process/SystemSchedulerProcess.php');
+        $mapper = (string)file_get_contents($root . '/plugin/System/src/Mapper/ScheduledTaskMapper.php');
+        $executor = (string)file_get_contents($root . '/plugin/System/src/Service/ScheduledTaskExecutor.php');
+        $systemService = (string)file_get_contents($root . '/plugin/System/src/Service/ScheduledTaskService.php');
+        $pluginService = (string)file_get_contents($root . '/plugin/System/src/Service/PluginScheduledTaskService.php');
+
+        self::assertStringContainsString("->where('tenant_id', '>', 0)", $mapper);
+        self::assertStringContainsString('markInvalidDueTasks', $mapper . $process);
+        self::assertStringContainsString('任务租户上下文无效，已跳过执行', $mapper);
+        self::assertStringContainsString('makeLockToken', $mapper);
+        self::assertStringContainsString("'lock_token' => \$token", $mapper);
+        self::assertStringContainsString("->where('lock_token', (string)\$task->lock_token)", $mapper);
+        self::assertStringContainsString('public function heartbeat(SystemScheduledTask $task', $mapper);
+        self::assertStringContainsString('try {', $process);
+        self::assertStringContainsString('System scheduler task [%s] failed', $process);
+
+        self::assertStringContainsString('startHeartbeat', $executor);
+        self::assertStringContainsString('finally {', $executor);
+        self::assertStringContainsString("\$heartbeat['running'] = false", $executor);
+        self::assertStringContainsString('日志创建失败', $executor);
+        self::assertStringContainsString('日志更新失败', $executor);
+        self::assertStringContainsString('sanitizeResult', $executor);
+        self::assertStringContainsString('isSensitiveKey', $executor);
+        self::assertStringContainsString('password|passwd|pwd|token|secret|key|cookie|authorization', $executor);
+        self::assertStringContainsString('RESULT_MAX_BYTES', $executor);
+
+        foreach ([$systemService, $pluginService] as $source) {
+            self::assertStringContainsString('任务已禁用，不能立即执行', $source);
+            self::assertStringContainsString('ensureNotRunning', $source);
+        }
+    }
+
     public function testBuiltinScheduledTasksAreWhitelistHandlers(): void
     {
-        $root = dirname(__DIR__, 3);
+        $root = dirname(__DIR__, 4);
         $logs = (string)file_get_contents($root . '/plugin/System/src/Support/Scheduler/Task/SystemLogsClearTask.php');
         $cache = (string)file_get_contents($root . '/plugin/System/src/Support/Scheduler/Task/SystemCacheClearTask.php');
         $database = (string)file_get_contents($root . '/plugin/System/src/Support/Scheduler/Task/SystemDatabaseOptimizeTask.php');
