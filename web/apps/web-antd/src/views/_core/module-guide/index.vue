@@ -865,11 +865,25 @@ onMounted(() => {
   --guide-card-soft: rgb(167 139 250 / 14%);
 }
 
+.module-guide__card--license {
+  --guide-accent: #facc15;
+  --guide-accent-2: #22c55e;
+  --guide-card-surface: rgb(37 32 14 / 94%);
+  --guide-card-soft: rgb(250 204 21 / 13%);
+}
+
 .module-guide__card--points {
   --guide-accent: #bef264;
   --guide-accent-2: #84cc16;
   --guide-card-surface: rgb(25 36 15 / 94%);
   --guide-card-soft: rgb(190 242 100 / 12%);
+}
+
+.module-guide__card--system {
+  --guide-accent: #94a3b8;
+  --guide-accent-2: #38bdf8;
+  --guide-card-surface: rgb(24 29 39 / 96%);
+  --guide-card-soft: rgb(148 163 184 / 11%);
 }
 
 .module-guide__card--default {

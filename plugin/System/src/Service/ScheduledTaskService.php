@@ -20,6 +20,7 @@ use System\Contract\ScheduledTaskExecutorInterface;
 use System\Mapper\ScheduledTaskMapper;
 use System\Model\SystemScheduledTask;
 use System\Support\Scheduler\ScheduleCalculator;
+use System\Support\Scheduler\ScheduledTaskOwnerRegistry;
 use System\Support\Scheduler\ScheduledTaskRegistry;
 
 final class ScheduledTaskService extends CoreService
@@ -27,6 +28,7 @@ final class ScheduledTaskService extends CoreService
     public function __construct(
         protected ScheduledTaskMapper $mapper,
         private readonly ScheduledTaskRegistry $registry,
+        private readonly ScheduledTaskOwnerRegistry $owners,
         private readonly ScheduledTaskExecutorInterface $executor,
     ) {}
 
@@ -34,8 +36,36 @@ final class ScheduledTaskService extends CoreService
     {
         return [
             'tasks' => $this->registry->options(),
+            'owner_types' => $this->owners->types('system'),
             'schedule_types' => ScheduleCalculator::types(),
         ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function ownerTypes(string $ownerPlugin): array
+    {
+        $ownerPlugin = trim($ownerPlugin);
+        if ($ownerPlugin === '') {
+            throw new ErrorResponseException('任务归属插件不能为空');
+        }
+
+        return $this->owners->types($ownerPlugin);
+    }
+
+    /**
+     * @return array{items:list<array<string,mixed>>,pageInfo:array<string,int>}
+     */
+    public function ownerOptions(array $params): array
+    {
+        $ownerPlugin = trim((string)($params['owner_plugin'] ?? ''));
+        $ownerType = trim((string)($params['owner_type'] ?? ''));
+        if ($ownerPlugin === '' || $ownerType === '') {
+            throw new ErrorResponseException('任务归属类型不能为空');
+        }
+
+        return $this->owners->options($ownerPlugin, $ownerType, $params);
     }
 
     public function runtime(): array
@@ -57,12 +87,13 @@ final class ScheduledTaskService extends CoreService
             (string)$payload['owner_type'],
             (int)$payload['owner_id'],
             (string)$payload['code'],
-            true
+            true,
+            (int)$payload['tenant_id']
         );
 
         if ($trashed instanceof SystemScheduledTask && method_exists($trashed, 'trashed') && (bool)$trashed->trashed()) {
             $trashed->restore();
-            $this->mapper->update($trashed, $payload);
+            $this->mapper->updateOwned($trashed, $payload);
 
             return $this->mapper->read((int)$trashed->id);
         }
@@ -76,10 +107,10 @@ final class ScheduledTaskService extends CoreService
         if (!$task instanceof SystemScheduledTask) {
             throw new ErrorResponseException('任务不存在');
         }
-        $this->ensureSystemOwned($task);
+        $this->ensureOwnerManageable($task);
         $this->ensureNotRunning($task);
 
-        return $this->mapper->update($task, $this->filterData($data, $task->toArray()));
+        return $this->mapper->updateOwned($task, $this->filterData($data, $task->toArray()));
     }
 
     public function delete(array $ids): bool
@@ -92,11 +123,17 @@ final class ScheduledTaskService extends CoreService
             if (!$task instanceof SystemScheduledTask) {
                 return false;
             }
-            $this->ensureSystemOwned($task);
+            $this->ensureOwnerManageable($task);
             $this->ensureNotRunning($task);
         }
 
-        return $this->mapper->delete($ids);
+        foreach ($tasks as $task) {
+            if (!$this->mapper->deleteOwned($task)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function run(int $id): array
@@ -105,7 +142,7 @@ final class ScheduledTaskService extends CoreService
         if (!$task instanceof SystemScheduledTask) {
             throw new ErrorResponseException('任务不存在');
         }
-        $this->ensureSystemOwned($task);
+        $this->ensureOwnerManageable($task);
         if ((int)$task->status !== Status::ENABLED) {
             throw new ErrorResponseException('任务已禁用，不能立即执行');
         }
@@ -124,12 +161,12 @@ final class ScheduledTaskService extends CoreService
         if (!$task instanceof SystemScheduledTask) {
             throw new ErrorResponseException('任务不存在');
         }
-        $this->ensureSystemOwned($task);
+        $this->ensureOwnerManageable($task);
         if (!in_array($status, [Status::ENABLED, Status::DISABLED], true)) {
             throw new ErrorResponseException('状态值错误');
         }
 
-        return $this->mapper->update($task, [
+        return $this->mapper->updateOwned($task, [
             'status' => $status,
             'next_run_at' => $status === Status::ENABLED
                 ? ScheduleCalculator::nextRunAt((string)$task->schedule_type, is_array($task->schedule_config) ? $task->schedule_config : [])
@@ -145,10 +182,16 @@ final class ScheduledTaskService extends CoreService
         $rules = [
             'code.filled' => '请选择任务',
             'code.max:120' => '任务编码最多 120 位',
+            'owner_plugin.filled' => '任务归属插件不能为空',
+            'owner_plugin.max:120' => '任务归属插件最多 120 位',
+            'owner_type.filled' => '请选择任务归属类型',
+            'owner_type.max:120' => '任务归属类型最多 120 位',
+            'owner_id.integer' => '任务归属资源必须为数字',
+            'owner_id.min:0' => '任务归属资源无效',
             'name.filled' => '任务名称不能为空',
             'name.max:120' => '任务名称最多 120 位',
             'schedule_type.filled' => '请选择周期类型',
-            'schedule_type.in:every_minutes,hourly,daily,weekly,monthly' => '周期类型不支持',
+            'schedule_type.in:every_seconds,every_minutes,every_hours,hourly,daily,weekly,monthly' => '周期类型不支持',
             'timeout.integer' => '超时时间必须为数字',
             'timeout.min:1' => '超时时间不能小于 1 秒',
             'timeout.max:86400' => '超时时间不能超过 86400 秒',
@@ -158,6 +201,8 @@ final class ScheduledTaskService extends CoreService
         ];
         if ($exists === []) {
             $rules['code.required'] = '请选择任务';
+            $rules['owner_type.required'] = '请选择任务归属类型';
+            $rules['owner_id.default'] = 0;
             $rules['name.required'] = '任务名称不能为空';
             $rules['schedule_type.default'] = ScheduleCalculator::TYPE_DAILY;
             $rules['schedule_config.default'] = [];
@@ -172,15 +217,35 @@ final class ScheduledTaskService extends CoreService
         if ($definition === null) {
             throw new ErrorResponseException('任务定义不存在或插件未启用');
         }
-        if ($definition->ownerPlugin !== 'system') {
-            throw new ErrorResponseException('业务插件任务请在对应子系统中管理');
-        }
 
         $data['tenant_id'] = (int)($exists['tenant_id'] ?? TenantContext::requireTenantId());
-        $data['owner_plugin'] = 'system';
-        $data['owner_type'] = 'system';
-        $data['owner_id'] = 0;
-        $data['owner_name'] = '系统任务';
+        if ($exists === []) {
+            $ownerPlugin = $definition->ownerPlugin;
+            $ownerType = trim((string)($data['owner_type'] ?? ($ownerPlugin === 'system' ? 'system' : '')));
+            $ownerId = (int)($data['owner_id'] ?? 0);
+            if ($ownerType === '') {
+                throw new ErrorResponseException('请选择任务归属类型');
+            }
+            // System 是全局运维入口，但业务任务 owner 必须由插件解析器确认并补齐派生参数。
+            $owner = $this->owners->resolve($ownerPlugin, $ownerType, $ownerId, $data);
+            if ($owner->ownerPlugin !== $ownerPlugin) {
+                throw new ErrorResponseException('任务归属插件与任务定义不匹配');
+            }
+            $data['owner_plugin'] = $owner->ownerPlugin;
+            $data['owner_type'] = $owner->ownerType;
+            $data['owner_id'] = $owner->ownerId;
+            $data['owner_name'] = $owner->ownerName;
+            $resolverParams = $owner->params;
+        } else {
+            $this->ensureImmutableOwner($data, $exists);
+            $data['owner_plugin'] = (string)$exists['owner_plugin'];
+            $data['owner_type'] = (string)$exists['owner_type'];
+            $data['owner_id'] = (int)$exists['owner_id'];
+            // 编辑已有计划时重新解析当前 owner，保证业务资源仍存在，并把 resolver 派生参数重新补回。
+            $owner = $this->owners->resolve($data['owner_plugin'], $data['owner_type'], $data['owner_id'], $data);
+            $data['owner_name'] = $owner->ownerName;
+            $resolverParams = $owner->params;
+        }
         $data['code'] = $code;
         $data['group_name'] = $definition->group;
         $data['name'] = trim((string)($data['name'] ?? $exists['name'] ?? $definition->name));
@@ -190,7 +255,10 @@ final class ScheduledTaskService extends CoreService
         $data['schedule_type'] = $type;
         $data['schedule_config'] = $config;
         $data['next_run_at'] = ScheduleCalculator::nextRunAt($type, $config);
-        $data['params'] = $inputParams ?? (array)($exists['params'] ?? []);
+        $data['params'] = [
+            ...($inputParams ?? (array)($exists['params'] ?? [])),
+            ...$resolverParams,
+        ];
 
         $this->ensureUniqueCode($data, $exists);
 
@@ -229,10 +297,25 @@ final class ScheduledTaskService extends CoreService
         }
     }
 
-    private function ensureSystemOwned(SystemScheduledTask $task): void
+    private function ensureImmutableOwner(array $data, array $exists): void
     {
-        if ((string)($task->owner_plugin ?: 'system') !== 'system' || (string)($task->owner_type ?: 'system') !== 'system' || (int)$task->owner_id !== 0) {
-            throw new ErrorResponseException('业务插件任务请在对应子系统中管理');
+        // 已有计划的任务定义和 owner 共同决定执行上下文，System 编辑时只允许调整计划规则。
+        foreach (['code', 'owner_plugin', 'owner_type', 'owner_id'] as $field) {
+            if (!array_key_exists($field, $data)) {
+                continue;
+            }
+            if ((string)$data[$field] !== (string)($exists[$field] ?? '')) {
+                throw new ErrorResponseException('任务类型和归属不能直接修改，请删除后重新创建');
+            }
+        }
+    }
+
+    private function ensureOwnerManageable(SystemScheduledTask $task): void
+    {
+        $ownerPlugin = (string)($task->owner_plugin ?: 'system');
+        $ownerType = (string)($task->owner_type ?: 'system');
+        if (!$this->owners->has($ownerPlugin, $ownerType)) {
+            throw new ErrorResponseException('任务归属解析器不存在，只能查看该业务任务');
         }
     }
 

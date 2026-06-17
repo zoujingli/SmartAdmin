@@ -48,7 +48,7 @@
           </Card>
 
           <Card>
-            <CrudTableHeader title="定时任务" description="管理系统自动执行的清理、缓存、优化等任务；业务插件任务只能查看，规则请到对应业务页面编辑。" :count-text="`${taskPagination.total} 条记录`" />
+            <CrudTableHeader title="定时任务" description="统一运维当前租户下全部注册任务；业务系统仍可在各自页面维护自己的计划。" :count-text="`${taskPagination.total} 条记录`" />
             <Table
               :columns="taskColumns"
               :data-source="taskData"
@@ -187,11 +187,45 @@
         <Row :gutter="[16, 0]">
           <Col :span="24">
             <FormItem label="任务类型" required>
-              <Select v-model:value="formState.code" :disabled="Boolean(formState.id)" placeholder="请选择任务" @change="handleDefinitionChange">
-                <SelectOption v-for="item in taskOptions" :key="item.code" :value="item.code">
+              <Select v-model:value="formState.code" :disabled="Boolean(formState.id)" option-label-prop="label" placeholder="请选择任务" @change="handleDefinitionChange">
+                <SelectOption v-for="item in taskOptions" :key="item.code" :label="taskOptionLabel(item)" :value="item.code">
                   <div class="scheduler-option">
                     <div class="scheduler-option__title">{{ item.description ? `${item.name} - ${item.description}` : item.name }}</div>
                     <div class="scheduler-option__desc">{{ item.code }}</div>
+                  </div>
+                </SelectOption>
+              </Select>
+            </FormItem>
+          </Col>
+          <Col :span="12">
+            <FormItem label="归属类型" required>
+              <Select v-model:value="formState.owner_type" :disabled="Boolean(formState.id) || ownerTypes.length <= 1" placeholder="请选择归属类型" @change="handleOwnerTypeChange">
+                <SelectOption v-for="item in ownerTypes" :key="item.owner_type" :value="item.owner_type">
+                  {{ item.name }}
+                </SelectOption>
+              </Select>
+            </FormItem>
+          </Col>
+          <Col :span="12">
+            <FormItem label="归属资源" required>
+              <Input v-if="selectedOwnerPlugin === 'system'" :value="'系统任务'" disabled />
+              <Select
+                v-else
+                v-model:value="formState.owner_id"
+                :disabled="Boolean(formState.id) || !formState.owner_type"
+                :filter-option="false"
+                :loading="loadingOwnerOptions"
+                allow-clear
+                option-label-prop="label"
+                show-search
+                placeholder="请选择归属资源"
+                @change="handleOwnerChange"
+                @search="handleOwnerSearch"
+              >
+                <SelectOption v-for="item in ownerOptions" :key="item.owner_id" :label="ownerOptionLabel(item)" :value="item.owner_id">
+                  <div class="scheduler-option">
+                    <div class="scheduler-option__title">{{ item.owner_name }}</div>
+                    <div class="scheduler-option__desc">{{ `${item.owner_type} #${item.owner_id}` }}</div>
                   </div>
                 </SelectOption>
               </Select>
@@ -210,9 +244,19 @@
             </FormItem>
           </Col>
 
+          <Col v-if="formState.schedule_type === 'every_seconds'" :span="12">
+            <FormItem label="间隔秒" required>
+              <InputNumber v-model:value="formState.schedule_config.interval" :min="1" :max="86400" class="w-full" />
+            </FormItem>
+          </Col>
           <Col v-if="formState.schedule_type === 'every_minutes'" :span="12">
             <FormItem label="间隔分钟" required>
               <InputNumber v-model:value="formState.schedule_config.interval" :min="1" :max="1440" class="w-full" />
+            </FormItem>
+          </Col>
+          <Col v-if="formState.schedule_type === 'every_hours'" :span="12">
+            <FormItem label="间隔小时" required>
+              <InputNumber v-model:value="formState.schedule_config.interval" :min="1" :max="8760" class="w-full" />
             </FormItem>
           </Col>
           <Col v-if="formState.schedule_type === 'hourly'" :span="12">
@@ -405,10 +449,15 @@ const taskData = ref<SchedulerApi.ScheduledTask[]>([]);
 const logData = ref<SchedulerApi.ScheduledTaskLog[]>([]);
 const taskOptions = ref<SchedulerApi.TaskDefinition[]>([]);
 const scheduleTypes = ref<SchedulerApi.ScheduleTypeOption[]>([]);
+const ownerTypes = ref<SchedulerApi.OwnerTypeOption[]>([]);
+const ownerTypeMap = ref<Record<string, SchedulerApi.OwnerTypeOption[]>>({});
+const manageableOwnerKeys = ref<Set<string>>(new Set());
+const ownerOptions = ref<SchedulerApi.OwnerOption[]>([]);
 const currentTask = ref<SchedulerApi.ScheduledTask | null>(null);
 const currentLog = ref<SchedulerApi.ScheduledTaskLog | null>(null);
 const paramsJson = ref('{}');
 const advancedKeys = ref<string[]>([]);
+const loadingOwnerOptions = ref(false);
 
 const statusOptions = [
   { label: '启用', value: 1 },
@@ -448,6 +497,10 @@ const logPagination = reactive({
 
 const formState = reactive<SchedulerApi.TaskFormData & { id?: number }>({
   code: '',
+  owner_plugin: 'system',
+  owner_type: 'system',
+  owner_id: 0,
+  owner_name: '系统任务',
   name: '',
   schedule_type: 'daily',
   schedule_config: { hour: 2, minute: 0 },
@@ -500,18 +553,20 @@ const logColumns = computed(() => [
 
 const taskTableScroll = computed(() => buildTableScrollX(taskColumns.value));
 const logTableScroll = computed(() => buildTableScrollX(logColumns.value));
+const selectedDefinition = computed(() => definitionByCode(formState.code));
+const selectedOwnerPlugin = computed(() => selectedDefinition.value?.owner_plugin || formState.owner_plugin || 'system');
 
 function taskActions(record: SchedulerApi.ScheduledTask) {
   const enabled = Number(record.status || 0) === 1;
   const running = Number(record.running || 0) === 1;
-  const systemOwned = isSystemOwned(record);
+  const manageable = canManageTask(record);
   return [
     { label: '查看', onClick: () => handleTaskDetail(record) },
-    { label: '编辑', visible: canUpdateTasks.value && systemOwned, disabled: running, onClick: () => handleEdit(record) },
-    { label: enabled ? '停用' : '启用', visible: canStatusTasks.value && systemOwned, onClick: () => handleStatus(record, enabled ? 0 : 1) },
-    { label: '执行', visible: canRunTasks.value && systemOwned, disabled: !enabled || running, confirmTitle: '确认立即执行该任务？', onClick: () => handleRun(record) },
+    { label: '编辑', visible: canUpdateTasks.value && manageable, disabled: running, onClick: () => handleEdit(record) },
+    { label: enabled ? '停用' : '启用', visible: canStatusTasks.value && manageable, onClick: () => handleStatus(record, enabled ? 0 : 1) },
+    { label: '执行', visible: canRunTasks.value && manageable, disabled: !enabled || running, confirmTitle: '确认立即执行该任务？', onClick: () => handleRun(record) },
     { label: '日志', visible: canViewLogs.value, onClick: () => openTaskLogs(record) },
-    { label: '删除', visible: canDeleteTasks.value && systemOwned, disabled: running, danger: true, confirmTitle: '确认删除该任务？', confirmContent: '删除后该计划不会继续自动执行。', onClick: () => handleDelete(record) },
+    { label: '删除', visible: canDeleteTasks.value && manageable, disabled: running, danger: true, confirmTitle: '确认删除该任务？', confirmContent: '删除后该计划不会继续自动执行。', onClick: () => handleDelete(record) },
   ];
 }
 
@@ -523,8 +578,18 @@ function logActions(record: SchedulerApi.ScheduledTaskLog) {
 
 async function loadOptions() {
   const data = await schedulerApiService.getTaskOptions();
-  taskOptions.value = (data?.tasks || []).filter((item) => item.owner_plugin === 'system');
+  taskOptions.value = data?.tasks || [];
   scheduleTypes.value = data?.schedule_types || [];
+  const map: Record<string, SchedulerApi.OwnerTypeOption[]> = {
+    system: data?.owner_types || [],
+  };
+  for (const ownerPlugin of Array.from(new Set(taskOptions.value.map((item) => item.owner_plugin || 'system')))) {
+    if (ownerPlugin === 'system') continue;
+    map[ownerPlugin] = await schedulerApiService.getOwnerTypes(ownerPlugin).catch(() => []);
+  }
+  ownerTypeMap.value = map;
+  manageableOwnerKeys.value = ownerKeySet(map);
+  ownerTypes.value = map.system || [];
 }
 
 async function loadTasks() {
@@ -612,6 +677,10 @@ function handleAdd() {
   Object.assign(formState, {
     id: undefined,
     code: first?.code || '',
+    owner_plugin: first?.owner_plugin || 'system',
+    owner_type: 'system',
+    owner_id: 0,
+    owner_name: '系统任务',
     name: first?.name || '',
     schedule_type: 'daily',
     schedule_config: { hour: 2, minute: 0 },
@@ -623,12 +692,17 @@ function handleAdd() {
   paramsJson.value = '{}';
   advancedKeys.value = [];
   formOpen.value = true;
+  void configureOwnerForDefinition(first);
 }
 
 function handleEdit(record: SchedulerApi.ScheduledTask) {
   Object.assign(formState, {
     id: record.id,
     code: record.code,
+    owner_plugin: record.owner_plugin || 'system',
+    owner_type: record.owner_type || 'system',
+    owner_id: Number(record.owner_id || 0),
+    owner_name: record.owner_name || '',
     name: record.name,
     schedule_type: record.schedule_type,
     schedule_config: { ...(record.schedule_config || {}) },
@@ -640,13 +714,105 @@ function handleEdit(record: SchedulerApi.ScheduledTask) {
   paramsJson.value = formatJson(formState.params || {});
   advancedKeys.value = [];
   formOpen.value = true;
+  ownerTypes.value = [{
+    owner_plugin: formState.owner_plugin,
+    owner_type: formState.owner_type,
+    name: ownerText(record),
+    description: '',
+  }];
+  ownerOptions.value = [{
+    owner_plugin: formState.owner_plugin,
+    owner_type: formState.owner_type,
+    owner_id: formState.owner_id,
+    owner_name: formState.owner_name || ownerText(record),
+  }];
 }
 
-function handleDefinitionChange() {
+async function handleDefinitionChange() {
   const definition = definitionByCode(formState.code);
   if (!definition) return;
   formState.name = definition.name;
   formState.timeout = definition.timeout;
+  formState.owner_plugin = definition.owner_plugin;
+  await configureOwnerForDefinition(definition);
+}
+
+async function configureOwnerForDefinition(definition?: SchedulerApi.TaskDefinition) {
+  const ownerPlugin = definition?.owner_plugin || 'system';
+  formState.owner_plugin = ownerPlugin;
+  ownerOptions.value = [];
+  if (ownerPlugin === 'system') {
+    ownerTypes.value = [{ owner_plugin: 'system', owner_type: 'system', name: '系统任务', description: '' }];
+    formState.owner_type = 'system';
+    formState.owner_id = 0;
+    formState.owner_name = '系统任务';
+    ownerOptions.value = [{ owner_plugin: 'system', owner_type: 'system', owner_id: 0, owner_name: '系统任务' }];
+    return;
+  }
+
+  const types = await ownerTypesFor(ownerPlugin);
+  ownerTypes.value = types || [];
+  const firstType = ownerTypes.value[0];
+  formState.owner_type = firstType?.owner_type || '';
+  formState.owner_id = 0;
+  formState.owner_name = '';
+  if (formState.owner_type) {
+    await loadOwnerOptions();
+  }
+}
+
+async function ownerTypesFor(ownerPlugin: string) {
+  if (ownerTypeMap.value[ownerPlugin]) {
+    return ownerTypeMap.value[ownerPlugin];
+  }
+  const types = await schedulerApiService.getOwnerTypes(ownerPlugin).catch(() => []);
+  ownerTypeMap.value = { ...ownerTypeMap.value, [ownerPlugin]: types };
+  manageableOwnerKeys.value = ownerKeySet(ownerTypeMap.value);
+  return types;
+}
+
+async function handleOwnerTypeChange() {
+  formState.owner_id = 0;
+  formState.owner_name = '';
+  ownerOptions.value = [];
+  await loadOwnerOptions();
+}
+
+function handleOwnerChange(value: unknown) {
+  formState.owner_id = Number(value || 0);
+  const option = ownerOptions.value.find((item) => Number(item.owner_id) === formState.owner_id);
+  formState.owner_name = option?.owner_name || '';
+}
+
+function handleOwnerSearch(keyword: string) {
+  void loadOwnerOptions(keyword);
+}
+
+async function loadOwnerOptions(keyword = '') {
+  if (!formState.owner_plugin || !formState.owner_type || formState.owner_plugin === 'system') {
+    return;
+  }
+  loadingOwnerOptions.value = true;
+  try {
+    const response = await schedulerApiService.getOwnerOptions({
+      owner_plugin: formState.owner_plugin,
+      owner_type: formState.owner_type,
+      keyword,
+      page: 1,
+      pageSize: 50,
+    });
+    ownerOptions.value = response.items || [];
+    if (formState.owner_id > 0 && !ownerOptions.value.some((item) => Number(item.owner_id) === Number(formState.owner_id))) {
+      ownerOptions.value.unshift({
+        owner_plugin: formState.owner_plugin,
+        owner_type: formState.owner_type,
+        owner_id: formState.owner_id,
+        owner_name: formState.owner_name || `#${formState.owner_id}`,
+      });
+    }
+  } finally {
+    loadingOwnerOptions.value = false;
+  }
 }
 
 function resetScheduleConfig() {
@@ -659,6 +825,10 @@ async function handleSubmit() {
     message.warning('请选择任务并填写任务名称');
     return;
   }
+  if (!formState.owner_type || (formState.owner_plugin !== 'system' && Number(formState.owner_id || 0) <= 0)) {
+    message.warning('请选择任务归属资源');
+    return;
+  }
   const params = parseJson(paramsJson.value);
   if (params === null) return;
 
@@ -666,6 +836,10 @@ async function handleSubmit() {
   try {
     const payload: SchedulerApi.TaskFormData = {
       code: formState.code,
+      owner_plugin: formState.owner_plugin,
+      owner_type: formState.owner_type,
+      owner_id: Number(formState.owner_id || 0),
+      owner_name: formState.owner_name,
       name: formState.name,
       schedule_type: formState.schedule_type,
       schedule_config: formState.schedule_config || {},
@@ -728,7 +902,16 @@ function openTaskLogs(record: SchedulerApi.ScheduledTask) {
 }
 
 function definitionByCode(code: string) {
-  return taskOptions.value.find((item) => item.code === code && item.owner_plugin === 'system');
+  return taskOptions.value.find((item) => item.code === code);
+}
+
+// Select 收起态只渲染单行标签，避免两行自定义 option 内容被控件高度裁剪。
+function taskOptionLabel(item: SchedulerApi.TaskDefinition) {
+  return `${item.name} (${item.code})`;
+}
+
+function ownerOptionLabel(item: SchedulerApi.OwnerOption) {
+  return `${item.owner_name} (${item.owner_type} #${item.owner_id})`;
 }
 
 type SchedulerOwner = {
@@ -740,6 +923,18 @@ type SchedulerOwner = {
 
 function isSystemOwned(record: SchedulerOwner) {
   return (record.owner_plugin || 'system') === 'system' && (record.owner_type || 'system') === 'system' && Number(record.owner_id || 0) === 0;
+}
+
+function canManageTask(record: SchedulerOwner) {
+  return manageableOwnerKeys.value.has(ownerKey(record.owner_plugin || 'system', record.owner_type || 'system'));
+}
+
+function ownerKey(ownerPlugin: string, ownerType: string) {
+  return `${ownerPlugin}:${ownerType}`;
+}
+
+function ownerKeySet(map: Record<string, SchedulerApi.OwnerTypeOption[]>) {
+  return new Set(Object.values(map).flat().map((item) => ownerKey(item.owner_plugin, item.owner_type)));
 }
 
 function ownerText(record: SchedulerOwner) {
@@ -755,7 +950,9 @@ function durationText(value?: number) {
 }
 
 function defaultScheduleConfig(type: string) {
+  if (type === 'every_seconds') return { interval: 10 };
   if (type === 'every_minutes') return { interval: 5 };
+  if (type === 'every_hours') return { interval: 1 };
   if (type === 'hourly') return { minute: 0 };
   if (type === 'weekly') return { weekday: 1, hour: 2, minute: 0 };
   if (type === 'monthly') return { day: 1, hour: 2, minute: 0 };
@@ -764,7 +961,9 @@ function defaultScheduleConfig(type: string) {
 
 function scheduleText(record: Pick<SchedulerApi.ScheduledTask, 'schedule_config' | 'schedule_type'>) {
   const config = record.schedule_config || {};
+  if (record.schedule_type === 'every_seconds') return `每 ${config.interval || 10} 秒`;
   if (record.schedule_type === 'every_minutes') return `每 ${config.interval || 5} 分钟`;
+  if (record.schedule_type === 'every_hours') return `每 ${config.interval || 1} 小时`;
   if (record.schedule_type === 'hourly') return `每小时第 ${pad(config.minute || 0)} 分钟`;
   if (record.schedule_type === 'weekly') return `每周${weekdayText(config.weekday || 1)} ${pad(config.hour || 0)}:${pad(config.minute || 0)}`;
   if (record.schedule_type === 'monthly') return `每月 ${config.day || 1} 日 ${pad(config.hour || 0)}:${pad(config.minute || 0)}`;

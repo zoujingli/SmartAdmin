@@ -20,7 +20,11 @@ use Library\Exception\ErrorResponseException;
  */
 final class ScheduleCalculator
 {
+    public const TYPE_EVERY_SECONDS = 'every_seconds';
+
     public const TYPE_EVERY_MINUTES = 'every_minutes';
+
+    public const TYPE_EVERY_HOURS = 'every_hours';
 
     public const TYPE_HOURLY = 'hourly';
 
@@ -36,7 +40,9 @@ final class ScheduleCalculator
     public static function types(): array
     {
         return [
+            ['label' => '每 N 秒', 'value' => self::TYPE_EVERY_SECONDS],
             ['label' => '每 N 分钟', 'value' => self::TYPE_EVERY_MINUTES],
+            ['label' => '每 N 小时', 'value' => self::TYPE_EVERY_HOURS],
             ['label' => '每小时', 'value' => self::TYPE_HOURLY],
             ['label' => '每天', 'value' => self::TYPE_DAILY],
             ['label' => '每周', 'value' => self::TYPE_WEEKLY],
@@ -51,8 +57,14 @@ final class ScheduleCalculator
     public static function normalize(string $type, array $config): array
     {
         return match ($type) {
+            self::TYPE_EVERY_SECONDS => [
+                'interval' => max(1, min(86400, (int)($config['interval'] ?? 10))),
+            ],
             self::TYPE_EVERY_MINUTES => [
                 'interval' => max(1, min(1440, (int)($config['interval'] ?? 5))),
+            ],
+            self::TYPE_EVERY_HOURS => [
+                'interval' => max(1, min(8760, (int)($config['interval'] ?? 1))),
             ],
             self::TYPE_HOURLY => [
                 'minute' => max(0, min(59, (int)($config['minute'] ?? 0))),
@@ -81,7 +93,9 @@ final class ScheduleCalculator
         }
 
         return match ($type) {
+            self::TYPE_EVERY_SECONDS => self::nextEverySeconds($base, (int)($config['interval'] ?? 10)),
             self::TYPE_EVERY_MINUTES => self::nextEveryMinutes($base, (int)($config['interval'] ?? 5)),
+            self::TYPE_EVERY_HOURS => self::nextEveryHours($base, (int)($config['interval'] ?? 1)),
             self::TYPE_HOURLY => self::nextHourly($base, (int)($config['minute'] ?? 0)),
             self::TYPE_DAILY => self::nextDaily($base, (int)($config['hour'] ?? 0), (int)($config['minute'] ?? 0)),
             self::TYPE_WEEKLY => self::nextWeekly($base, (int)($config['weekday'] ?? 1), (int)($config['hour'] ?? 0), (int)($config['minute'] ?? 0)),
@@ -93,7 +107,9 @@ final class ScheduleCalculator
     public static function describe(string $type, array $config): string
     {
         return match ($type) {
+            self::TYPE_EVERY_SECONDS => sprintf('每 %d 秒执行一次', (int)($config['interval'] ?? 10)),
             self::TYPE_EVERY_MINUTES => sprintf('每 %d 分钟执行一次', (int)($config['interval'] ?? 5)),
+            self::TYPE_EVERY_HOURS => sprintf('每 %d 小时执行一次', (int)($config['interval'] ?? 1)),
             self::TYPE_HOURLY => sprintf('每小时第 %02d 分钟执行', (int)($config['minute'] ?? 0)),
             self::TYPE_DAILY => sprintf('每天 %02d:%02d 执行', (int)($config['hour'] ?? 0), (int)($config['minute'] ?? 0)),
             self::TYPE_WEEKLY => sprintf('每周%s %02d:%02d 执行', self::weekdayLabel((int)($config['weekday'] ?? 1)), (int)($config['hour'] ?? 0), (int)($config['minute'] ?? 0)),
@@ -114,10 +130,26 @@ final class ScheduleCalculator
         ];
     }
 
+    private static function nextEverySeconds(int $base, int $interval): string
+    {
+        $interval = max(1, min(86400, $interval));
+        $next = $base - ($base % $interval) + $interval;
+
+        return date('Y-m-d H:i:s', $next);
+    }
+
     private static function nextEveryMinutes(int $base, int $interval): string
     {
         $interval = max(1, min(1440, $interval));
         $next = $base - ($base % ($interval * 60)) + ($interval * 60);
+
+        return date('Y-m-d H:i:s', $next);
+    }
+
+    private static function nextEveryHours(int $base, int $interval): string
+    {
+        $interval = max(1, min(8760, $interval));
+        $next = $base - ($base % ($interval * 3600)) + ($interval * 3600);
 
         return date('Y-m-d H:i:s', $next);
     }

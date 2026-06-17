@@ -21,6 +21,21 @@ export namespace SchedulerApi {
     value: string;
   }
 
+  export interface OwnerTypeOption {
+    owner_plugin: string;
+    owner_type: string;
+    name: string;
+    description: string;
+  }
+
+  export interface OwnerOption {
+    owner_plugin: string;
+    owner_type: string;
+    owner_id: number;
+    owner_name: string;
+    params?: Record<string, any>;
+  }
+
   export interface ScheduledTask {
     id: number;
     tenant_id: number;
@@ -97,6 +112,10 @@ export namespace SchedulerApi {
 
   export interface TaskFormData {
     code: string;
+    owner_plugin: string;
+    owner_type: string;
+    owner_id: number;
+    owner_name?: string;
     name: string;
     schedule_type: string;
     schedule_config: Record<string, any>;
@@ -108,6 +127,7 @@ export namespace SchedulerApi {
 
   export interface TaskOptions {
     tasks: TaskDefinition[];
+    owner_types: OwnerTypeOption[];
     schedule_types: ScheduleTypeOption[];
   }
 
@@ -152,6 +172,15 @@ class SchedulerApiService extends AdminApiService {
 
   async getTaskOptions() {
     return this.get<SchedulerApi.TaskOptions>('system/scheduler/task/options');
+  }
+
+  async getOwnerTypes(ownerPlugin: string) {
+    return this.get<SchedulerApi.OwnerTypeOption[]>('system/scheduler/task/owner-types', { owner_plugin: ownerPlugin });
+  }
+
+  async getOwnerOptions(params: { owner_plugin: string; owner_type: string; keyword?: string; page?: number; pageSize?: number }) {
+    const pageParams = createPageParams(params.page, params.pageSize);
+    return this.getList<SchedulerApi.OwnerOption>('system/scheduler/task/owner-options', pageParams.page, pageParams.pageSize, createSearchParams(params));
   }
 
   async getRuntimeInfo() {

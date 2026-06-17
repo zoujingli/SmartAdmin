@@ -23,7 +23,18 @@ final class SystemSchedulerContractTest extends TestCase
 {
     public function testScheduleCalculatorUsesFormBasedCycles(): void
     {
+        self::assertSame('2026-06-11 10:12:31', ScheduleCalculator::nextRunAt('every_seconds', ['interval' => 1], '2026-06-11 10:12:30'));
+        self::assertSame('2026-06-11 10:12:40', ScheduleCalculator::nextRunAt('every_seconds', ['interval' => 10], '2026-06-11 10:12:30'));
+        self::assertSame(['interval' => 1], ScheduleCalculator::normalize('every_seconds', ['interval' => 0]));
+        self::assertSame(['interval' => 86400], ScheduleCalculator::normalize('every_seconds', ['interval' => 99999]));
+        self::assertSame('每 10 秒执行一次', ScheduleCalculator::describe('every_seconds', ['interval' => 10]));
+        self::assertContains(['label' => '每 N 秒', 'value' => 'every_seconds'], ScheduleCalculator::types());
         self::assertSame('2026-06-11 10:15:00', ScheduleCalculator::nextRunAt('every_minutes', ['interval' => 5], '2026-06-11 10:12:00'));
+        self::assertSame('2026-06-11 12:00:00', ScheduleCalculator::nextRunAt('every_hours', ['interval' => 2], '2026-06-11 10:12:00'));
+        self::assertSame(['interval' => 1], ScheduleCalculator::normalize('every_hours', ['interval' => 0]));
+        self::assertSame(['interval' => 8760], ScheduleCalculator::normalize('every_hours', ['interval' => 99999]));
+        self::assertSame('每 2 小时执行一次', ScheduleCalculator::describe('every_hours', ['interval' => 2]));
+        self::assertContains(['label' => '每 N 小时', 'value' => 'every_hours'], ScheduleCalculator::types());
         self::assertSame('2026-06-11 11:20:00', ScheduleCalculator::nextRunAt('hourly', ['minute' => 20], '2026-06-11 10:20:00'));
         self::assertSame('2026-06-12 02:30:00', ScheduleCalculator::nextRunAt('daily', ['hour' => 2, 'minute' => 30], '2026-06-11 03:00:00'));
         self::assertSame('2026-06-15 02:30:00', ScheduleCalculator::nextRunAt('weekly', ['weekday' => 1, 'hour' => 2, 'minute' => 30], '2026-06-11 03:00:00'));
@@ -65,8 +76,13 @@ final class SystemSchedulerContractTest extends TestCase
         }
         self::assertStringContainsString('AnnotationCollector::getClassesByAnnotation(ScheduledTask::class)', $registry);
         self::assertStringContainsString('ScheduledTaskHandlerInterface::class', $registry);
+        self::assertStringContainsString("GetMapping(path: 'owner-types')", $taskController);
+        self::assertStringContainsString("GetMapping(path: 'owner-options')", $taskController);
         self::assertStringContainsString('TenantContext::withTenant((int)$task->tenant_id', $executor);
         self::assertStringContainsString('ScheduledTaskExecutorInterface', $executor);
+        self::assertStringContainsString('private const TICK_INTERVAL_SECONDS = 1;', $process);
+        self::assertStringContainsString('Coroutine::sleep(self::TICK_INTERVAL_SECONDS)', $process);
+        self::assertStringContainsString('Coroutine::create(function () use ($claimed): void', $process);
         self::assertStringNotContainsString('hyperf/async-queue', $composer . $lock);
         self::assertStringNotContainsString('hyperf/crontab', $composer . $lock);
     }
@@ -105,8 +121,12 @@ final class SystemSchedulerContractTest extends TestCase
         self::assertContains('system.scheduler.log.index', array_column($taskMenu['permissions'] ?? [], 'code'));
         self::assertStringContainsString('system/scheduler/task/index', $api);
         self::assertStringContainsString('system/scheduler/log/index', $api);
+        self::assertStringContainsString('system/scheduler/task/owner-types', $api);
+        self::assertStringContainsString('system/scheduler/task/owner-options', $api);
         self::assertStringContainsString('owner_plugin: string', $api);
         self::assertStringContainsString('owner_name: string', $api);
+        self::assertStringContainsString('export interface OwnerTypeOption', $api);
+        self::assertStringContainsString('export interface OwnerOption', $api);
         self::assertStringContainsString('lock_token?: string', $api);
         self::assertStringContainsString("const pluginSetupsModuleId = 'virtual:xadmin-plugin-setups'", $vite);
         self::assertStringContainsString('function getPluginSetupFiles(): string[]', $vite);
@@ -123,12 +143,35 @@ final class SystemSchedulerContractTest extends TestCase
         self::assertStringContainsString('SearchField label="搜索内容"', $view);
         self::assertStringContainsString('SearchField label="启用状态"', $view);
         self::assertStringContainsString('SearchField label="最近结果"', $view);
+        self::assertStringContainsString('formState.schedule_type === \'every_seconds\'', $view);
+        self::assertStringContainsString('FormItem label="间隔秒"', $view);
+        self::assertStringContainsString(':max="86400"', $view);
+        self::assertStringContainsString("if (type === 'every_seconds') return { interval: 10 }", $view);
+        self::assertStringContainsString("record.schedule_type === 'every_seconds'", $view);
         self::assertStringContainsString('formState.schedule_type === \'every_minutes\'', $view);
+        self::assertStringContainsString('formState.schedule_type === \'every_hours\'', $view);
+        self::assertStringContainsString('FormItem label="间隔小时"', $view);
+        self::assertStringContainsString(':max="8760"', $view);
+        self::assertStringContainsString("if (type === 'every_hours') return { interval: 1 }", $view);
+        self::assertStringContainsString("record.schedule_type === 'every_hours'", $view);
         self::assertStringContainsString('isSystemOwned(record)', $view);
         self::assertStringContainsString('ownerText(record', $view);
+        self::assertStringContainsString('selectedOwnerPlugin', $view);
+        self::assertStringContainsString('loadOwnerOptions', $view);
+        self::assertStringContainsString('getOwnerTypes', $view);
+        self::assertStringContainsString('getOwnerOptions', $view);
+        self::assertStringContainsString('option-label-prop="label"', $view);
+        self::assertStringContainsString(':label="taskOptionLabel(item)"', $view);
+        self::assertStringContainsString(':label="ownerOptionLabel(item)"', $view);
+        self::assertStringContainsString('function taskOptionLabel(item: SchedulerApi.TaskDefinition)', $view);
+        self::assertStringContainsString('function ownerOptionLabel(item: SchedulerApi.OwnerOption)', $view);
+        self::assertStringContainsString('canManageTask(record)', $view);
+        self::assertStringContainsString('manageableOwnerKeys', $view);
         self::assertStringContainsString('durationText(record.duration_ms)', $view);
         self::assertStringContainsString('CollapsePanel key="advanced" header="高级设置"', $view);
-        self::assertStringContainsString('业务插件任务只能查看，规则请到对应业务页面编辑', $view);
+        self::assertStringContainsString('统一运维当前租户下全部注册任务', $view);
+        self::assertStringNotContainsString('业务插件任务只能查看，规则请到对应业务页面编辑', $view);
+        self::assertStringNotContainsString("filter((item) => item.owner_plugin === 'system')", $view);
         self::assertStringContainsString("disabled: !enabled || running", $view);
         self::assertStringContainsString("disabled: running", $view);
         self::assertStringContainsString("{ title: '任务名称', dataIndex: 'name', key: 'name'", $view);
@@ -157,12 +200,20 @@ final class SystemSchedulerContractTest extends TestCase
         $pluginService = (string)file_get_contents($root . '/plugin/System/src/Service/PluginScheduledTaskService.php');
         $systemService = (string)file_get_contents($root . '/plugin/System/src/Service/ScheduledTaskService.php');
         $executor = (string)file_get_contents($root . '/plugin/System/src/Service/ScheduledTaskExecutor.php');
+        $ownerAnnotation = (string)file_get_contents($root . '/plugin/System/src/Annotation/ScheduledTaskOwner.php');
+        $ownerRegistry = (string)file_get_contents($root . '/plugin/System/src/Support/Scheduler/ScheduledTaskOwnerRegistry.php');
+        $systemOwnerResolver = (string)file_get_contents($root . '/plugin/System/src/Support/Scheduler/SystemScheduledTaskOwnerResolver.php');
 
         self::assertStringContainsString('public string $ownerPlugin = \'system\'', $annotation);
         self::assertStringContainsString('ownerPlugin: $annotation->ownerPlugin', $definition);
         self::assertStringContainsString('public string $ownerPlugin', $context);
         self::assertStringContainsString('public string $ownerType', $context);
         self::assertStringContainsString('public int $ownerId', $context);
+        self::assertStringContainsString('final class ScheduledTaskOwner', $ownerAnnotation);
+        self::assertStringContainsString('ScheduledTaskOwnerResolverInterface', $ownerRegistry);
+        self::assertStringContainsString('AnnotationCollector::getClassesByAnnotation(ScheduledTaskOwner::class)', $ownerRegistry);
+        self::assertStringContainsString("#[ScheduledTaskOwner(", $systemOwnerResolver);
+        self::assertStringContainsString("ownerPlugin: 'system'", $systemOwnerResolver);
         self::assertStringContainsString('final class PluginScheduledTaskService', $pluginService);
         self::assertStringContainsString('$definition->ownerPlugin !== $ownerPlugin', $pluginService);
         self::assertStringContainsString('?int $tenantId = null', $mapper);
@@ -175,7 +226,14 @@ final class SystemSchedulerContractTest extends TestCase
         self::assertStringContainsString('$this->tasks->deleteOwned($task)', $pluginService);
         self::assertStringContainsString('findByOwner', $pluginService);
         self::assertStringContainsString('$exists->restore()', $pluginService);
-        self::assertStringContainsString('业务插件任务请在对应子系统中管理', $systemService);
+        self::assertStringContainsString('ScheduledTaskOwnerRegistry $owners', $systemService);
+        self::assertStringContainsString('$this->owners->resolve($ownerPlugin, $ownerType, $ownerId, $data)', $systemService);
+        self::assertStringContainsString('schedule_type.in:every_seconds,every_minutes,every_hours,hourly,daily,weekly,monthly', $systemService);
+        self::assertStringContainsString('ensureOwnerManageable', $systemService);
+        self::assertStringContainsString('任务归属解析器不存在，只能查看该业务任务', $systemService);
+        self::assertStringContainsString('任务类型和归属不能直接修改，请删除后重新创建', $systemService);
+        self::assertStringContainsString('$this->mapper->deleteOwned($task)', $systemService);
+        self::assertStringNotContainsString('业务插件任务请在对应子系统中管理', $systemService);
         self::assertStringContainsString('$trashed->restore()', $systemService);
         self::assertStringContainsString('ownerPlugin: (string)($task->owner_plugin ?: \'system\')', $executor);
         self::assertStringContainsString("'owner_plugin' => (string)(\$task->owner_plugin ?: 'system')", $executor);

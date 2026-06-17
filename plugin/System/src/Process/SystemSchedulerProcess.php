@@ -26,6 +26,8 @@ use System\Model\SystemScheduledTask;
 #[SystemProcess(name: 'system.scheduler', default: true)]
 final class SystemSchedulerProcess implements ProcessInterface
 {
+    private const TICK_INTERVAL_SECONDS = 1;
+
     private bool $running = true;
 
     public function __construct(
@@ -63,7 +65,7 @@ final class SystemSchedulerProcess implements ProcessInterface
             } catch (\Throwable $exception) {
                 $this->logger->error(sprintf('System scheduler tick failed: %s', $exception->getMessage()));
             }
-            Coroutine::sleep(30);
+            Coroutine::sleep(self::TICK_INTERVAL_SECONDS);
         }
     }
 
@@ -84,7 +86,14 @@ final class SystemSchedulerProcess implements ProcessInterface
                 }
 
                 ++$count;
-                $this->executor->execute($claimed);
+                // 秒级计划不能被单个长任务阻塞下一轮扫描；同一任务是否重入仍交给数据库锁控制。
+                Coroutine::create(function () use ($claimed): void {
+                    try {
+                        $this->executor->execute($claimed);
+                    } catch (\Throwable $exception) {
+                        $this->logger->error(sprintf('System scheduler task [%s] failed: %s', (string)($claimed->code ?? $claimed->id), $exception->getMessage()));
+                    }
+                });
             } catch (\Throwable $exception) {
                 $this->logger->error(sprintf('System scheduler task [%s] failed: %s', (string)($task->code ?? $task->id), $exception->getMessage()));
             }

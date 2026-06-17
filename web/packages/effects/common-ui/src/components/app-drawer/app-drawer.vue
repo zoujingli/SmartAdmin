@@ -13,6 +13,7 @@
     :root-class-name="drawerRootClassName"
     :title="title"
     :width="drawerWidth"
+    :z-index="zIndex"
     @close="handleClose"
   >
     <template v-if="$slots.extra" #extra>
@@ -114,6 +115,8 @@ const props = withDefaults(defineProps<{
   title?: string;
   width?: number | string;
   widthSize?: PopupWidthSize;
+  /** 嵌套在 Modal 或其它高层弹窗内时，业务页可显式抬高抽屉层级，避免被父级遮罩挡住点击。 */
+  zIndex?: number;
 }>(), {
   bodyClass: undefined,
   bodyStyle: undefined,
@@ -134,6 +137,7 @@ const props = withDefaults(defineProps<{
   title: '',
   width: undefined,
   widthSize: 'md',
+  zIndex: undefined,
 });
 
 const emit = defineEmits<{

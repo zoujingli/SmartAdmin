@@ -17,6 +17,8 @@
 ## AI 编辑规范
 
 - AI 修改代码前必须先判断影响面是否会进入 `SmartAdminDeveloper`、`SmartAdminLibrary`、`SmartAdminBuilder`、`SmartAdmin` 四仓同步链；涉及 Composer 包、公开导出、GitHub Actions、Release、Tag 的改动必须同时考虑目标仓 CI，而不能只看 Developer 仓本地测试。
+- 新增或调整插件分发属性时必须同步维护公开仓导出规则：`license_type=member/custom`、`distribution_type=member_only/custom_only` 或 `public=false` 的插件不得进入公开 `SmartAdmin` 源码、测试、Composer 依赖、运行扫描配置和 Release 私有生态说明；同时补 `PublicExportContractTest` 等回归约束，避免源码、测试或文档在同步时漏到公开仓。
+- 新增 Controller 路由、修改 `#[Controller]`/Mapping 注解或新增 `plugin/*/src/Controller` 文件时，必须同步接口参考文档和 API_CASE，或明确该插件为 `custom_only` 定制私有插件且不进入公开文档覆盖；提交前必须运行 `composer docs:check`，不能只跑单测和静态分析。
 - 同一轮同步或替换 Tag 时，公开仓 CI 不得依赖 Packagist 或远程包缓存的即时刷新；基础库/构建器在发布工作流中应使用本次导出的 path 包，公开仓自身 CI 应优先使用 GitHub VCS 仓库解析 `smart-admin-library` 与 `smart-admin-builder`。
 - 修改 GitHub Actions 时必须显式区分仓库边界：只适用于公开 `zoujingli/SmartAdmin` 的 Composer 包源、别名版本或同步跳过逻辑必须使用 `GITHUB_REPOSITORY`、事件类型和分支/Tag 条件限制，不能影响 `SmartAdminDeveloper` 私有仓本地 path 包验证。
 - 公开 `SmartAdmin` 的分支/PR CI 应解析 `SmartAdminLibrary` 与 `SmartAdminBuilder` 的 `dev-master`，避免刚同步 master 后仍被旧 Tag 或 Packagist 元数据命中；Tag 发布和 Release 同步必须优先使用本次导出的源码或 path 包，不能把旧远程包当作发布依据。
@@ -173,6 +175,8 @@
 
 - 提交前运行与改动范围匹配的验证命令。
 - 修改 workflow、Composer 包源、公开导出规则、Release 脚本或同步脚本时，提交前必须至少运行对应源码约束测试和 `git diff --check`；能本地模拟公开仓 Composer 解析时，应确认 `smart-admin-library`、`smart-admin-builder` 没有落到旧 Tag。
+- 修改 `plugin.json` 分发属性、新增会员/定制插件、修改公开仓过滤清单或 Release 私有生态识别时，提交前必须本地模拟 `.github/tools/release/export.py smart-admin`，确认公开导出目录不包含私有插件源码、测试、Composer 依赖和运行扫描配置。
+- 新增、删除或改名后端接口时，提交前必须运行 `composer docs:check`；接口数量、接口清单、字段索引和 API_CASE 必须同步更新，不能把缺文档问题留到 GitHub Actions。
 - 提交信息使用中文描述，并带模块前缀，例如 `发布: ...`、`权限: ...`、`前端: ...`、`文档: ...`。
 - 不同模块尽量拆分提交，避免把无关格式化、文档、前端、后端混在一个提交里。
 - 不提交 `runtime`、`vendor`、`public`、`build`、前端 `web/dist`、前端 `dist.zip`、本地 `.env` 和 IDE 文件。

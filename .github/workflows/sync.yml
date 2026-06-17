@@ -137,8 +137,13 @@ jobs:
 
       - name: Prepare package exports for SmartAdmin validation
         run: |
-          # Library/Builder 已单独校验；根项目只需要源码包，避免嵌套 vendor 被 DI 扫描。
-          rm -rf "$RUNNER_TEMP/SmartAdminLibrary/vendor" "$RUNNER_TEMP/SmartAdminBuilder/vendor"
+          # Library/Builder 已单独校验；公开 SmartAdmin 只需要源码 path 包。
+          # 这里删除包内 vendor 和 tests，避免 Hyperf 在根项目 DI 扫描阶段递归扫描依赖包测试夹具。
+          rm -rf \
+            "$RUNNER_TEMP/SmartAdminLibrary/vendor" \
+            "$RUNNER_TEMP/SmartAdminLibrary/tests" \
+            "$RUNNER_TEMP/SmartAdminBuilder/vendor" \
+            "$RUNNER_TEMP/SmartAdminBuilder/tests"
 
       - name: Export SmartAdmin
         run: .github/tools/release/export-smart-admin.sh "$PWD" "$RUNNER_TEMP/SmartAdmin" "${{ steps.version.outputs.name }}"

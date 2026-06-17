@@ -92,6 +92,20 @@ final class ScheduledTaskController extends CoreController
         $this->success('获取成功', $this->service->options());
     }
 
+    #[GetMapping(path: 'owner-types')]
+    #[Auth(name: '定时任务归属类型', type: Auth::CHECK, menu: false, code: 'system.scheduler.task.index')]
+    public function ownerTypes(RequestInterface $request): array
+    {
+        $this->success('获取成功', $this->service->ownerTypes((string)$request->input('owner_plugin', '')));
+    }
+
+    #[GetMapping(path: 'owner-options')]
+    #[Auth(name: '定时任务归属选项', type: Auth::CHECK, menu: false, code: 'system.scheduler.task.index')]
+    public function ownerOptions(RequestInterface $request): array
+    {
+        $this->success('获取成功', $this->service->ownerOptions($request->all()));
+    }
+
     #[GetMapping(path: 'runtime')]
     #[Auth(name: '定时任务运行时', type: Auth::CHECK, menu: false, code: 'system.scheduler.task.index')]
     public function runtime(): array
