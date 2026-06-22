@@ -17,6 +17,10 @@
 ## AI 编辑规范
 
 - AI 修改代码前必须先判断影响面是否会进入 `SmartAdminDeveloper`、`SmartAdminLibrary`、`SmartAdminBuilder`、`SmartAdmin` 四仓同步链；涉及 Composer 包、公开导出、GitHub Actions、Release、Tag 的改动必须同时考虑目标仓 CI，而不能只看 Developer 仓本地测试。
+- AI 写代码必须以 GitHub Actions 目标仓验证作为最终标准；本地 Developer 仓测试通过不等于同步链通过。提交或推送前必须按改动影响面列出会触发的 workflow、目标仓和关键 job，至少覆盖 `Build`、`Test`、`SmartAdmin Sync`、Release 工作流中的导出与验证步骤。
+- 任何会进入导出仓的改动都必须按目标仓本地模拟 GitHub Actions：修改 `plugin/Library/**`、`tests/Unit/Library/**`、`.github/tools/release/export.py`、同步/发布 workflow、`plugin/*/plugin.json`、`guide_entry`、菜单清单或 `PluginManifestRegistry` 时，必须本地执行 `export-library.sh` 导出 `SmartAdminLibrary`，并在导出目录内运行 `composer validate --strict`、`composer install`、包内 `phpunit` 和 `phpstan`；导出测试不得读取未随导出复制的 Developer 私有插件目录或 `plugin/*/plugin.json`，需要用 fixture 或在导出脚本中显式复制依赖文件。
+- 修改 Builder 构建器、Phar/SFX 打包逻辑或 Builder 测试时，必须本地执行 `export-builder.sh` 并在导出目录内运行 `composer validate --strict`、`composer install`、`phpunit` 和 `phpstan`；修改公开 SmartAdmin 导出、Composer 依赖、公开插件过滤、前端构建或接口文档时，必须本地执行 `export-smart-admin.sh` 并按工作流顺序验证 Composer 解析、`composer test`、`composer analyse`、`composer web:build`、`composer docs:check` 中受影响的部分。
+- JSON、YAML、Composer 配置、`plugin.json`、API_CASE 和 Release 配置等结构化文件必须在源码仓和对应导出仓都能被严格解析；不得只凭字符串拼接或肉眼检查认为有效。新增或修改读取这些文件的测试时，必须先断言文件存在，再用严格解析暴露真实路径问题，避免导出仓变成 `JsonException: Syntax error` 这类难定位失败。
 - 新增或调整插件分发属性时必须同步维护公开仓导出规则：`license_type=member/custom`、`distribution_type=member_only/custom_only` 或 `public=false` 的插件不得进入公开 `SmartAdmin` 源码、测试、Composer 依赖、运行扫描配置和 Release 私有生态说明；同时补 `PublicExportContractTest` 等回归约束，避免源码、测试或文档在同步时漏到公开仓。
 - 新增 Controller 路由、修改 `#[Controller]`/Mapping 注解或新增 `plugin/*/src/Controller` 文件时，必须同步接口参考文档和 API_CASE，或明确该插件为 `custom_only` 定制私有插件且不进入公开文档覆盖；提交前必须运行 `composer docs:check`，不能只跑单测和静态分析。
 - 同一轮同步或替换 Tag 时，公开仓 CI 不得依赖 Packagist 或远程包缓存的即时刷新；基础库/构建器在发布工作流中应使用本次导出的 path 包，公开仓自身 CI 应优先使用 GitHub VCS 仓库解析 `smart-admin-library` 与 `smart-admin-builder`。
@@ -174,6 +178,7 @@
 ## 提交规则
 
 - 提交前运行与改动范围匹配的验证命令。
+- 提交触及同步链、导出脚本、workflow、Composer 包、`plugin.json`、菜单/入口清单或被导出测试时，必须先本地模拟对应目标仓导出和 GitHub Actions 验证；不能只运行 Developer 根仓 `composer test` 后提交。
 - 修改 workflow、Composer 包源、公开导出规则、Release 脚本或同步脚本时，提交前必须至少运行对应源码约束测试和 `git diff --check`；能本地模拟公开仓 Composer 解析时，应确认 `smart-admin-library`、`smart-admin-builder` 没有落到旧 Tag。
 - 修改 `plugin.json` 分发属性、新增会员/定制插件、修改公开仓过滤清单或 Release 私有生态识别时，提交前必须本地模拟 `.github/tools/release/export.py smart-admin`，确认公开导出目录不包含私有插件源码、测试、Composer 依赖和运行扫描配置。
 - 新增、删除或改名后端接口时，提交前必须运行 `composer docs:check`；接口数量、接口清单、字段索引和 API_CASE 必须同步更新，不能把缺文档问题留到 GitHub Actions。

@@ -199,6 +199,7 @@ import { IconifyIcon } from '@vben/icons';
 import { Alert, Button, Descriptions, DescriptionsItem, Modal, Spin, Tag } from 'ant-design-vue';
 
 import AppDrawer from '../../components/app-drawer/app-drawer.vue';
+import { normalizeAttachmentLinkLabels } from '../rich-text/attachment-label';
 import { getReferenceProvider } from './registry';
 import { parseReferenceSegments, referenceClickableText, referenceDisplayText, referenceFromDataset, referenceTrailingText, renderReferenceHtml } from './reference-utils';
 
@@ -331,7 +332,15 @@ async function loadDetail() {
 }
 
 function renderSectionHtml(value: string) {
-  return renderReferenceHtml(value);
+  const html = renderReferenceHtml(value);
+  if (!html || typeof document === 'undefined' || typeof document.createElement !== 'function') {
+    return html;
+  }
+  const template = document.createElement('template');
+  template.innerHTML = html;
+  normalizeAttachmentLinkLabels(template.content);
+
+  return template.innerHTML;
 }
 
 function inlineReferenceSegments(value: unknown) {
@@ -672,15 +681,11 @@ watch(() => [props.open, activeReference.value?.raw, activeReference.value?.id, 
   border-radius: 8px;
   background: var(--ant-colorFillQuaternary, hsl(var(--muted)));
   color: var(--ant-colorPrimary, hsl(var(--primary)));
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.4;
   text-decoration: none;
   overflow-wrap: anywhere;
   white-space: normal;
-}
-.reference-detail-rich-content :deep(a[data-project-file='1']::before) {
-  flex: none;
-  content: '📎';
 }
 .reference-detail-rich-content :deep(a[data-project-file='1']:hover),
 .reference-detail-rich-content :deep(a[data-project-file='1']:focus-visible) {

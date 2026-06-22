@@ -11,6 +11,8 @@ export interface MenuType {
   status: number
   sort: number
   permission?: string
+  hideInMenu?: boolean | number
+  hide_in_menu?: boolean | number
   remark?: string
   createdAt?: string
   updatedAt?: string
@@ -32,6 +34,7 @@ export interface MenuFormData {
   status: number
   sort: number
   permission?: string
+  hideInMenu?: boolean | number
   remark?: string
 }
 

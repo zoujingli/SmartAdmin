@@ -214,7 +214,7 @@ CONF;
             }
 
             $openSslOptions = $this->openSslOptions();
-            $resource = openssl_pkey_new([
+            $resource = $this->createPrivateKeyResource([
                 'private_key_bits' => $this->keyBits(),
                 'private_key_type' => OPENSSL_KEYTYPE_RSA,
                 // Swoole CLI 或精简容器环境可能没有系统 openssl.cnf，显式使用运行时自动维护的最小配置。
@@ -245,6 +245,32 @@ CONF;
         }
 
         return $value;
+    }
+
+    /**
+     * 创建运行时私钥资源。
+     *
+     * 部分 Swoole CLI / OpenSSL 3 组合会在密钥已成功生成时仍尝试写默认随机状态文件，
+     * 受限 CI 或只读 HOME 下会抛出 "Unable to write random state" warning。该 warning 不影响
+     * 私钥安全性和返回资源，因此这里只吞掉这个已知环境噪声，其它 OpenSSL warning 继续暴露。
+     *
+     * @param array<string, mixed> $options
+     */
+    private function createPrivateKeyResource(array $options): \OpenSSLAsymmetricKey|false
+    {
+        set_error_handler(static function (int $errno, string $message): bool {
+            if ($errno === E_WARNING && str_contains($message, 'Unable to write random state')) {
+                return true;
+            }
+
+            return false;
+        });
+
+        try {
+            return openssl_pkey_new($options);
+        } finally {
+            restore_error_handler();
+        }
     }
 
     private function nonceCacheKey(string $kid, string $nonce): string

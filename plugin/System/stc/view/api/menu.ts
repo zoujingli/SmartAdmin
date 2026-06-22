@@ -17,8 +17,11 @@ export namespace MenuApi {
     type: string;
     route: string;
     redirect: string;
+    component?: string;
     sort: number;
     status: number;
+    hideInMenu?: boolean | number;
+    hide_in_menu?: boolean | number;
     remark: string;
     created_by: number;
     updated_by: number;
@@ -54,8 +57,11 @@ export namespace MenuApi {
     type: string;
     route: string;
     redirect: string;
+    component?: string;
     sort: number;
     status: number;
+    hideInMenu?: boolean | number;
+    hide_in_menu?: boolean | number;
     remark?: string;
   }
 

@@ -425,7 +425,7 @@ const rebuildMenuCodeLookup = () => {
 
   const visit = (nodes: any[]) => {
     for (const node of nodes ?? []) {
-      if (node?.code && typeof node?.id === 'number') {
+      if (node?.code && typeof node?.id === 'number' && node.id > 0) {
         nextMap.set(String(node.code), node.id);
       }
       if (Array.isArray(node?.children) && node.children.length > 0) {
@@ -443,7 +443,7 @@ const collectMenuIds = (menus: any[]) => {
 
   const visit = (nodes: any[]) => {
     for (const node of nodes ?? []) {
-      if (typeof node?.id === 'number') {
+      if (typeof node?.id === 'number' && node.id > 0) {
         ids.push(node.id);
       }
       if (Array.isArray(node?.children) && node.children.length > 0) {

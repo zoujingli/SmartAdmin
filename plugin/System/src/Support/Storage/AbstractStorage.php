@@ -11,10 +11,12 @@ declare(strict_types=1);
 
 namespace System\Support\Storage;
 
+use Library\Exception\ErrorResponseException;
+use System\Contract\FilePathUploadStorageInterface;
 use System\Contract\StorageInterface;
 use System\Support\UploadDriver;
 
-abstract class AbstractStorage implements StorageInterface
+abstract class AbstractStorage implements FilePathUploadStorageInterface, StorageInterface
 {
     /**
      * @param array<string, mixed> $config
@@ -40,6 +42,38 @@ abstract class AbstractStorage implements StorageInterface
     public function upload(array $context = []): array
     {
         return ['supported' => false];
+    }
+
+    /**
+     * 默认文件路径写入实现，供自定义存储兜底；内置大文件通道会覆盖为流式写入。
+     *
+     * @param array<string, mixed> $options
+     * @return array<string, mixed>
+     */
+    public function setFile(string $name, string $path, bool $safe = false, ?string $attname = null, array $options = []): array
+    {
+        if (!is_file($path)) {
+            throw new ErrorResponseException('上传文件不存在');
+        }
+
+        $content = file_get_contents($path);
+        if ($content === false) {
+            throw new ErrorResponseException('读取上传文件失败');
+        }
+
+        return $this->set($name, $content, $safe, $attname, $options);
+    }
+
+    /**
+     * 安全关闭文件句柄。
+     *
+     * 远端 HTTP 客户端在发送请求体后可能已经关闭资源；这里先判断句柄仍有效，避免 finally 中二次 fclose 抛警告。
+     */
+    protected function closeStreamIfOpen(mixed $stream): void
+    {
+        if (is_resource($stream)) {
+            fclose($stream);
+        }
     }
 
     /**

@@ -12,4 +12,5 @@ export {
   uploadSceneFile,
 } from './upload-client';
 
+export type { UploadEndpointConfig } from './upload-client';
 export type * from './types';

@@ -45,6 +45,31 @@ final class LocalStorage extends AbstractStorage
     }
 
     /**
+     * 本地存储直接复制合并后的临时文件，避免 relay-chunk 大文件再次进入 PHP 内存。
+     *
+     * @param array<string, mixed> $options
+     * @return array<string, mixed>
+     */
+    public function setFile(string $name, string $path, bool $safe = false, ?string $attname = null, array $options = []): array
+    {
+        if (!is_file($path)) {
+            throw new ErrorResponseException('上传文件不存在');
+        }
+
+        $filePath = $this->absolutePath($name);
+        $dir = dirname($filePath);
+        if (!is_dir($dir) && !mkdir($dir, 0777, true) && !is_dir($dir)) {
+            throw new ErrorResponseException('无法创建本地存储目录');
+        }
+
+        if (!copy($path, $filePath)) {
+            throw new ErrorResponseException('写入本地文件失败');
+        }
+
+        return $this->info($name);
+    }
+
+    /**
      * 读取本地对象内容。
      */
     public function get(string $name, bool $safe = false): string

@@ -109,6 +109,21 @@
 
       <div class="menu-form-panel" :style="panelStyle">
         <div class="menu-form-section">
+          <div class="menu-form-section__title" :style="sectionTitleStyle">显示设置</div>
+          <div class="menu-form-section__desc" :style="sectionDescStyle">控制菜单是否出现在左侧导航，隐藏后仍可通过路由和权限访问。</div>
+        </div>
+
+        <Row :gutter="[16, 0]">
+          <Col :span="24">
+            <FormItem label="左侧菜单隐藏" name="hideInMenu">
+              <RadioGroup v-model:value="formData.hideInMenu" :options="hideInMenuOptions" option-type="button" />
+            </FormItem>
+          </Col>
+        </Row>
+      </div>
+
+      <div class="menu-form-panel" :style="panelStyle">
+        <div class="menu-form-section">
           <div class="menu-form-section__title" :style="sectionTitleStyle">视觉与说明</div>
           <div class="menu-form-section__desc" :style="sectionDescStyle">设置图标和备注，提升菜单结构的可读性与长期维护性。</div>
         </div>
@@ -160,6 +175,7 @@ import { menuApiService } from '@plugin/System/stc/view/api';
 import type { MenuApi } from '@plugin/System/stc/view/api';
 
 import type { MenuFormData, MenuType } from '../types';
+import { normalizeHideInMenu } from '../visibility';
 import AppDrawer from '#/components/app-drawer.vue';
 
 interface Props {
@@ -193,6 +209,7 @@ const formData = reactive<MenuFormData>({
   status: 1,
   sort: 0,
   permission: '',
+  hideInMenu: 0,
   remark: '',
 });
 
@@ -204,6 +221,10 @@ const menuTypeOptions = [
 const statusOptions = [
   { label: '启用', value: 1 },
   { label: '禁用', value: 0 },
+];
+const hideInMenuOptions = [
+  { label: '显示', value: 0 },
+  { label: '隐藏', value: 1 },
 ];
 const title = computed(() => (formData.id ? '编辑菜单' : '新增菜单'));
 const isDirectoryType = computed(() => formData.type === 1);
@@ -296,6 +317,7 @@ const formRules: any = {
   ],
   type: [{ required: true, message: '请选择菜单类型', trigger: 'change' }],
   status: [{ required: true, message: '请选择状态', trigger: 'change' }],
+  hideInMenu: [{ required: true, message: '请选择左侧菜单显示状态', trigger: 'change' }],
   sort: [{ required: true, message: '请输入排序', trigger: 'blur' }],
 };
 
@@ -310,6 +332,7 @@ watch(
         ...props.data,
         redirect: props.data.redirect || '',
         component: props.data.component || '',
+        hideInMenu: normalizeHideInMenu((props.data as any).hideInMenu ?? (props.data as any).hide_in_menu),
         remark: props.data.remark || '',
         type: normalizeFormType(props.data.type),
       });
@@ -341,6 +364,7 @@ const resetForm = () => {
     status: 1,
     sort: 0,
     permission: '',
+    hideInMenu: 0,
     remark: '',
   });
 };
@@ -432,6 +456,7 @@ const handleOk = async () => {
       status: formData.status,
       sort: formData.sort,
       code: String(formData.permission || '').trim(),
+      hideInMenu: normalizeHideInMenu(formData.hideInMenu),
       remark: String(formData.remark || '').trim(),
     };
 

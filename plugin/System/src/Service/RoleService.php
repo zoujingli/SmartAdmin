@@ -125,7 +125,7 @@ final class RoleService extends CoreService
         $this->assertGrantableNodes($role->getPermissionNodes());
 
         $oldNodes = $role->getPermissionNodes();
-        $nodes = $this->normalizePermissionNodes($nodes);
+        $nodes = $this->normalizePermissionNodesWithAncestors($nodes);
         $this->assertGrantableNodes($nodes);
         $role->assignPermissionNodes($nodes);
         ModelChangeLog::recordFields($role, 'updated', [[
@@ -287,6 +287,69 @@ final class RoleService extends CoreService
             static fn (mixed $node): string => trim((string)$node),
             $nodes
         ))));
+    }
+
+    /**
+     * 标准化授权节点并补齐菜单祖先权限。
+     *
+     * 角色保存的权限码既承担接口鉴权，也承担运行菜单树的可见路径；直接调用授权接口时如果只提交三级子节点，
+     * 需要在服务层补齐当前可授权树里的有效父级 code，避免父菜单缺失导致页面入口异常。
+     *
+     * @return array<int, string>
+     */
+    private function normalizePermissionNodesWithAncestors(array $nodes): array
+    {
+        $nodes = $this->normalizePermissionNodes($nodes);
+        if ($nodes === [] || in_array('*', $nodes, true)) {
+            return $nodes;
+        }
+
+        $normalized = $this->appendAncestorPermissionNodes($nodes, $this->getPermissionTree());
+
+        // 非菜单注解节点也可能参与授权；保留原始节点，再追加能在菜单树上解析到的祖先。
+        foreach ($nodes as $node) {
+            $normalized[$node] = true;
+        }
+
+        return array_keys($normalized);
+    }
+
+    /**
+     * 根据授权菜单树补齐已选节点的祖先 code。
+     *
+     * @param array<int, string> $nodes
+     * @param array<int, array<string, mixed>> $tree
+     * @return array<string, bool>
+     */
+    private function appendAncestorPermissionNodes(array $nodes, array $tree): array
+    {
+        $selected = array_fill_keys($nodes, true);
+        $normalized = [];
+
+        $visit = function (array $items, array $ancestorCodes = []) use (&$visit, $selected, &$normalized): void {
+            foreach ($items as $item) {
+                $code = trim((string)($item['code'] ?? ''));
+                $nextAncestorCodes = $ancestorCodes;
+                if ($code !== '') {
+                    $nextAncestorCodes[] = $code;
+                }
+
+                if ($code !== '' && isset($selected[$code])) {
+                    foreach ($nextAncestorCodes as $ancestorCode) {
+                        $normalized[$ancestorCode] = true;
+                    }
+                }
+
+                $children = is_array($item['children'] ?? null) ? $item['children'] : [];
+                if ($children !== []) {
+                    $visit($children, $nextAncestorCodes);
+                }
+            }
+        };
+
+        $visit($tree);
+
+        return $normalized;
     }
 
     /**

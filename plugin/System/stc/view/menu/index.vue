@@ -124,6 +124,9 @@
                 <template v-else-if="column.key === 'status'">
                   <CrudStatusTag :value="record.status === 1" />
                 </template>
+                <template v-else-if="column.key === 'hideInMenu'">
+                  <CrudToneTag :color="hideInMenuColor(record.hideInMenu)" :text="hideInMenuText(record.hideInMenu)" />
+                </template>
                 <template v-else-if="column.key === 'createdAt'">
                   <span :style="dateTextStyle">{{ record.createdAt || '-' }}</span>
                 </template>
@@ -240,6 +243,7 @@
           <DescriptionsItem label="权限标识">{{ currentMenu.permission || '-' }}</DescriptionsItem>
           <DescriptionsItem label="图标">{{ currentMenu.icon || '-' }}</DescriptionsItem>
           <DescriptionsItem label="状态">{{ menuStatusText(currentMenu.status) }}</DescriptionsItem>
+          <DescriptionsItem label="左侧菜单">{{ hideInMenuText(currentMenu.hideInMenu) }}</DescriptionsItem>
           <DescriptionsItem label="创建时间">{{ currentMenu.createdAt || '-' }}</DescriptionsItem>
           <DescriptionsItem label="更新时间">{{ currentMenu.updatedAt || '-' }}</DescriptionsItem>
           <DescriptionsItem label="备注" :span="2">{{ currentMenu.remark || '-' }}</DescriptionsItem>
@@ -298,6 +302,7 @@ import SearchField from '#/components/crud-search-field.vue';
 import CrudTableActions from '#/components/crud-table-actions.vue';
 
 import type { MenuSearchForm, MenuType } from './types';
+import { hideInMenuColor, hideInMenuText, normalizeHideInMenu } from './visibility';
 import FormModal from './modules/form.vue';
 
 const searchForm = reactive<MenuSearchForm>({
@@ -345,6 +350,7 @@ const columns = computed(() => [
   { title: '菜单类型', dataIndex: 'type', key: 'type', width: 110 },
   { title: '排序', dataIndex: 'sort', key: 'sort', width: 80 },
   { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
+  { title: '左侧菜单', dataIndex: 'hideInMenu', key: 'hideInMenu', width: 110 },
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
   { title: '操作', key: 'action', width: actionColumnWidth.value, fixed: 'right' as const },
 ]);
@@ -388,6 +394,7 @@ const exportColumns = [
   { key: 'type', title: '类型', width: 100, formatter: (record: MenuType) => getTypeText(record.type) },
   { key: 'sort', title: '排序', width: 80 },
   { key: 'status', title: '状态', width: 90, formatter: (record: MenuType) => statusText(record.status) },
+  { key: 'hideInMenu', title: '左侧菜单', width: 100, formatter: (record: MenuType) => hideInMenuText(record.hideInMenu) },
   { key: 'createdAt', title: '创建时间', width: 180 },
 ];
 
@@ -401,6 +408,7 @@ const importColumns = [
   { key: 'type', title: '类型', example: '菜单', parser: (value: any) => normalizeType(value), rule: '支持 目录/菜单/按钮/外链/内嵌页 或 1/2/3/4/5。' },
   { key: 'sort', title: '排序', example: 0, parser: (value: any) => parseNumber(value, 0), rule: '数字越小排序越靠前，留空默认 0。' },
   { key: 'status', title: '状态', example: '启用', parser: (value: any) => parseStatus(value, 1), rule: '支持 启用/禁用 或 1/0，留空默认启用。' },
+  { key: 'hideInMenu', title: '左侧菜单', example: '显示', parser: (value: any) => normalizeHideInMenu(value), rule: '支持 显示/隐藏 或 0/1，留空默认显示。' },
   { key: 'remark', title: '备注', example: '导入样例', rule: '可选，最多填写业务备注。' },
 ];
 
@@ -549,6 +557,7 @@ const processTreeData = (nodes: any[], level = 0): MenuType[] => {
     parentId: item.pid || 0,
     path: item.route || item.path || '',
     permission: item.code || item.permission || '',
+    hideInMenu: normalizeHideInMenu(item.hideInMenu ?? item.hide_in_menu),
     type: normalizeType(item.type),
     createdAt: item.created_at,
     updatedAt: item.updated_at,
@@ -667,6 +676,7 @@ const loadRecycleList = async () => {
       parentId: item.pid || 0,
       path: item.route || item.path || '',
       permission: item.code || item.permission || '',
+      hideInMenu: normalizeHideInMenu(item.hideInMenu ?? item.hide_in_menu),
       type: normalizeType(item.type),
       createdAt: item.created_at,
       updatedAt: item.updated_at,
@@ -745,6 +755,7 @@ const handleAddChild = (record: MenuType) => {
     status: 1,
     sort: 0,
     permission: '',
+    hideInMenu: 0,
     remark: '',
   } as MenuType;
   modalVisible.value = true;
@@ -867,6 +878,7 @@ const handleImport = async () => {
         code: String(payload.permission || ''),
         component: String(payload.component || ''),
         icon: String(payload.icon || ''),
+        hideInMenu: normalizeHideInMenu(payload.hideInMenu),
         level: '',
         name: String(payload.name || ''),
         pid: 0,

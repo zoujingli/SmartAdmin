@@ -59,7 +59,14 @@
                     >
                       <template #header>
                         <span class="role-permission-panel-heading">
-                          <span class="role-permission-panel-heading__name">{{ group.name }}</span>
+                          <Checkbox
+                            :checked="isNodeChecked(group)"
+                            :indeterminate="isNodeIndeterminate(group)"
+                            @click.stop
+                            @change="(event) => handleNodeCheck(group, event.target.checked)"
+                          >
+                            <span class="role-permission-panel-heading__name">{{ group.name }}</span>
+                          </Checkbox>
                           <span class="role-permission-panel-heading__count">
                             已选 {{ getGroupSelectedCount(group) }} / {{ getGroupVisibleIds(group).length }}
                           </span>
@@ -215,6 +222,16 @@ import AppDrawer from '#/components/app-drawer.vue';
 import { roleApiService } from '@plugin/System/stc/view/api';
 
 import { ROLE_SCOPE_DEFAULT, ROLE_SCOPE_OPTIONS } from '../constants';
+import {
+  collectPermissionNodeIds,
+  getPermissionNodeChildren,
+  isPermissionNodeChecked,
+  isPermissionNodeIndeterminate,
+  mapPermissionMenuIdsToCodes,
+  normalizePermissionMenuIds,
+  togglePermissionNodeIds,
+  type PermissionTreeNode,
+} from '../permission-tree';
 import type { RoleFormData, RoleType } from '../types';
 import { popupWidth } from '#/utils/popup';
 interface Props {
@@ -255,18 +272,11 @@ const scopeOptions = ROLE_SCOPE_OPTIONS;
 
 const title = computed(() => (formData.id ? '编辑角色' : '新增角色'));
 const drawerWidth = computed(() => (props.canAssignPermissions ? popupWidth.lg : popupWidth.md));
-const permissionGroups = computed(() => props.menuTreeOptions ?? []);
+const permissionGroups = computed<PermissionTreeNode[]>(() => props.menuTreeOptions ?? []);
 const permissionGroupKeys = computed(() => permissionGroups.value.map((item: any) => String(item.id)));
 const activePermissionGroupKeys = ref<string[]>([]);
 
-const getNodeId = (node: any): null | number => {
-  const id = Number(node?.id);
-  return Number.isFinite(id) ? id : null;
-};
-
-const getNodeChildren = (node: any): any[] => {
-  return Array.isArray(node?.children) ? node.children : [];
-};
+const getNodeChildren = getPermissionNodeChildren;
 
 const getSectionLeafNodes = (section: any): any[] => {
   return getNodeChildren(section).filter((node) => getNodeChildren(node).length === 0);
@@ -338,55 +348,12 @@ const resetForm = () => {
   });
 };
 
-const flattenMenus = (menus: any[], map: Map<number, string>) => {
-  for (const item of menus ?? []) {
-    if (typeof item?.id === 'number') {
-      map.set(item.id, String(item?.code ?? ''));
-    }
-    if (Array.isArray(item?.children) && item.children.length > 0) {
-      flattenMenus(item.children, map);
-    }
-  }
-};
-
-const collectNodeIds = (nodes: any[], includeRoot = true): number[] => {
-  const ids: number[] = [];
-
-  const visit = (items: any[]) => {
-    for (const node of items ?? []) {
-      const id = getNodeId(node);
-      if (id !== null) {
-        ids.push(id);
-      }
-      const children = getNodeChildren(node);
-      if (children.length > 0) {
-        visit(children);
-      }
-    }
-  };
-
-  visit(nodes);
-
-  if (!includeRoot && nodes.length === 1) {
-    const rootId = getNodeId(nodes[0]);
-    return Array.from(new Set(ids.filter((id) => id !== rootId)));
-  }
-
-  return Array.from(new Set(ids));
-};
-
 const getVisibleNodeIds = (node: any): number[] => {
-  const children = getNodeChildren(node);
-  if (children.length === 0) {
-    const id = getNodeId(node);
-    return id === null ? [] : [id];
-  }
-
-  return collectNodeIds(children);
+  return collectPermissionNodeIds([node]);
 };
 
 const getAllMenuIds = (): number[] => {
-  return collectNodeIds(props.menuTreeOptions);
+  return collectPermissionNodeIds(permissionGroups.value);
 };
 
 const getAllVisibleMenuIds = (): number[] => {
@@ -395,72 +362,27 @@ const getAllVisibleMenuIds = (): number[] => {
 
 const allMenuIds = computed(() => getAllMenuIds());
 const allVisibleMenuIds = computed(() => Array.from(new Set(getAllVisibleMenuIds())));
-const selectedMenuIdSet = computed(() => new Set(formData.menuIds ?? []));
+const normalizedSelectedMenuIds = computed(() => normalizePermissionMenuIds(formData.menuIds ?? [], permissionGroups.value));
+const selectedMenuIdSet = computed(() => new Set(normalizedSelectedMenuIds.value));
 const selectedVisibleMenuIds = computed(() => {
   const visible = new Set(allVisibleMenuIds.value);
-  return (formData.menuIds ?? []).filter((id) => visible.has(id));
+  return normalizedSelectedMenuIds.value.filter((id) => visible.has(id));
 });
 
-const normalizeMenuIds = (rawIds: Iterable<number>): number[] => {
-  const source = new Set(Array.from(rawIds).map((id) => Number(id)).filter((id) => Number.isFinite(id)));
-  const normalized = new Set<number>();
-
-  const visit = (node: any): boolean => {
-    const id = getNodeId(node);
-    const children = getNodeChildren(node);
-
-    if (children.length === 0) {
-      if (id !== null && source.has(id)) {
-        normalized.add(id);
-        return true;
-      }
-      return false;
-    }
-
-    const allChildrenChecked = children.map((child) => visit(child)).every(Boolean);
-    if (allChildrenChecked && id !== null) {
-      normalized.add(id);
-      return true;
-    }
-
-    return false;
-  };
-
-  for (const group of permissionGroups.value) {
-    visit(group);
-  }
-
-  return Array.from(normalized);
-};
-
-const applyMenuIds = (ids: Iterable<number>) => {
-  formData.menuIds = normalizeMenuIds(ids);
+const applyMenuIds = (ids: Iterable<number | string>) => {
+  formData.menuIds = normalizePermissionMenuIds(ids, permissionGroups.value);
 };
 
 const handleNodeCheck = (node: any, checked: boolean) => {
-  const next = new Set(formData.menuIds ?? []);
-  const nodeIds = collectNodeIds([node]);
-
-  for (const id of nodeIds) {
-    if (checked) {
-      next.add(id);
-    } else {
-      next.delete(id);
-    }
-  }
-
-  applyMenuIds(next);
+  formData.menuIds = togglePermissionNodeIds(formData.menuIds ?? [], node, checked, permissionGroups.value);
 };
 
 const isNodeChecked = (node: any): boolean => {
-  const nodeIds = collectNodeIds([node]);
-  return nodeIds.length > 0 && nodeIds.every((id) => selectedMenuIdSet.value.has(id));
+  return isPermissionNodeChecked(selectedMenuIdSet.value, node);
 };
 
 const isNodeIndeterminate = (node: any): boolean => {
-  const nodeIds = collectNodeIds([node]);
-  const checkedCount = nodeIds.filter((id) => selectedMenuIdSet.value.has(id)).length;
-  return checkedCount > 0 && checkedCount < nodeIds.length;
+  return isPermissionNodeIndeterminate(selectedMenuIdSet.value, node);
 };
 
 const getGroupVisibleIds = (group: any): number[] => {
@@ -469,7 +391,7 @@ const getGroupVisibleIds = (group: any): number[] => {
 
 const getGroupSelectedCount = (group: any): number => {
   const visibleIds = new Set(getGroupVisibleIds(group));
-  return (formData.menuIds ?? []).filter((id) => visibleIds.has(id)).length;
+  return normalizedSelectedMenuIds.value.filter((id) => visibleIds.has(id)).length;
 };
 
 /**
@@ -500,7 +422,7 @@ const handleClearAll = () => {
 
 const handleGroupSelectAll = (group: any) => {
   const next = new Set(formData.menuIds ?? []);
-  for (const id of collectNodeIds([group])) {
+  for (const id of collectPermissionNodeIds([group])) {
     next.add(id);
   }
   applyMenuIds(next);
@@ -508,22 +430,14 @@ const handleGroupSelectAll = (group: any) => {
 
 const handleGroupClear = (group: any) => {
   const next = new Set(formData.menuIds ?? []);
-  for (const id of collectNodeIds([group])) {
+  for (const id of collectPermissionNodeIds([group])) {
     next.delete(id);
   }
   applyMenuIds(next);
 };
 
 const mapMenuIdsToNodes = (menuIds: number[]): string[] => {
-  const idToCode = new Map<number, string>();
-  flattenMenus(props.menuTreeOptions, idToCode);
-
-  const nodes: string[] = [];
-  for (const menuId of menuIds ?? []) {
-    const code = idToCode.get(menuId);
-    if (code) nodes.push(code);
-  }
-  return Array.from(new Set(nodes));
+  return mapPermissionMenuIdsToCodes(menuIds, permissionGroups.value);
 };
 
 const handleOk = async () => {
@@ -533,7 +447,7 @@ const handleOk = async () => {
     saving.value = true;
     await formRef.value?.validate();
 
-    const menuIds = Array.from(new Set(formData.menuIds ?? []));
+    const menuIds = normalizedSelectedMenuIds.value;
     const keepWildcard =
       Boolean(formData.allPermissions)
       && allMenuIds.value.length > 0

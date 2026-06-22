@@ -73,6 +73,7 @@ import { Editor, Toolbar } from '@wangeditor/editor-for-vue';
 import { message, RadioButton, RadioGroup, Tag, Textarea } from 'ant-design-vue';
 import '@wangeditor/editor/dist/css/style.css';
 
+import { normalizeAttachmentLabel, normalizeAttachmentLinkLabels } from './attachment-label';
 import { uploadSceneFile } from '../upload/upload-client';
 
 type RichTextViewMode = 'preview' | 'source' | 'visual';
@@ -455,7 +456,7 @@ function buildFileHtml(asset: UploadAsset, file: File) {
   const href = getFileAssetUrl(asset);
   if (!href) return '';
   const fileName = asset.origin_name || file.name || `附件${fileId}`;
-  return `<p><a href="${escapeHtml(href)}" title="下载附件：${escapeHtml(fileName)}" data-project-file="1" data-file-id="${fileId}" data-file-name="${escapeHtml(fileName)}" target="_blank" rel="noopener noreferrer" download>${escapeHtml(fileName)}</a></p>`;
+  return `<p><a href="${escapeHtml(href)}" title="下载附件：${escapeHtml(fileName)}" data-project-file="1" data-file-id="${fileId}" data-file-name="${escapeHtml(fileName)}" target="_blank" rel="noopener noreferrer" download>${escapeHtml(normalizeAttachmentLabel(fileName))}</a></p>`;
 }
 
 function getVideoAssetUrl(asset: UploadAsset) {
@@ -472,10 +473,18 @@ function escapeHtml(value: string) {
 }
 
 function sanitizePreviewHtml(value: string) {
-  return value
+  const html = value
     .replace(/<\s*(script|style|iframe|object|embed)[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
     .replace(/\son[a-z]+\s*=\s*(['"])[\s\S]*?\1/gi, '')
     .replace(/\s(href|poster|src)\s*=\s*(['"])\s*(javascript:|data:)[\s\S]*?\2/gi, '');
+  if (typeof document === 'undefined' || typeof document.createElement !== 'function') {
+    return html;
+  }
+  const template = document.createElement('template');
+  template.innerHTML = html;
+  normalizeAttachmentLinkLabels(template.content);
+
+  return template.innerHTML;
 }
 
 function normalizeVideoHtmlForEditor(value: string) {
@@ -506,7 +515,7 @@ function normalizeVideoHtmlForEditor(value: string) {
 }
 
 function buildPreviewStyle() {
-  return `body{margin:0;padding:18px 22px;color:CanvasText;background:Canvas;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.85;}img{max-width:100%;height:auto;border-radius:8px;}video{display:block;max-width:100%;height:auto;max-height:min(420px,70vh);border-radius:8px;background:#000;}a[data-project-file="1"]{display:inline-flex;align-items:center;gap:8px;max-width:100%;padding:8px 10px;border:1px solid ButtonBorder;border-radius:8px;background:color-mix(in srgb, CanvasText 5%, Canvas);color:LinkText;text-decoration:none;font-weight:500;overflow-wrap:anywhere;}a[data-project-file="1"]::before{content:"📎";flex:none;}a[data-project-file="1"]:hover{text-decoration:underline;text-underline-offset:2px;}table{width:100%;border-collapse:collapse;}td,th{padding:8px;border:1px solid ButtonBorder;}blockquote{margin:8px 0;padding:8px 12px;border-left:4px solid Highlight;background:color-mix(in srgb, Highlight 8%, Canvas);}pre{padding:12px;overflow:auto;background:color-mix(in srgb, CanvasText 6%, Canvas);border-radius:8px;}.empty{color:GrayText;}`;
+  return `body{margin:0;padding:18px 22px;color:CanvasText;background:Canvas;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.85;}img{max-width:100%;height:auto;border-radius:8px;}video{display:block;max-width:100%;height:auto;max-height:min(420px,70vh);border-radius:8px;background:#000;}a[data-project-file="1"]{display:inline-flex;align-items:center;gap:8px;max-width:100%;padding:8px 10px;border:1px solid ButtonBorder;border-radius:8px;background:color-mix(in srgb, CanvasText 5%, Canvas);color:LinkText;text-decoration:none;font-weight:600;overflow-wrap:anywhere;white-space:normal;}a[data-project-file="1"]:hover{text-decoration:underline;text-underline-offset:2px;}table{width:100%;border-collapse:collapse;}td,th{padding:8px;border:1px solid ButtonBorder;}blockquote{margin:8px 0;padding:8px 12px;border-left:4px solid Highlight;background:color-mix(in srgb, Highlight 8%, Canvas);}pre{padding:12px;overflow:auto;background:color-mix(in srgb, CanvasText 6%, Canvas);border-radius:8px;}.empty{color:GrayText;}`;
 }
 
 async function mountEditor() {
@@ -842,15 +851,11 @@ onBeforeUnmount(() => {
   border-radius: 8px;
   background: var(--ant-colorFillQuaternary, hsl(var(--muted)));
   color: var(--ant-colorPrimary, hsl(var(--primary)));
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.4;
   text-decoration: none;
   overflow-wrap: anywhere;
-}
-
-.admin-rich-text-editor :deep(.w-e-text-container a[data-project-file='1']::before) {
-  flex: none;
-  content: '📎';
+  white-space: normal;
 }
 
 .admin-rich-text-editor :deep(.w-e-text-container a[data-project-file='1']:hover) {

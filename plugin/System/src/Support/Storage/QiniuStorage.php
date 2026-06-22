@@ -56,6 +56,43 @@ final class QiniuStorage extends AbstractRemoteStorage
     }
 
     /**
+     * 七牛中转分块完成后使用文件句柄提交表单，避免服务端读取完整大文件内容。
+     *
+     * @param array<string, mixed> $options
+     * @return array<string, mixed>
+     */
+    public function setFile(string $name, string $path, bool $safe = false, ?string $attname = null, array $options = []): array
+    {
+        if (!is_file($path)) {
+            throw new ErrorResponseException('上传文件不存在');
+        }
+
+        $source = fopen($path, 'rb');
+        if ($source === false) {
+            throw new ErrorResponseException('读取上传文件失败');
+        }
+
+        try {
+            $key = $this->normalizeKey($name);
+            $token = $this->uploadToken($key, max(60, (int)($options['expires'] ?? 3600)));
+            $mimeType = trim((string)($options['mime_type'] ?? 'application/octet-stream'));
+
+            $response = $this->request('POST', $this->uploadHost(), [
+                'multipart' => [
+                    ['name' => 'token', 'contents' => $token],
+                    ['name' => 'key', 'contents' => $key],
+                    ['name' => 'file', 'contents' => $source, 'filename' => basename($key), 'headers' => ['Content-Type' => $mimeType]],
+                ],
+            ]);
+
+            $this->ensureSuccessful($response, [200]);
+            return $this->info($key);
+        } finally {
+            $this->closeStreamIfOpen($source);
+        }
+    }
+
+    /**
      * 读取七牛对象内容。
      */
     public function get(string $name, bool $safe = false): string

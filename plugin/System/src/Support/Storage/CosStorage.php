@@ -64,6 +64,42 @@ final class CosStorage extends AbstractRemoteStorage
     }
 
     /**
+     * COS 中转分块完成后使用文件流上传，避免大文件在完成阶段被整包读入内存。
+     *
+     * @param array<string, mixed> $options
+     * @return array<string, mixed>
+     */
+    public function setFile(string $name, string $path, bool $safe = false, ?string $attname = null, array $options = []): array
+    {
+        if (!is_file($path)) {
+            throw new ErrorResponseException('上传文件不存在');
+        }
+
+        $source = fopen($path, 'rb');
+        if ($source === false) {
+            throw new ErrorResponseException('读取上传文件失败');
+        }
+
+        try {
+            $key = $this->normalizeKey($name);
+            $mimeType = trim((string)($options['mime_type'] ?? 'application/octet-stream'));
+            $headers = ['content-type' => $mimeType];
+            if ($attname !== null && trim($attname) !== '') {
+                $headers['content-disposition'] = $this->buildAttachmentDisposition($attname);
+            }
+            $response = $this->request('PUT', $this->serviceUrl($key), [
+                'headers' => $this->signedHeaders('PUT', $key, [], $headers),
+                'body' => $source,
+            ]);
+            $this->ensureSuccessful($response, [200]);
+
+            return $this->info($key);
+        } finally {
+            $this->closeStreamIfOpen($source);
+        }
+    }
+
+    /**
      * 读取 COS 对象内容。
      */
     public function get(string $name, bool $safe = false): string

@@ -88,6 +88,42 @@ final class OssStorage extends AbstractRemoteStorage implements MultipartUploadS
     }
 
     /**
+     * OSS 中转分块完成后按文件句柄上传，避免服务端大文件完成阶段占用双份内存。
+     *
+     * @param array<string, mixed> $options
+     * @return array<string, mixed>
+     */
+    public function setFile(string $name, string $path, bool $safe = false, ?string $attname = null, array $options = []): array
+    {
+        if (!is_file($path)) {
+            throw new ErrorResponseException('上传文件不存在');
+        }
+
+        $source = fopen($path, 'rb');
+        if ($source === false) {
+            throw new ErrorResponseException('读取上传文件失败');
+        }
+
+        try {
+            $key = $this->normalizeKey($name);
+            $mimeType = trim((string)($options['mime_type'] ?? 'application/octet-stream'));
+            $headers = $this->authorize('PUT', $key, [], '', $mimeType);
+            if ($attname !== null && trim($attname) !== '') {
+                $headers['Content-Disposition'] = $this->buildAttachmentDisposition($attname);
+            }
+            $response = $this->request('PUT', $this->serviceUrl($key), [
+                'headers' => $headers,
+                'body' => $source,
+            ]);
+            $this->ensureSuccessful($response, [200]);
+
+            return $this->info($key);
+        } finally {
+            $this->closeStreamIfOpen($source);
+        }
+    }
+
+    /**
      * 读取 OSS 对象内容。
      */
     public function get(string $name, bool $safe = false): string

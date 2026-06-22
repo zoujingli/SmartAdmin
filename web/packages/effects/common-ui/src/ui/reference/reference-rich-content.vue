@@ -12,6 +12,7 @@ import { computed, ref } from 'vue';
 
 import ReferenceDetailDrawer from './reference-detail-drawer.vue';
 import { referenceFromDataset, renderReferenceHtml } from './reference-utils';
+import { normalizeAttachmentLinkLabels } from '../rich-text/attachment-label';
 
 const props = withDefaults(defineProps<{
   onReferenceClick?: (reference: ReferenceItem) => boolean | void;
@@ -26,7 +27,7 @@ const props = withDefaults(defineProps<{
   value: '',
 });
 
-const html = computed(() => renderReferenceHtml(props.value || ''));
+const html = computed(() => normalizeAttachmentHtml(renderReferenceHtml(props.value || '')));
 const drawerOpen = ref(false);
 const selectedReference = ref<null | ReferenceItem>(null);
 
@@ -50,6 +51,17 @@ function handleClick(event: MouseEvent) {
 
 function handleKeydown(event: KeyboardEvent) {
   openFromEvent(event);
+}
+
+function normalizeAttachmentHtml(value: string) {
+  if (!value || typeof document === 'undefined' || typeof document.createElement !== 'function') {
+    return value;
+  }
+  const template = document.createElement('template');
+  template.innerHTML = value;
+  normalizeAttachmentLinkLabels(template.content);
+
+  return template.innerHTML;
 }
 </script>
 
@@ -94,15 +106,11 @@ function handleKeydown(event: KeyboardEvent) {
   border-radius: 8px;
   background: var(--ant-colorFillQuaternary, hsl(var(--muted)));
   color: var(--ant-colorPrimary, hsl(var(--primary)));
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.4;
   text-decoration: none;
   overflow-wrap: anywhere;
   white-space: normal;
-}
-.reference-rich-content :deep(a[data-project-file='1']::before) {
-  flex: none;
-  content: '📎';
 }
 .reference-rich-content :deep(a[data-project-file='1']:hover),
 .reference-rich-content :deep(a[data-project-file='1']:focus-visible) {

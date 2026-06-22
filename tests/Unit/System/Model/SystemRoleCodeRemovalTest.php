@@ -73,6 +73,43 @@ final class SystemRoleCodeRemovalTest extends TestCase
         self::assertArrayNotHasKey('code', $data);
     }
 
+    public function testRolePermissionNormalizationAppendsAncestorNodes(): void
+    {
+        $service = (new \ReflectionClass(RoleService::class))->newInstanceWithoutConstructor();
+        $method = (new \ReflectionClass(RoleService::class))->getMethod('appendAncestorPermissionNodes');
+        $method->setAccessible(true);
+
+        $nodes = $method->invoke($service, ['system.user.create'], [
+            [
+                'id' => 1,
+                'name' => '系统管理',
+                'code' => 'system.index',
+                'children' => [
+                    [
+                        'id' => 2,
+                        'name' => '用户管理',
+                        'code' => 'system.user.index',
+                        'children' => [
+                            [
+                                'id' => 3,
+                                'name' => '新增用户',
+                                'code' => 'system.user.create',
+                                'children' => [],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        // 直接调用授权接口只传子节点时，服务层仍需补齐父级菜单 code，保证左侧菜单路径可见。
+        self::assertSame([
+            'system.index' => true,
+            'system.user.index' => true,
+            'system.user.create' => true,
+        ], $nodes);
+    }
+
     private function installValidateHelperContainer(): void
     {
         $origin = $this->originContainer;

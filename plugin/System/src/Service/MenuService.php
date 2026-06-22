@@ -438,17 +438,16 @@ final class MenuService extends CoreService implements NodeNameResolverInterface
             $rows = $this->mapper->getMenusByUser((int)$user->id);
         }
 
+        $tree = ArrayTreeHelper::build($rows);
+
         if (!$user->isSuper()) {
             $permissions = $user->getPermissions();
             if ($permissions !== [] && !in_array('*', $permissions, true)) {
-                $rows = array_values(array_filter($rows, static function (array $menu) use ($permissions): bool {
-                    $code = (string)($menu['code'] ?? '');
-                    return $code === '' || in_array($code, $permissions, true);
-                }));
+                $tree = $this->filterUserMenuTreeByPermissions($tree, array_fill_keys(array_map('strval', $permissions), true));
             }
         }
 
-        return $this->normalizeUserMenuTree(ArrayTreeHelper::build($rows));
+        return $this->normalizeUserMenuTree($tree);
     }
 
     /**
@@ -484,6 +483,58 @@ final class MenuService extends CoreService implements NodeNameResolverInterface
 
             return $menu;
         }, $menus);
+    }
+
+    /**
+     * 按权限树级裁剪运行菜单。
+     *
+     * Mapper 会为已授权子菜单补齐祖先行；这里不能再用行级 code 过滤丢掉父级，否则历史只保存子级权限的角色
+     * 会出现左侧菜单路径缺失。父级无自身权限时仅作为可见子级的容器保留，接口鉴权仍由用户精确权限码判断。
+     *
+     * @param array<int, array<string, mixed>> $menus
+     * @param array<string, bool> $permissions
+     * @return array<int, array<string, mixed>>
+     */
+    private function filterUserMenuTreeByPermissions(array $menus, array $permissions): array
+    {
+        $result = [];
+        foreach ($menus as $menu) {
+            $children = is_array($menu['children'] ?? null) ? $menu['children'] : [];
+            $menu['children'] = $this->filterUserMenuTreeByPermissions($children, $permissions);
+
+            $code = trim((string)($menu['code'] ?? ''));
+            $selfAllowed = $code !== '' && isset($permissions[$code]);
+            if ($selfAllowed || $menu['children'] !== []) {
+                if (!$selfAllowed) {
+                    $menu = $this->normalizeUnauthorizedAncestorMenu($menu);
+                }
+                $result[] = $menu;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * 将仅因子级授权而保留的祖先菜单降级为结构目录。
+     *
+     * 后端菜单接口是动态路由的信任边界；祖先若保留原 code/component/link，会把用户未授权的父级页面或外链
+     * 一并下发给前端。这里只保留名称、图标、排序和可见子树，重定向交给后续 normalizeUserMenuTree() 指向
+     * 第一个可见子菜单，避免历史“只授权子级”的角色打开父级页面。
+     *
+     * @param array<string, mixed> $menu
+     * @return array<string, mixed>
+     */
+    private function normalizeUnauthorizedAncestorMenu(array $menu): array
+    {
+        $menu['code'] = '';
+        $menu['type'] = MenuType::PATH;
+        $menu['component'] = '';
+        $menu['redirect'] = '';
+        $menu['link'] = '';
+        $menu['iframe_src'] = '';
+
+        return $menu;
     }
 
     /**

@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace System\Service;
 
+use Hyperf\Contract\ConfigInterface;
 use Hyperf\Database\Model\Builder;
 use Hyperf\HttpMessage\Upload\UploadedFile;
 use Library\Events\Processor\ScopeProcessor;
@@ -21,6 +22,8 @@ use Library\Helper\CoderHelper;
 use Library\Interfaces\UserModelInterface;
 use Library\Support\TenantContext;
 use Library\Support\TenantUserResolver;
+use Swoole\Constant;
+use System\Contract\FilePathUploadStorageInterface;
 use System\Contract\MultipartUploadStorageInterface;
 use System\Model\SystemFile;
 use System\Support\UploadDriver;
@@ -37,12 +40,14 @@ final class FileUploadService
      * @param FileService $files 文件服务
      * @param StorageManager $storageManager 存储驱动管理器
      * @param UploadSessionStore $sessions 上传会话存储
+     * @param ConfigInterface $runtimeConfig 运行时配置读取接口
      */
     public function __construct(
         private UploadConfigService $config,
         private FileService $files,
         private StorageManager $storageManager,
         private UploadSessionStore $sessions,
+        private ConfigInterface $runtimeConfig,
     ) {}
 
     /**
@@ -61,6 +66,9 @@ final class FileUploadService
 
         if ($originName === '' || $size <= 0) {
             throw new ErrorResponseException('上传文件元数据不完整');
+        }
+        if (!preg_match('/^[a-f0-9]{32}$/', $hash)) {
+            throw new ErrorResponseException('上传文件哈希无效');
         }
 
         $suffix = strtolower(pathinfo($originName, PATHINFO_EXTENSION));
@@ -86,15 +94,13 @@ final class FileUploadService
         $nameType = UploadDriver::normalizeNameType((string)($common['name_type'] ?? UploadDriver::NAME_TYPE_HASH));
         [$storagePath, $objectName] = $this->makeObjectLocation($originName, $suffix, $hash, $nameType);
 
-        if ($nameType === UploadDriver::NAME_TYPE_HASH) {
-            $instantAsset = $this->tryFastUpload($driver, $hash, $originName, $category, $principal);
-            if ($instantAsset !== null) {
-                return [
-                    'completed' => true,
-                    'transport' => 'instant',
-                    'asset' => $instantAsset,
-                ];
-            }
+        $instantAsset = $this->tryFastUpload($driver, $hash, $originName, $category, $principal);
+        if ($instantAsset !== null) {
+            return [
+                'completed' => true,
+                'transport' => 'instant',
+                'asset' => $instantAsset,
+            ];
         }
 
         $transport = $this->resolveTransport($driver, $common, $size, (string)($payload['upload_type'] ?? ''));
@@ -146,9 +152,13 @@ final class FileUploadService
                 'expires' => 3600,
             ]);
             if (!(bool)($signed['supported'] ?? false)) {
-                // 驱动声明支持直传但运行时签名失败时，退回服务端中转；同一会话继续绑定原租户和文件元数据。
-                $session['transport'] = $transport = UploadDriver::TRANSPORT_RELAY_SINGLE;
+                // 驱动声明支持直传但运行时签名失败时，退回服务端中转；中转方式仍按请求体上限重新调度，避免大文件整包 relay。
+                $session['transport'] = $transport = $this->resolveRelayTransport($common, $size);
                 $response['transport'] = $transport;
+                $response['part_size'] = $partSizeBytes = $this->resolvePartSizeBytes($transport, $common);
+                $response['part_count'] = $partCount = (int)max(1, ceil($size / $partSizeBytes));
+                $session['part_size'] = $partSizeBytes;
+                $session['part_count'] = $partCount;
             } else {
                 $response = array_merge($response, $signed);
             }
@@ -182,8 +192,7 @@ final class FileUploadService
      */
     public function handleRelayUpload(string $sessionId, UploadedFile $file): array
     {
-        // 浏览器直传可能被 OSS/COS Bucket CORS 策略拦截；同一会话允许退回服务端中转，仍复用预检阶段的租户与文件元数据。
-        $session = $this->getSession($sessionId, [UploadDriver::TRANSPORT_RELAY_SINGLE, UploadDriver::TRANSPORT_DIRECT_SINGLE]);
+        $session = $this->getSession($sessionId, [UploadDriver::TRANSPORT_RELAY_SINGLE]);
         $tempPath = $file->getPathname();
         if (!is_file($tempPath)) {
             throw new ErrorResponseException('上传文件不存在');
@@ -215,19 +224,34 @@ final class FileUploadService
         if ($chunkIndex < 1 || $totalChunks < 1) {
             throw new ErrorResponseException('分块参数无效');
         }
+        if ($chunkIndex > $totalChunks) {
+            throw new ErrorResponseException('分块编号超出范围');
+        }
         if ($totalChunks !== (int)$session['part_count']) {
             throw new ErrorResponseException('分块总数与上传会话不一致');
+        }
+        if ($chunkIndex > (int)$session['part_count']) {
+            throw new ErrorResponseException('分块编号超出范围');
         }
 
         $chunkDir = $this->chunkDir((string)$session['session_id']);
         is_dir($chunkDir) || mkdir($chunkDir, 0777, true);
         $chunkPath = $chunkDir . '/' . $chunkIndex . '.part';
         $file->moveTo($chunkPath);
+        $chunkSize = (int)(filesize($chunkPath) ?: 0);
+        if ($chunkSize <= 0) {
+            @unlink($chunkPath);
+            throw new ErrorResponseException('上传分块为空或大小无效');
+        }
+        if ($chunkIndex < (int)$session['part_count'] && $chunkSize > (int)$session['part_size']) {
+            @unlink($chunkPath);
+            throw new ErrorResponseException('上传分块大小超出会话限制');
+        }
 
         $parts = is_array($session['parts'] ?? null) ? $session['parts'] : [];
         $parts[(string)$chunkIndex] = [
             'index' => $chunkIndex,
-            'size' => filesize($chunkPath) ?: 0,
+            'size' => $chunkSize,
         ];
         $session['parts'] = $parts;
         $session['status'] = 'uploading';
@@ -243,12 +267,12 @@ final class FileUploadService
         }
 
         $mergedPath = $this->mergedFilePath((string)$session['session_id']);
-        $target = fopen($mergedPath, 'wb');
-        if ($target === false) {
-            throw new ErrorResponseException('无法创建分块合并文件');
-        }
-
         try {
+            $target = fopen($mergedPath, 'wb');
+            if ($target === false) {
+                throw new ErrorResponseException('无法创建分块合并文件');
+            }
+
             for ($index = 1; $index <= $totalChunks; ++$index) {
                 $sourcePath = $chunkDir . '/' . $index . '.part';
                 if (!is_file($sourcePath)) {
@@ -263,20 +287,14 @@ final class FileUploadService
                 stream_copy_to_stream($source, $target);
                 fclose($source);
             }
-        } finally {
-            // 合并失败也必须关闭目标句柄，后续 catch 会清理会话和临时目录。
+            fflush($target);
             fclose($target);
-        }
+            unset($target);
 
-        $content = file_get_contents($mergedPath);
-        if ($content === false) {
-            throw new ErrorResponseException('读取合并文件失败');
-        }
-
-        try {
-            $asset = $this->persistUploadedAsset(
+            // relay-chunk 完成阶段使用合并文件路径写入存储，避免把大文件整包读入 PHP 内存。
+            $asset = $this->persistUploadedFile(
                 $session,
-                $content,
+                $mergedPath,
                 $this->detectMimeType($mergedPath),
                 (int)(filesize($mergedPath) ?: 0),
                 md5_file($mergedPath) ?: ''
@@ -286,6 +304,10 @@ final class FileUploadService
         } catch (\Throwable $exception) {
             $this->cleanupSession($session, true);
             throw $exception;
+        } finally {
+            if (isset($target) && is_resource($target)) {
+                fclose($target);
+            }
         }
 
         return [
@@ -349,22 +371,11 @@ final class FileUploadService
                 throw new ErrorResponseException('当前上传通道不支持分片直传');
             }
 
-            $partsInput = is_array($payload['parts'] ?? null) ? $payload['parts'] : [];
-            if ($partsInput === []) {
-                throw new ErrorResponseException('缺少分片完成信息');
-            }
-
-            $parts = [];
-            foreach ($partsInput as $part) {
-                $parts[] = [
-                    'PartNumber' => (int)($part['part_number'] ?? 0),
-                    'ETag' => trim((string)($part['etag'] ?? '')),
-                ];
-            }
-            // 对象存储要求按 PartNumber 顺序完成分片；前端并发上传后返回顺序不可信。
-            usort($parts, static fn (array $left, array $right): int => $left['PartNumber'] <=> $right['PartNumber']);
-
-            $storage->completeMultipartUpload($objectKey, (string)$session['upload_id'], $parts);
+            $storage->completeMultipartUpload(
+                $objectKey,
+                (string)$session['upload_id'],
+                $this->normalizeMultipartCompleteParts($payload, (int)$session['part_count'])
+            );
         }
 
         $info = $storage->info($objectKey);
@@ -386,6 +397,7 @@ final class FileUploadService
     public function abort(string $sessionId): array
     {
         $session = $this->getSession($sessionId, [
+            UploadDriver::TRANSPORT_RELAY_SINGLE,
             UploadDriver::TRANSPORT_RELAY_CHUNK,
             UploadDriver::TRANSPORT_DIRECT_SINGLE,
             UploadDriver::TRANSPORT_DIRECT_MULTIPART,
@@ -465,6 +477,32 @@ final class FileUploadService
         $driver = (string)$session['driver'];
         $objectKey = $this->objectKey((string)$session['storage_path'], (string)$session['object_name']);
         $this->storageManager->driver($driver)->set($objectKey, $content, false, (string)($session['origin_name'] ?? ''), [
+            'mime_type' => $mimeType,
+        ]);
+
+        $asset = $this->createFileRecord($session, $sizeByte, $mimeType, $hash);
+        $this->sessions->delete((string)$session['session_id']);
+
+        return $asset;
+    }
+
+    /**
+     * 从服务端临时文件写入存储并落库。
+     *
+     * @param array<string, mixed> $session
+     * @return array<string, mixed>
+     */
+    private function persistUploadedFile(array $session, string $path, string $mimeType, int $sizeByte, string $hash): array
+    {
+        $this->ensureActualMetaAllowed($session, $sizeByte, $mimeType, $hash);
+        $driver = (string)$session['driver'];
+        $objectKey = $this->objectKey((string)$session['storage_path'], (string)$session['object_name']);
+        $storage = $this->storageManager->driver($driver);
+        if (!$storage instanceof FilePathUploadStorageInterface) {
+            throw new ErrorResponseException('当前上传通道不支持文件路径写入');
+        }
+
+        $storage->setFile($objectKey, $path, false, (string)($session['origin_name'] ?? ''), [
             'mime_type' => $mimeType,
         ]);
 
@@ -665,27 +703,85 @@ final class FileUploadService
      */
     private function resolveTransport(string $driver, array $common, int $sizeByte, string $uploadType): string
     {
-        $chunkThreshold = (int)($common['chunk_threshold_mb'] ?? 20) * 1024 * 1024;
-        $multipartThreshold = (int)($common['multipart_threshold_mb'] ?? 20) * 1024 * 1024;
-        $uploadType = strtolower(trim($uploadType));
+        $uploadType = $this->normalizeUploadType($uploadType);
 
-        if ($driver === UploadDriver::DRIVER_LOCAL) {
-            return $sizeByte >= $chunkThreshold ? UploadDriver::TRANSPORT_RELAY_CHUNK : UploadDriver::TRANSPORT_RELAY_SINGLE;
+        if ($driver === UploadDriver::DRIVER_LOCAL || $uploadType === 'relay' || !UploadDriver::supportsDirectUpload($driver)) {
+            return $this->resolveRelayTransport($common, $sizeByte);
         }
 
-        if ($uploadType === 'relay') {
-            return $sizeByte >= $chunkThreshold ? UploadDriver::TRANSPORT_RELAY_CHUNK : UploadDriver::TRANSPORT_RELAY_SINGLE;
-        }
-
-        if (UploadDriver::supportsMultipartUpload($driver) && $sizeByte >= $multipartThreshold) {
+        if (UploadDriver::supportsMultipartUpload($driver) && $sizeByte >= $this->multipartThresholdBytes($common)) {
             return UploadDriver::TRANSPORT_DIRECT_MULTIPART;
         }
 
-        if (UploadDriver::supportsDirectUpload($driver)) {
-            return UploadDriver::TRANSPORT_DIRECT_SINGLE;
+        return UploadDriver::TRANSPORT_DIRECT_SINGLE;
+    }
+
+    /**
+     * 规范化上传偏好；direct 只表示允许后端按通道能力直传调度，不强制某一种直传实现。
+     */
+    private function normalizeUploadType(string $uploadType): string
+    {
+        $uploadType = strtolower(trim($uploadType));
+        if (!in_array($uploadType, ['', 'direct', 'relay'], true)) {
+            throw new ErrorResponseException('上传方式无效');
         }
 
-        return $sizeByte >= $chunkThreshold ? UploadDriver::TRANSPORT_RELAY_CHUNK : UploadDriver::TRANSPORT_RELAY_SINGLE;
+        return $uploadType;
+    }
+
+    /**
+     * 规范化对象存储分片完成信息，确保分片完整、顺序明确且 ETag 可用。
+     *
+     * @param array<string, mixed> $payload
+     * @return array<int, array{PartNumber:int,ETag:string}>
+     */
+    private function normalizeMultipartCompleteParts(array $payload, int $partCount): array
+    {
+        $partsInput = is_array($payload['parts'] ?? null) ? $payload['parts'] : [];
+        if ($partsInput === []) {
+            throw new ErrorResponseException('缺少分片完成信息');
+        }
+        if (count($partsInput) !== $partCount) {
+            throw new ErrorResponseException('分片完成数量与上传会话不一致');
+        }
+
+        $parts = [];
+        $seen = [];
+        foreach ($partsInput as $part) {
+            if (!is_array($part)) {
+                throw new ErrorResponseException('分片完成信息无效');
+            }
+
+            $partNumber = (int)($part['part_number'] ?? 0);
+            if ($partNumber < 1 || $partNumber > $partCount) {
+                throw new ErrorResponseException('分片编号超出范围');
+            }
+            if (isset($seen[$partNumber])) {
+                throw new ErrorResponseException('分片编号重复');
+            }
+
+            $etag = trim((string)($part['etag'] ?? ''));
+            if ($etag === '') {
+                throw new ErrorResponseException('分片 ETag 不能为空');
+            }
+
+            $seen[$partNumber] = true;
+            $parts[] = [
+                'PartNumber' => $partNumber,
+                'ETag' => $etag,
+            ];
+        }
+
+        for ($partNumber = 1; $partNumber <= $partCount; ++$partNumber) {
+            if (!isset($seen[$partNumber])) {
+                throw new ErrorResponseException('分片完成信息不完整');
+            }
+        }
+
+        // 对象存储要求按 PartNumber 顺序完成分片；前端并发上传后返回顺序不可信。
+        usort($parts, static fn (array $left, array $right): int => $left['PartNumber'] <=> $right['PartNumber']);
+
+        return $parts;
     }
 
     /**
@@ -695,11 +791,63 @@ final class FileUploadService
      */
     private function resolvePartSizeBytes(string $transport, array $common): int
     {
-        if (in_array($transport, [UploadDriver::TRANSPORT_RELAY_CHUNK, UploadDriver::TRANSPORT_DIRECT_MULTIPART], true)) {
-            return max(1, (int)($common['part_size_mb'] ?? 5)) * 1024 * 1024;
+        $configuredPartSize = max(1, (int)($common['part_size_mb'] ?? 5)) * 1024 * 1024;
+        if ($transport === UploadDriver::TRANSPORT_RELAY_CHUNK) {
+            // 服务端中转分片必须小于 Swoole/Nginx 单次请求可承载大小；否则分块接口仍会在进入 Controller 前失败。
+            return min($configuredPartSize, $this->relaySingleMaxBytes());
         }
 
-        return max(1, (int)($common['part_size_mb'] ?? 5)) * 1024 * 1024;
+        return $configuredPartSize;
+    }
+
+    /**
+     * 根据服务端请求体上限选择中转单包或分块。
+     *
+     * @param array<string, mixed> $common
+     */
+    private function resolveRelayTransport(array $common, int $sizeByte): string
+    {
+        return $sizeByte >= $this->relayChunkThresholdBytes($common)
+            ? UploadDriver::TRANSPORT_RELAY_CHUNK
+            : UploadDriver::TRANSPORT_RELAY_SINGLE;
+    }
+
+    /**
+     * 中转分块阈值取后台配置与运行时请求体上限的较小值，避免大文件被整包中转。
+     *
+     * @param array<string, mixed> $common
+     */
+    private function relayChunkThresholdBytes(array $common): int
+    {
+        $configuredThreshold = max(1, (int)($common['chunk_threshold_mb'] ?? 20)) * 1024 * 1024;
+        return min($configuredThreshold, $this->relaySingleMaxBytes());
+    }
+
+    /**
+     * 解析服务端单次中转可接受的最大文件字节数，预留 multipart 边界、Header 和网关额外开销。
+     */
+    private function relaySingleMaxBytes(): int
+    {
+        $packageMaxLength = (int)$this->runtimeConfig->get('server.settings.' . Constant::OPTION_PACKAGE_MAX_LENGTH, 0);
+        if ($packageMaxLength <= 0) {
+            return PHP_INT_MAX;
+        }
+
+        if ($packageMaxLength <= 1024 * 1024) {
+            return max(1, (int)floor($packageMaxLength * 0.8));
+        }
+
+        return max(1, $packageMaxLength - 1024 * 1024);
+    }
+
+    /**
+     * 解析对象存储分片直传阈值。
+     *
+     * @param array<string, mixed> $common
+     */
+    private function multipartThresholdBytes(array $common): int
+    {
+        return max(1, (int)($common['multipart_threshold_mb'] ?? 20)) * 1024 * 1024;
     }
 
     /**

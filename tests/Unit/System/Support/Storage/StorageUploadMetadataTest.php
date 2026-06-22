@@ -15,9 +15,11 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
+use GuzzleHttp\Promise\Create;
 use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Message\RequestInterface;
 use System\Support\Storage\AbstractRemoteStorage;
 use System\Support\Storage\CosStorage;
 use System\Support\Storage\OssStorage;
@@ -84,6 +86,58 @@ final class StorageUploadMetadataTest extends TestCase
 
         $this->assertSame('image/png', $signed['headers']['Content-Type'] ?? null);
         $this->assertArrayNotHasKey('Content-Disposition', $signed['headers']);
+    }
+
+    public function testOssSetFileIgnoresAlreadyClosedRequestStream(): void
+    {
+        $storage = new OssStorage([
+            'domain' => 'bucket.oss-cn-shanghai.aliyuncs.com',
+            'bucket' => 'bucket',
+            'endpoint' => 'oss-cn-shanghai.aliyuncs.com',
+            'access_id' => 'ak',
+            'access_secret' => 'sk',
+        ], [
+            'link_type' => UploadDriver::LINK_TYPE_FULL_URL,
+            'protocol' => UploadDriver::PROTOCOL_HTTPS,
+        ]);
+
+        $temporaryFile = tempnam(sys_get_temp_dir(), 'smartadmin-oss-set-file-');
+        $this->assertIsString($temporaryFile);
+        file_put_contents($temporaryFile, 'x');
+
+        $closedPutBody = false;
+        $handler = static function (RequestInterface $request, array $options = []) use (&$closedPutBody) {
+            if ($request->getMethod() === 'PUT') {
+                // Guzzle 在真实发送流式 body 后可能已经关闭底层文件资源；setFile 的 finally 必须能容忍这种状态。
+                $request->getBody()->close();
+                $closedPutBody = true;
+
+                return Create::promiseFor(new Response(200));
+            }
+
+            return Create::promiseFor(new Response(200, [
+                'Content-Length' => '1',
+                'Content-Type' => 'image/png',
+            ]));
+        };
+
+        $client = new Client([
+            'handler' => HandlerStack::create($handler),
+            'http_errors' => false,
+            'timeout' => 30,
+        ]);
+        $property = new \ReflectionProperty(AbstractRemoteStorage::class, 'client');
+        $property->setValue($storage, $client);
+
+        try {
+            $info = $storage->setFile('ab/cdef.png', $temporaryFile, false, 'demo file.png', ['mime_type' => 'image/png']);
+        } finally {
+            @unlink($temporaryFile);
+        }
+
+        $this->assertTrue($closedPutBody);
+        $this->assertSame('image/png', $info['mime_type'] ?? null);
+        $this->assertSame(1, $info['size_byte'] ?? null);
     }
 
     public function testOssMultipartInitiationWritesContentDispositionHeader(): void

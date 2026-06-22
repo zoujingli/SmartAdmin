@@ -56,7 +56,7 @@ SmartAdmin 是面向“开源基础后台 + 本地业务插件 + 私有化发布
 | 标准事项 | 当前标准 |
 |---|---|
 | 插件资源 | 业务插件通过本地 Composer path 包、Provider、`plugin.json` 和 Web 编译期扫描接入；源码/CI 模式可使用 SmartAdminLibrary 提供的 `xadmin:plugin:*` 打包、安装、移除和备份恢复，backup 默认只备份代码，`--with-data` 才包含插件自有表，发布二进制内不出现这些命令，也不支持运行时远程安装、更新或删除插件。 |
-| 文件上传 | 统一使用 `upload/runtime`、`upload/prepare`、`upload/relay`、`upload/relay-chunk`、`upload/part-sign`、`upload/complete`、`upload/abort`。 |
+| 文件上传 | 前端统一使用 `@vben/common-ui` 的 `uploadFile()` / `uploadSceneFile()` 或上传组件；服务端统一先走 `upload/prepare` 秒传、签名和调度，再按返回的 `transport` 执行 `relay`、`relay-chunk`、`part-sign`、`complete`、`abort`。 |
 | 微信支付回调 | 只保留订单与退款标准回调：`/wechat-client/api/payment/notify/order/{merchantId}`、`/wechat-client/api/payment/notify/refund/{merchantId}`。 |
 | 微信开放平台回调 | 授权账号消息与事件必须使用 `/wechat-service/api/callback/notify/{appid}`，由标准 URL 中的 AppID 确认消息归属。 |
 | 前端菜单 | 后台动态路由统一读取 `/system/menu/user`，按钮权限统一读取 `/system/menu/permissions`。 |

@@ -67,6 +67,50 @@ final class AlistStorage extends AbstractRemoteStorage
     }
 
     /**
+     * AList 中转分块完成后把合并文件作为请求体流式写入，避免内存放大。
+     *
+     * @param array<string, mixed> $options
+     * @return array<string, mixed>
+     */
+    public function setFile(string $name, string $path, bool $safe = false, ?string $attname = null, array $options = []): array
+    {
+        if (!is_file($path)) {
+            throw new ErrorResponseException('上传文件不存在');
+        }
+
+        $source = fopen($path, 'rb');
+        if ($source === false) {
+            throw new ErrorResponseException('读取上传文件失败');
+        }
+
+        try {
+            $key = $this->normalizeKey($name);
+            $absolutePath = $this->absolutePath($key);
+            $this->ensureDirectoryExists(dirname($absolutePath));
+
+            $mimeType = trim((string)($options['mime_type'] ?? 'application/octet-stream'));
+            $response = $this->request('PUT', $this->apiUrl('/api/fs/put'), [
+                'headers' => array_merge($this->authorizationHeaders(), [
+                    'As-Task' => 'false',
+                    'Content-Length' => (string)(filesize($path) ?: 0),
+                    'Content-Type' => $mimeType,
+                    'File-Path' => rawurlencode($absolutePath),
+                ]),
+                'body' => $source,
+            ]);
+
+            $this->assertApiSuccess($this->decodeResponse($response));
+
+            return $this->buildInfo($key, [
+                'mime_type' => $mimeType,
+                'size_byte' => (int)(filesize($path) ?: 0),
+            ]);
+        } finally {
+            $this->closeStreamIfOpen($source);
+        }
+    }
+
+    /**
      * 读取 AList 对象内容。
      */
     public function get(string $name, bool $safe = false): string

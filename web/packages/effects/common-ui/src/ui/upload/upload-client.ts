@@ -6,7 +6,7 @@ import { h } from 'vue';
 import { notification } from 'ant-design-vue';
 
 import { md5File } from './md5';
-import type { UploadAsset, UploadRuntimeConfig } from './types';
+import type { UploadAsset, UploadFileOptions, UploadPreference, UploadRuntimeConfig, UploadTransport } from './types';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT';
 
@@ -32,10 +32,19 @@ type UploadPrepareResponse = {
   method?: string;
   part_count?: number;
   part_size?: number;
-  transport?: string;
+  transport?: UploadTransport | string;
   upload_session_id?: string;
   upload_url?: string;
 };
+
+const uploadTransports = ['instant', 'direct-single', 'direct-multipart', 'relay-single', 'relay-chunk'] as const;
+
+class DirectTransportError extends Error {
+  constructor(error: unknown) {
+    super(error instanceof Error ? error.message : '直传失败');
+    this.name = 'DirectTransportError';
+  }
+}
 
 let uploadRuntimeCache: null | UploadRuntimeConfig = null;
 let uploadEndpoints: null | UploadEndpointConfig = null;
@@ -181,11 +190,12 @@ function uploadByXhr(
 
     const formFields = options.formFields || {};
     const hasFormFields = Object.keys(formFields).length > 0;
-    if (!hasFormFields) {
-      Object.entries(options.headers || {}).forEach(([key, value]) => {
-        xhr.setRequestHeader(key, value);
-      });
-    }
+    Object.entries(options.headers || {}).forEach(([key, value]) => {
+      if (hasFormFields && key.toLowerCase() === 'content-type') {
+        return;
+      }
+      xhr.setRequestHeader(key, value);
+    });
 
     if (xhr.upload && options.onProgress) {
       xhr.upload.onprogress = (event) => {
@@ -225,11 +235,19 @@ function resolveAcceptExtensions(runtime: UploadRuntimeConfig, scene?: string) {
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean);
 
+  const filterAllowed = (extensions: string[]) => {
+    if (allExtensions.length === 0) {
+      return extensions;
+    }
+
+    return extensions.filter((item) => allExtensions.includes(item));
+  };
+
   if (scene === 'image') {
-    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'ico'];
+    return filterAllowed(['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'ico']);
   }
   if (scene === 'video') {
-    return ['mp4', 'mov', 'webm', 'm4v', 'avi'];
+    return filterAllowed(['mp4', 'mov', 'webm', 'm4v', 'avi']);
   }
   if (scene === 'file') {
     return allExtensions.filter((item) => !['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'ico', 'mp4', 'mov', 'webm', 'm4v', 'avi'].includes(item));
@@ -292,6 +310,14 @@ function openUploadFallbackNotification(key: string, fileName: string) {
   });
 }
 
+function assertUploadTransport(transport?: string): UploadTransport {
+  if (uploadTransports.includes(transport as UploadTransport)) {
+    return transport as UploadTransport;
+  }
+
+  throw new Error(`不支持的上传方式: ${transport || 'unknown'}`);
+}
+
 async function uploadRelaySingle(
   uploadSessionId: string,
   file: File,
@@ -308,6 +334,16 @@ async function uploadRelaySingle(
       }
     },
   });
+}
+
+async function abortUploadSession(uploadSessionId?: string) {
+  if (!uploadSessionId) {
+    return;
+  }
+
+  await request('POST', uploadEndpoint('abort'), {
+    upload_session_id: uploadSessionId,
+  }).catch(() => undefined);
 }
 
 export async function getUploadRuntimeConfig(force = false) {
@@ -329,15 +365,11 @@ export async function listUploadAssets(params: Record<string, any> = {}) {
 
 export async function uploadFile(
   file: File,
-  options: {
-    driver?: string;
-    mode?: string;
-    onProgress?: (percent: number) => void;
-    uploadType?: 'direct' | 'relay';
-  } = {},
+  options: UploadFileOptions = {},
 ): Promise<UploadAsset> {
   const noticeKey = `upload:${file.name}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
   let lastProgress = -1;
+  let currentUploadSessionId: string | undefined;
   const reportProgress = (percent: number) => {
     const nextPercent = Math.max(0, Math.min(100, percent));
     options.onProgress?.(nextPercent);
@@ -351,35 +383,41 @@ export async function uploadFile(
 
   reportProgress(0);
   const hash = await md5File(file);
-  const prepare = await request<UploadPrepareResponse>('POST', uploadEndpoint('prepare'), {
-    hash,
-    driver: options.driver,
-    mime_type: file.type || 'application/octet-stream',
-    mode: options.mode,
-    name: file.name,
-    size: file.size,
-    upload_type: options.uploadType,
-  });
+  const prepareUpload = async (uploadType?: UploadPreference) => {
+    const prepare = await request<UploadPrepareResponse>('POST', uploadEndpoint('prepare'), {
+      hash,
+      driver: options.driver,
+      mime_type: file.type || 'application/octet-stream',
+      mode: options.mode,
+      name: file.name,
+      size: file.size,
+      upload_type: uploadType,
+    });
+    currentUploadSessionId = prepare.upload_session_id;
 
-  if (prepare.completed && prepare.asset) {
-    options.onProgress?.(100);
-    openUploadSuccessNotification(noticeKey, file.name, prepare.asset.url, true);
-    return prepare.asset;
-  }
+    return prepare;
+  };
 
-  if (!prepare.upload_session_id || !prepare.transport) {
-    throw new Error('上传会话初始化失败');
-  }
+  const executePreparedUpload = async (prepare: UploadPrepareResponse): Promise<UploadAsset> => {
+    if (prepare.completed && prepare.asset) {
+      options.onProgress?.(100);
+      openUploadSuccessNotification(noticeKey, file.name, prepare.asset.url, true);
+      return prepare.asset;
+    }
 
-  try {
-    if (prepare.transport === 'relay-single') {
+    const transport = assertUploadTransport(prepare.transport);
+    if (!prepare.upload_session_id || !transport) {
+      throw new Error('上传会话初始化失败');
+    }
+
+    if (transport === 'relay-single') {
       const asset = await uploadRelaySingle(prepare.upload_session_id, file, reportProgress);
       options.onProgress?.(100);
       openUploadSuccessNotification(noticeKey, file.name, asset.url);
       return asset;
     }
 
-    if (prepare.transport === 'relay-chunk') {
+    if (transport === 'relay-chunk') {
       const partSize = prepare.part_size || 5 * 1024 * 1024;
       const totalChunks = Math.max(1, Math.ceil(file.size / partSize));
       let completedAsset: null | UploadAsset = null;
@@ -415,7 +453,7 @@ export async function uploadFile(
       return completedAsset;
     }
 
-    if (prepare.transport === 'direct-single') {
+    if (transport === 'direct-single') {
       if (!prepare.upload_url) {
         throw new Error('缺少直传地址');
       }
@@ -433,12 +471,7 @@ export async function uploadFile(
           },
         });
       } catch (error) {
-        // 浏览器直传失败多数来自 Bucket CORS 或临时网络策略；后端同一会话允许切换中转，前端不重新预检以保留原租户和文件校验。
-        openUploadFallbackNotification(noticeKey, file.name);
-        const asset = await uploadRelaySingle(prepare.upload_session_id, file, reportProgress);
-        options.onProgress?.(100);
-        openUploadSuccessNotification(noticeKey, file.name, asset.url);
-        return asset;
+        throw new DirectTransportError(error);
       }
 
       const asset = await request<UploadAsset>('POST', uploadEndpoint('complete'), {
@@ -450,44 +483,48 @@ export async function uploadFile(
       return asset;
     }
 
-    if (prepare.transport === 'direct-multipart') {
+    if (transport === 'direct-multipart') {
       const partSize = prepare.part_size || 5 * 1024 * 1024;
       const partCount = Math.max(1, prepare.part_count || Math.ceil(file.size / partSize));
       const parts: Array<{ etag: string; part_number: number }> = [];
       let uploadedBytes = 0;
 
-      // 分片直传逐片签名，避免一次性暴露整批长期有效签名；完成时再把 ETag 列表交给后端闭合会话。
-      for (let partNumber = 1; partNumber <= partCount; partNumber += 1) {
-        const start = (partNumber - 1) * partSize;
-        const end = Math.min(start + partSize, file.size);
-        const chunk = file.slice(start, end);
-        const uploadedBefore = uploadedBytes;
-        const signResult = await request<{
-          file_field?: string;
-          form_fields?: Record<string, string>;
-          headers?: Record<string, string>;
-          method?: string;
-          upload_url: string;
-        }>('POST', uploadEndpoint('partSign'), {
-          part_number: partNumber,
-          upload_session_id: prepare.upload_session_id,
-        });
-        const uploadResult = await uploadByXhr(signResult.upload_url, chunk, {
-          fileField: signResult.file_field,
-          formFields: signResult.form_fields,
-          headers: signResult.headers,
-          method: signResult.method || 'PUT',
-          onProgress: (loaded, total) => {
-            const effectiveTotal = total || chunk.size;
-            const currentUploaded = uploadedBefore + Math.min(loaded, effectiveTotal);
-            reportProgress(Math.min(99, Math.round((currentUploaded / file.size) * 100)));
-          },
-        });
-        uploadedBytes = end;
-        parts.push({
-          etag: (uploadResult.etag || '').replace(/"/g, ''),
-          part_number: partNumber,
-        });
+      try {
+        // 分片直传逐片签名，避免一次性暴露整批长期有效签名；完成时再把 ETag 列表交给后端闭合会话。
+        for (let partNumber = 1; partNumber <= partCount; partNumber += 1) {
+          const start = (partNumber - 1) * partSize;
+          const end = Math.min(start + partSize, file.size);
+          const chunk = file.slice(start, end);
+          const uploadedBefore = uploadedBytes;
+          const signResult = await request<{
+            file_field?: string;
+            form_fields?: Record<string, string>;
+            headers?: Record<string, string>;
+            method?: string;
+            upload_url: string;
+          }>('POST', uploadEndpoint('partSign'), {
+            part_number: partNumber,
+            upload_session_id: prepare.upload_session_id,
+          });
+          const uploadResult = await uploadByXhr(signResult.upload_url, chunk, {
+            fileField: signResult.file_field,
+            formFields: signResult.form_fields,
+            headers: signResult.headers,
+            method: signResult.method || 'PUT',
+            onProgress: (loaded, total) => {
+              const effectiveTotal = total || chunk.size;
+              const currentUploaded = uploadedBefore + Math.min(loaded, effectiveTotal);
+              reportProgress(Math.min(99, Math.round((currentUploaded / file.size) * 100)));
+            },
+          });
+          uploadedBytes = end;
+          parts.push({
+            etag: (uploadResult.etag || '').replace(/"/g, ''),
+            part_number: partNumber,
+          });
+        }
+      } catch (error) {
+        throw new DirectTransportError(error);
       }
 
       const asset = await request<UploadAsset>('POST', uploadEndpoint('complete'), {
@@ -500,21 +537,52 @@ export async function uploadFile(
       return asset;
     }
 
-    throw new Error(`不支持的上传方式: ${prepare.transport}`);
+    throw new Error(`不支持的上传方式: ${transport}`);
+  };
+
+  try {
+    const prepare = await prepareUpload(options.uploadType);
+    try {
+      return await executePreparedUpload(prepare);
+    } catch (error) {
+      if (
+        error instanceof DirectTransportError
+        && options.uploadType !== 'relay'
+        && ['direct-single', 'direct-multipart'].includes(String(prepare.transport))
+        && prepare.upload_session_id
+      ) {
+        // 直传失败不能复用 direct 会话整包中转；必须先终止旧会话，再重新 prepare 让后端按通道能力和请求体上限调度。
+        await abortUploadSession(prepare.upload_session_id);
+        openUploadFallbackNotification(noticeKey, file.name);
+        return await executePreparedUpload(await prepareUpload('relay'));
+      }
+
+      throw error;
+    }
   } catch (error) {
     // 失败时通知后端清理上传会话和可能存在的远端分片，清理失败不覆盖真正的上传错误。
-    await request('POST', uploadEndpoint('abort'), {
-      upload_session_id: prepare.upload_session_id,
-    }).catch(() => undefined);
+    await abortUploadSession(currentUploadSessionId);
     openUploadErrorNotification(noticeKey, file.name, error);
     throw error;
   }
 }
 
-export async function uploadSceneFile(scene: string, file: File): Promise<UploadAsset> {
-  return uploadFile(file, { mode: scene });
+export async function uploadSceneFile(
+  scene: string,
+  file: File,
+  options: Omit<UploadFileOptions, 'mode'> = {},
+): Promise<UploadAsset> {
+  return uploadFile(file, { ...options, mode: scene });
 }
 
 export function resolveUploadAccept(runtime: UploadRuntimeConfig, scene?: string) {
   return resolveAcceptExtensions(runtime, scene).map((ext) => `.${ext}`).join(',');
 }
+
+export const __uploadClientTestHooks = import.meta.env.MODE === 'test'
+  ? {
+      assertUploadTransport,
+      resolveAcceptExtensions,
+      uploadByXhr,
+    }
+  : undefined;
