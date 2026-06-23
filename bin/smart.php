@@ -363,10 +363,10 @@ final class SmartWatchRunner
         }
 
         $port = (int)($this->readEnv('APP_WORKER_PORT') ?: 9501);
-        if (!$this->terminateRunningWatchProcesses()) {
+        if (!$this->forceReleaseWatchLock($port)) {
             return 1;
         }
-        if (!$this->acquireWatchLock()) {
+        if (!$this->acquireWatchLock($port)) {
             return 0;
         }
 
@@ -425,10 +425,27 @@ final class SmartWatchRunner
         return null;
     }
 
-    private function terminateRunningWatchProcesses(): bool
+    private function forceReleaseWatchLock(int $port): bool
     {
-        $currentPid = (int)getmypid();
         $pids = [];
+        $lockFile = $this->root . '/runtime/watch.lock';
+        if (is_file($lockFile)) {
+            $content = trim((string)file_get_contents($lockFile));
+            $meta = json_decode($content, true);
+            $pid = is_array($meta) ? (int)($meta['pid'] ?? 0) : 0;
+            if ($pid <= 0 && ctype_digit($content)) {
+                $pid = (int)$content;
+            }
+            $pid > 0 && $pids[] = $pid;
+
+            $output = [];
+            @exec('lsof -nP -t ' . escapeshellarg($lockFile) . ' 2>/dev/null', $output);
+            foreach ($output as $line) {
+                $pid = trim((string)$line);
+                ctype_digit($pid) && $pids[] = (int)$pid;
+            }
+        }
+
         $output = [];
         @exec('ps -eo pid=,command=', $output);
         foreach ($output as $line) {
@@ -438,49 +455,127 @@ final class SmartWatchRunner
             }
 
             $pid = (int)$matches[1];
-            $command = (string)$matches[2];
-            if ($pid === $currentPid || !str_contains($command, $this->root . '/bin/smart.php __watch')) {
-                continue;
+            $command = str_replace('\\', '/', (string)$matches[2]);
+            if (str_contains($command, $this->root . '/bin/smart.php __watch')) {
+                $pids[] = $pid;
             }
-
-            $pids[] = $pid;
         }
 
-        $pids = array_values(array_unique($pids));
+        $pidFile = $this->root . '/runtime/server.pid';
+        if (is_file($pidFile)) {
+            $pid = trim((string)file_get_contents($pidFile));
+            ctype_digit($pid) && $pids[] = (int)$pid;
+        }
+
+        $portCommands = [
+            'lsof -nP -iTCP:' . (int)$port . ' -sTCP:LISTEN -t 2>/dev/null',
+            'fuser -n tcp ' . (int)$port . ' 2>/dev/null',
+            "ss -ltnp 'sport = :" . (int)$port . "' 2>/dev/null",
+        ];
+        foreach ($portCommands as $command) {
+            $output = [];
+            @exec($command, $output);
+            foreach ($output as $line) {
+                if (str_starts_with($command, 'ss ')) {
+                    preg_match_all('/pid=(\d+)/', (string)$line, $matches);
+                } else {
+                    preg_match_all('/(?:^|\D)(\d+)(?=\D|$)/', (string)$line, $matches);
+                }
+                if ($matches[1] ?? []) {
+                    foreach ($matches[1] as $pid) {
+                        $pids[] = (int)$pid;
+                    }
+                }
+            }
+        }
+
+        return $this->killPids($pids);
+    }
+
+    private function acquireWatchLock(int $port): bool
+    {
+        $dir = $this->root . '/runtime';
+        if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
+            SmartWatchLogger::error('无法创建 watch 锁目录：' . $dir . PHP_EOL);
+            return false;
+        }
+
+        $lockFile = $dir . '/watch.lock';
+        $handle = @fopen($lockFile, 'c+');
+        if ($handle === false) {
+            SmartWatchLogger::error('无法创建 watch 锁文件：' . $lockFile . PHP_EOL);
+            return false;
+        }
+
+        if (!flock($handle, LOCK_EX | LOCK_NB)) {
+            rewind($handle);
+            $meta = json_decode((string)stream_get_contents($handle), true);
+            $pid = is_array($meta) ? (int)($meta['pid'] ?? 0) : 0;
+            SmartWatchLogger::warning(sprintf(
+                '⚠️ SmartAdmin watch 已在运行%s，当前 watch 将强制接管。%s',
+                $pid > 0 ? ' (pid=' . $pid . ')' : '',
+                PHP_EOL
+            ));
+            fclose($handle);
+            if (!$this->forceReleaseWatchLock($port)) {
+                return false;
+            }
+
+            $handle = @fopen($lockFile, 'c+');
+            if ($handle === false || !flock($handle, LOCK_EX | LOCK_NB)) {
+                SmartWatchLogger::error('强制接管旧 watch 后仍无法获取锁，请手动检查 runtime/watch.lock。' . PHP_EOL);
+                is_resource($handle) && fclose($handle);
+                return false;
+            }
+        }
+
+        rewind($handle);
+        $meta = json_decode((string)stream_get_contents($handle), true);
+        $pid = is_array($meta) ? (int)($meta['pid'] ?? 0) : 0;
+        if ($pid > 0 && !@Process::kill($pid, 0)) {
+            SmartWatchLogger::warning(sprintf(
+                '⚠️ 覆盖陈旧 SmartAdmin watch 锁 (pid=%d 已不存在)。%s',
+                $pid,
+                PHP_EOL
+            ));
+        }
+
+        ftruncate($handle, 0);
+        rewind($handle);
+        fwrite($handle, json_encode([
+            'pid' => (int)getmypid(),
+            'root' => $this->root,
+            'started_at' => date('c'),
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . PHP_EOL);
+        fflush($handle);
+        $this->watchLock = $handle;
+        return true;
+    }
+
+    /**
+     * @param int[] $pids
+     */
+    private function killPids(array $pids): bool
+    {
+        $pids = array_values(array_unique(array_filter($pids, static fn (int $pid): bool => $pid > 0 && $pid !== (int)getmypid() && @Process::kill($pid, 0))));
         if ($pids === []) {
             return true;
         }
 
-        // 新 watch 负责接管同仓库旧 watch：先让旧父进程走 SIGTERM 清理子服务，
-        // 超时仍未退出再升级 SIGKILL，避免多份 watch 互相清理同一个端口和 Worker。
-        SmartWatchLogger::warning(sprintf(
-            '⚠️ Stopping old SmartAdmin watch PIDS [%s]; current watch will take over.%s',
-            implode(',', $pids),
-            PHP_EOL
-        ));
+        SmartWatchLogger::warning(sprintf('⚠️ Killing PIDS [%s] with signal %d.%s', implode(',', $pids), SIGTERM, PHP_EOL));
         foreach ($pids as $pid) {
             @Process::kill($pid, SIGTERM);
         }
-
-        $alive = $this->waitProcessesExit($pids, 5000);
+        $alive = $this->waitProcessesExit($pids, 3000);
         if ($alive !== []) {
-            SmartWatchLogger::warning(sprintf(
-                '⚠️ Force killing old SmartAdmin watch PIDS [%s].%s',
-                implode(',', $alive),
-                PHP_EOL
-            ));
+            SmartWatchLogger::warning(sprintf('⚠️ Killing PIDS [%s] with signal %d.%s', implode(',', $alive), SIGKILL, PHP_EOL));
             foreach ($alive as $pid) {
                 @Process::kill($pid, SIGKILL);
             }
-            $alive = $this->waitProcessesExit($alive, 2000);
         }
-
+        $alive = $this->waitProcessesExit($alive, 1000);
         if ($alive !== []) {
-            SmartWatchLogger::error(sprintf(
-                '停止旧 watch 失败，仍在运行的 PIDS：[%s]。%s',
-                implode(',', $alive),
-                PHP_EOL
-            ));
+            SmartWatchLogger::error(sprintf('停止旧 watch/后端进程失败，仍在运行的 PIDS：[%s]。%s', implode(',', $alive), PHP_EOL));
             return false;
         }
 
@@ -503,46 +598,6 @@ final class SmartWatchRunner
         } while (microtime(true) < $deadline);
 
         return array_values(array_filter($pids, static fn (int $pid): bool => @Process::kill($pid, 0)));
-    }
-
-    private function acquireWatchLock(): bool
-    {
-        $dir = $this->root . '/runtime';
-        if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
-            SmartWatchLogger::error('无法创建 watch 锁目录：' . $dir . PHP_EOL);
-            return false;
-        }
-
-        $lockFile = $dir . '/watch.lock';
-        $handle = @fopen($lockFile, 'c+');
-        if ($handle === false) {
-            SmartWatchLogger::error('无法创建 watch 锁文件：' . $lockFile . PHP_EOL);
-            return false;
-        }
-
-        if (!flock($handle, LOCK_EX | LOCK_NB)) {
-            rewind($handle);
-            $meta = json_decode((string)stream_get_contents($handle), true);
-            $pid = is_array($meta) ? (int)($meta['pid'] ?? 0) : 0;
-            SmartWatchLogger::warning(sprintf(
-                '⚠️ SmartAdmin watch 已在运行%s，当前 watch 未能获取接管锁，请稍后重试。%s',
-                $pid > 0 ? ' (pid=' . $pid . ')' : '',
-                PHP_EOL
-            ));
-            fclose($handle);
-            return false;
-        }
-
-        ftruncate($handle, 0);
-        rewind($handle);
-        fwrite($handle, json_encode([
-            'pid' => (int)getmypid(),
-            'root' => $this->root,
-            'started_at' => date('c'),
-        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . PHP_EOL);
-        fflush($handle);
-        $this->watchLock = $handle;
-        return true;
     }
 }
 
@@ -572,7 +627,10 @@ final class SmartWatchProcessManager
     public function start(): void
     {
         $this->clearRestartTimer();
-        $this->terminateProcesses();
+        if (!$this->terminateProcesses()) {
+            SmartWatchLogger::error('旧开发服务未清理完成，watch 不继续启动新服务。' . PHP_EOL);
+            exit(1);
+        }
         SmartWatchLogger::info('🔄 Starting service...' . PHP_EOL);
 
         $serve = new Process(fn (Process $process) => $process->exec($this->runner, $this->workerStart), true);
@@ -660,18 +718,26 @@ final class SmartWatchProcessManager
         $this->restartTimerId = null;
     }
 
-    private function terminateProcesses(): void
+    private function terminateProcesses(): bool
     {
         $attempt = 0;
         do {
-            $pids = [];
+            $pids = $this->collectTakeoverPids();
+            if ($attempt >= 6 && $pids !== []) {
+                SmartWatchLogger::error(sprintf(
+                    '旧开发服务接管超时，仍在运行的 PIDS [%s]。%s',
+                    implode(',', $pids),
+                    PHP_EOL
+                ));
+                return false;
+            }
+
             $signal = $attempt >= 3 ? SIGKILL : SIGTERM;
-            // 先按 Hyperf 启动脚本清理残留 Worker，再按监听端口兜底，避免上次异常退出后端口被占用。
-            $this->terminateByCommand('ps -ef | grep ' . escapeshellarg($this->worker) . " | grep -v grep | awk '{print $2}'", $pids, $signal);
-            $this->terminateByCommand('lsof -i:' . (int)$this->workerPort . " | grep LISTEN | awk '{print $2}'", $pids, $signal);
-            $pids = array_values(array_unique($pids));
             if ($pids !== []) {
-                SmartWatchLogger::info(sprintf('🔄 Killed PIDS [%s] with signal %d ...%s', implode(',', $pids), $signal, PHP_EOL));
+                SmartWatchLogger::info(sprintf('🔄 Killed PIDS [%s] with signal %d.%s', implode(',', $pids), $signal, PHP_EOL));
+                foreach ($pids as $pid) {
+                    @Process::kill($pid, $signal);
+                }
                 usleep(800000);
             }
             ++$attempt;
@@ -680,35 +746,83 @@ final class SmartWatchProcessManager
         // 重启前清理 Hyperf 扫描缓存，确保新增注解、命令和依赖变更能被下一次 Worker 重新加载。
         $this->removeDirectory($this->root . '/runtime/container');
         sleep(1);
+        return true;
     }
 
     /**
-     * @param int[] $pids
+     * @return int[]
      */
-    private function terminateByCommand(string $command, array &$pids, int $signal): void
+    private function collectTakeoverPids(): array
     {
+        $pids = [];
+        $pidFile = $this->root . '/runtime/server.pid';
+        if (is_file($pidFile)) {
+            $pid = trim((string)file_get_contents($pidFile));
+            ctype_digit($pid) && $pids[] = (int)$pid;
+        }
+
         $output = [];
-        @exec($command, $output);
-        foreach (array_filter(array_unique($this->splitLines($output))) as $pid) {
-            if (is_numeric($pid) && @Process::kill((int)$pid, 0)) {
-                @Process::kill((int)$pid, $signal);
-                $pids[] = (int)$pid;
+        @exec('ps -eo pid=,ppid=,command=', $output);
+        $rows = [];
+        foreach ($output as $line) {
+            $line = trim((string)$line);
+            if ($line === '' || !preg_match('/^(\d+)\s+(\d+)\s+(.+)$/', $line, $matches)) {
+                continue;
+            }
+
+            $pid = (int)$matches[1];
+            $command = str_replace('\\', '/', (string)$matches[3]);
+            if ($pid === (int)getmypid()) {
+                continue;
+            }
+            $rows[] = [$pid, (int)$matches[2], $command];
+            if ($this->isProjectStartCommand($command)) {
+                $pids[] = $pid;
             }
         }
+
+        $changed = true;
+        while ($changed) {
+            $changed = false;
+            $known = array_flip($pids);
+            foreach ($rows as [$pid, $ppid]) {
+                if (!isset($known[$pid]) && isset($known[$ppid])) {
+                    $pids[] = $pid;
+                    $changed = true;
+                }
+            }
+        }
+
+        $portCommands = [
+            'lsof -nP -iTCP:' . (int)$this->workerPort . ' -sTCP:LISTEN -t 2>/dev/null',
+            'fuser -n tcp ' . (int)$this->workerPort . ' 2>/dev/null',
+            "ss -ltnp 'sport = :" . (int)$this->workerPort . "' 2>/dev/null",
+        ];
+        foreach ($portCommands as $command) {
+            $output = [];
+            @exec($command, $output);
+            foreach ($output as $line) {
+                if (str_starts_with($command, 'ss ')) {
+                    preg_match_all('/pid=(\d+)/', (string)$line, $matches);
+                } else {
+                    preg_match_all('/(?:^|\D)(\d+)(?=\D|$)/', (string)$line, $matches);
+                }
+                foreach ($matches[1] ?? [] as $pid) {
+                    $pids[] = (int)$pid;
+                }
+            }
+        }
+
+        return array_values(array_unique(array_filter($pids, static fn (int $pid): bool => $pid > 0 && $pid !== (int)getmypid() && @Process::kill($pid, 0))));
     }
 
-    /**
-     * @param null|array<int, mixed>|int|string $text
-     * @return string[]
-     */
-    private function splitLines(array|int|string|null $text): array
+    private function isProjectStartCommand(string $command): bool
     {
-        $items = [];
-        foreach (is_array($text) ? $text : explode("\n", trim((string)$text)) as $item) {
-            $item = trim((string)$item);
-            $item !== '' && $items[] = $item;
-        }
-        return $items;
+        $root = str_replace('\\', '/', $this->root);
+        $worker = str_replace('\\', '/', $this->worker);
+        return (bool)preg_match('/' . preg_quote($worker, '/') . '\s+start(?:\s|$)/', $command)
+            || (bool)preg_match('/' . preg_quote($root . '/bin/hyperf.php', '/') . '\s+start(?:\s|$)/', $command)
+            || (bool)preg_match('/' . preg_quote($root . '/bin/smart.php', '/') . '\s+start(?:\s|$)/', $command);
     }
 
     private function removeDirectory(string $dir): void
