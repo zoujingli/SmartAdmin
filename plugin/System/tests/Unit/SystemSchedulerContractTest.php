@@ -172,8 +172,8 @@ final class SystemSchedulerContractTest extends TestCase
         self::assertStringContainsString('统一运维当前租户下全部注册任务', $view);
         self::assertStringNotContainsString('业务插件任务只能查看，规则请到对应业务页面编辑', $view);
         self::assertStringNotContainsString("filter((item) => item.owner_plugin === 'system')", $view);
-        self::assertStringContainsString("disabled: !enabled || running", $view);
-        self::assertStringContainsString("disabled: running", $view);
+        self::assertStringContainsString('disabled: !enabled || running', $view);
+        self::assertStringContainsString('disabled: running', $view);
         self::assertStringContainsString("{ title: '任务名称', dataIndex: 'name', key: 'name'", $view);
         self::assertStringContainsString("{ title: '所属模块', key: 'owner'", $view);
         self::assertStringContainsString("{ title: '下次执行', dataIndex: 'next_run_at'", $view);
@@ -212,7 +212,7 @@ final class SystemSchedulerContractTest extends TestCase
         self::assertStringContainsString('final class ScheduledTaskOwner', $ownerAnnotation);
         self::assertStringContainsString('ScheduledTaskOwnerResolverInterface', $ownerRegistry);
         self::assertStringContainsString('AnnotationCollector::getClassesByAnnotation(ScheduledTaskOwner::class)', $ownerRegistry);
-        self::assertStringContainsString("#[ScheduledTaskOwner(", $systemOwnerResolver);
+        self::assertStringContainsString('#[ScheduledTaskOwner(', $systemOwnerResolver);
         self::assertStringContainsString("ownerPlugin: 'system'", $systemOwnerResolver);
         self::assertStringContainsString('final class PluginScheduledTaskService', $pluginService);
         self::assertStringContainsString('$definition->ownerPlugin !== $ownerPlugin', $pluginService);

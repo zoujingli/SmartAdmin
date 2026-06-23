@@ -256,7 +256,7 @@ CONF;
      *
      * @param array<string, mixed> $options
      */
-    private function createPrivateKeyResource(array $options): \OpenSSLAsymmetricKey|false
+    private function createPrivateKeyResource(array $options): false|\OpenSSLAsymmetricKey
     {
         set_error_handler(static function (int $errno, string $message): bool {
             if ($errno === E_WARNING && str_contains($message, 'Unable to write random state')) {

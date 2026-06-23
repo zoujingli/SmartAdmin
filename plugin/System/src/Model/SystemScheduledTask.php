@@ -34,7 +34,6 @@ use Library\CoreModel;
  * @property string $last_message 最后执行消息
  * @property int $running 是否执行中
  * @property string $locked_until 锁过期时间
- * @property string $lock_token 执行锁令牌
  * @property int $status 状态(1启用,0禁用)
  * @property string $remark 备注
  * @property int $created_by 创建者
@@ -42,6 +41,7 @@ use Library\CoreModel;
  * @property Carbon $created_at 创建时间
  * @property Carbon $updated_at 更新时间
  * @property string $deleted_at 删除时间
+ * @property string $lock_token 执行锁令牌
  * @property array|mixed $schedule_config 周期配置JSON
  * @property array|mixed $params 执行参数JSON
  */
@@ -59,7 +59,7 @@ final class SystemScheduledTask extends CoreModel
 
     protected ?string $table = 'system_scheduled_task';
 
-    protected array $fillable = ['id', 'tenant_id', 'owner_plugin', 'owner_type', 'owner_id', 'owner_name', 'code', 'name', 'group_name', 'schedule_type', 'schedule_config', 'params', 'timeout', 'next_run_at', 'last_run_at', 'last_status', 'last_message', 'running', 'locked_until', 'lock_token', 'status', 'remark', 'created_by', 'updated_by', 'created_at', 'updated_at', 'deleted_at'];
+    protected array $fillable = ['id', 'tenant_id', 'owner_plugin', 'owner_type', 'owner_id', 'owner_name', 'code', 'name', 'group_name', 'schedule_type', 'schedule_config', 'params', 'timeout', 'next_run_at', 'last_run_at', 'last_status', 'last_message', 'running', 'locked_until', 'status', 'remark', 'created_by', 'updated_by', 'created_at', 'updated_at', 'deleted_at', 'lock_token'];
 
     protected array $logRules = [
         'name' => '定时任务',

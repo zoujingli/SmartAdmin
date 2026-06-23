@@ -17,7 +17,7 @@ namespace System\Support\Scheduler;
 final readonly class ScheduledTaskOwnerOption
 {
     /**
-     * @param array<string, mixed> $params 由业务 owner 派生的安全参数，会与后台填写 params 合并。
+     * @param array<string, mixed> $params 由业务 owner 派生的安全参数，会与后台填写 params 合并
      */
     public function __construct(
         public string $ownerPlugin,

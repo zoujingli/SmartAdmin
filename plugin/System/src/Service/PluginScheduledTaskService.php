@@ -66,7 +66,7 @@ final class PluginScheduledTaskService
             );
         }
 
-        /** @var SystemScheduledTask $created */
+        /* @var SystemScheduledTask $created */
         return $this->tasks->create($payload);
     }
 
