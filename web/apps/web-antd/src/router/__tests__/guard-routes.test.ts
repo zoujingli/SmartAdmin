@@ -21,15 +21,44 @@ function route(value: {
 describe('shouldRebuildAccessRoutes', () => {
   const coreRouteNames = ['Login', 'Root'];
 
-  it('rebuilds backend plugin fallback routes that still belong to the current entry', () => {
+  it.each([
+    '/system/asset/dashboard',
+    '/system/material/sync-log',
+    '/system/project/portal',
+    '/wechat/client/account',
+  ])('rebuilds backend plugin fallback routes declared by plugin.json: %s', (path) => {
+    const backendPrefixes = [
+      '/system/asset',
+      '/system/material',
+      '/system/project',
+      '/wechat/client',
+    ];
     const result = shouldRebuildAccessRoutes(route({
       name: 'FallbackNotFound',
-      path: '/admin/material/region',
+      path,
     }), {
       coreRouteNames,
-      isEntryPath: (path) => path === '/admin/material/region',
+      isEntryPath: (value) => value.startsWith('/system') || value.startsWith('/wechat'),
       // 后台插件入口来自 plugin.json apps，首跳可能早于后端菜单动态路由生成。
-      isKnownAccessPath: (path) => path === '/admin/material/region',
+      isKnownAccessPath: (value) => backendPrefixes.some((prefix) => value === prefix || value.startsWith(`${prefix}/`)),
+    });
+
+    expect(result).toBe(true);
+  });
+
+  it.each([
+    '/asset/dashboard',
+    '/material/sync-log',
+    '/project/portal',
+  ])('rebuilds secondary auth-entry fallback routes declared by plugins: %s', (path) => {
+    const authEntryPrefixes = ['/asset', '/material', '/project'];
+    const result = shouldRebuildAccessRoutes(route({
+      name: 'FallbackNotFound',
+      path,
+    }), {
+      coreRouteNames,
+      isEntryPath: (value) => authEntryPrefixes.some((prefix) => value === prefix || value.startsWith(`${prefix}/`)),
+      isKnownAccessPath: (value) => authEntryPrefixes.some((prefix) => value === prefix || value.startsWith(`${prefix}/`)),
     });
 
     expect(result).toBe(true);

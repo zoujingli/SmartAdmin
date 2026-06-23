@@ -10,6 +10,7 @@ import {
   activateAuthEntry,
   coreAuthApiService,
   getAuthEntry,
+  getAuthEntryConfigs,
   getAuthEntryByRoutePath,
   getAuthEntryConfig,
   getAuthEntryByUserInfo,
@@ -28,6 +29,7 @@ import { useAuthStore } from '#/store';
 
 import { generateAccess } from './access';
 import {
+  routeReentry,
   shouldPreserveModuleGuideHistory,
   shouldRebuildAccessRoutes as shouldRebuildAccessRoutesForEntry,
 } from './guard-routes';
@@ -83,6 +85,18 @@ function setupAccessGuard(router: Router) {
     const normalized = normalizeGuardPath(path);
 
     return backendPluginHomes.some((entry) => pathMatchesPrefix(normalized, normalizeGuardPath(entry.routePrefix)));
+  }
+
+  function isSecondaryAuthEntryPath(path?: string): boolean {
+    const normalized = normalizeGuardPath(path);
+
+    // 独立插件入口由各插件 auth-entry.ts 声明；它们没有后台 plugin.json apps 菜单入口时，
+    // 首跳 fallback 也要允许触发一次动态路由重建，覆盖未来新增插件入口。
+    return getAuthEntryConfigs()
+      .filter((entry) => isSecondaryAuthEntry(entry.entry))
+      .some((entry) => entry.routePrefixes.some((prefix) => (
+        pathMatchesPrefix(normalized, normalizeGuardPath(prefix))
+      )));
   }
 
   function pathMatchesEntry(path: string, entry: string): boolean {
@@ -143,7 +157,8 @@ function setupAccessGuard(router: Router) {
     return treeHasPath(accessStore.accessMenus as any, path)
       || treeHasPath(accessStore.accessRoutes as any, path)
       || treeHasPath(accessRoutes as any, path)
-      || isBackendPluginPath(path);
+      || isBackendPluginPath(path)
+      || isSecondaryAuthEntryPath(path);
   }
 
   function shouldRebuildAccessRoutes(to: RouteLocationNormalized): boolean {
@@ -189,12 +204,7 @@ function setupAccessGuard(router: Router) {
 
     // 重新进入当前地址时只返回原始路由字段，不能把 router.resolve() 的 matched/meta 快照带回守卫；
     // 动态路由刚重建时携带旧匹配结果会让 RouterView 继续渲染 fallback，出现首次点击空白、刷新才正常。
-    return {
-      hash: resolved.hash,
-      path: resolved.path,
-      query: resolved.query,
-      replace,
-    };
+    return routeReentry(resolved, { replace });
   }
 
   function isSafeRedirectPath(path: string, entry: string): boolean {

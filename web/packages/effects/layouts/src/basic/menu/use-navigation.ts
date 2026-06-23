@@ -11,6 +11,7 @@ function useNavigation() {
   // 初始化路由映射
   const initRouteMetaMap = () => {
     const routes = router.getRoutes();
+    routeMetaMap.clear();
     routes.forEach((route) => {
       routeMetaMap.set(route.path, route);
     });
@@ -28,7 +29,7 @@ function useNavigation() {
     if (isHttpUrl(path)) {
       return true;
     }
-    const route = routeMetaMap.get(path);
+    const route = resolveStableRoute(path);
     // 如果有外链或者设置了在新窗口打开，返回 true
     return !!(route?.meta?.link || route?.meta?.openInNewWindow);
   };
@@ -37,9 +38,27 @@ function useNavigation() {
     return router.resolve(path).href;
   };
 
+  function isFallbackRoute(path: string) {
+    const resolved = router.resolve(path);
+
+    return resolved.name === 'FallbackNotFound'
+      || resolved.matched.some((route) => route.name === 'FallbackNotFound');
+  }
+
+  function resolveStableRoute(path: string) {
+    // 插件菜单可能先于后端动态路由注册完成；此时 router.resolve 会命中全局 404。
+    // 不能把 fallback 的 meta 当作真实页面配置，否则菜单首跳会打开 tab 但 RouterView 留空。
+    return isFallbackRoute(path) ? undefined : routeMetaMap.get(path);
+  }
+
   const navigation = async (path: string) => {
     try {
-      const route = routeMetaMap.get(path);
+      if (isHttpUrl(path)) {
+        openWindow(path, { target: '_blank' });
+        return;
+      }
+
+      const route = resolveStableRoute(path);
       const { openInNewWindow = false, query = {}, link } = route?.meta ?? {};
 
       // 检查是否有外链
@@ -48,9 +67,7 @@ function useNavigation() {
         return;
       }
 
-      if (isHttpUrl(path)) {
-        openWindow(path, { target: '_blank' });
-      } else if (openInNewWindow) {
+      if (openInNewWindow) {
         openRouteInNewWindow(resolveHref(path));
       } else {
         await router.push({
