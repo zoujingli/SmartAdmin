@@ -12,7 +12,11 @@ interface RouteReentrySource {
   query: RouteLocationNormalized['query'];
 }
 
+type ProjectFlowProgressDemoRouteSource = Pick<RouteLocationNormalized, 'path' | 'query'>
+  & Partial<Pick<RouteLocationNormalized, 'fullPath'>>;
+
 const MODULE_GUIDE_PATH = '/entry';
+const PROJECT_FLOW_PROGRESS_DEMO_PATHS = ['/project/flow-progress', '/project/gantt'];
 
 function normalizeClientPath(path?: string): string {
   const raw = String(path || '').split(/[?#]/)[0] || '';
@@ -20,8 +24,65 @@ function normalizeClientPath(path?: string): string {
   return `/${raw.replace(/^\/+/, '')}`.replace(/\/+$/, '') || '/';
 }
 
+function firstQueryValue(value: unknown): string {
+  const raw = Array.isArray(value) ? value[0] : value;
+
+  return String(raw ?? '').trim();
+}
+
+function queryValueFromFullPath(fullPath: unknown, key: string): string {
+  const source = String(fullPath || '');
+  const query = source.includes('?') ? source.split('?')[1]?.split('#')[0] || '' : '';
+  if (!query) {
+    return '';
+  }
+
+  return new URLSearchParams(query).get(key)?.trim() || '';
+}
+
+function currentBrowserFullPath(): string {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  return `${window.location.pathname}${window.location.search}${window.location.hash}`;
+}
+
+function isDemoPath(value: unknown): boolean {
+  const source = String(value || '');
+  if (!source) {
+    return false;
+  }
+
+  const hashRoute = source.includes('#/')
+    ? source.slice(source.indexOf('#') + 1)
+    : source;
+
+  return PROJECT_FLOW_PROGRESS_DEMO_PATHS.includes(normalizeClientPath(hashRoute));
+}
+
 function shouldPreserveModuleGuideHistory(from: Pick<RouteLocationNormalized, 'path'>): boolean {
   return normalizeClientPath(from.path) === MODULE_GUIDE_PATH;
+}
+
+/**
+ * 流程进度甘特图浏览器验收需要在未登录时渲染真实页面。
+ * 该入口只在 Vite 开发环境、固定页面、固定查询参数下放行，避免扩大 Project 其它业务页访问面。
+ */
+function isProjectFlowProgressDemoRoute(
+  to: ProjectFlowProgressDemoRouteSource,
+  isDev = import.meta.env.DEV,
+): boolean {
+  const demoQuery = firstQueryValue(to.query.flow_progress_demo)
+    || queryValueFromFullPath(to.fullPath, 'flow_progress_demo')
+    || queryValueFromFullPath(currentBrowserFullPath(), 'flow_progress_demo');
+  const demoPath = isDemoPath(to.path)
+    || isDemoPath(to.fullPath)
+    || isDemoPath(currentBrowserFullPath());
+
+  return isDev
+    && demoPath
+    && demoQuery === '1';
 }
 
 /**
@@ -55,4 +116,9 @@ function routeReentry(to: RouteReentrySource, options: { replace?: boolean } = {
   };
 }
 
-export { routeReentry, shouldPreserveModuleGuideHistory, shouldRebuildAccessRoutes };
+export {
+  isProjectFlowProgressDemoRoute,
+  routeReentry,
+  shouldPreserveModuleGuideHistory,
+  shouldRebuildAccessRoutes,
+};

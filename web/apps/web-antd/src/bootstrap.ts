@@ -19,6 +19,7 @@ import { initComponentAdapter } from './adapter/component';
 import { initSetupVbenForm } from './adapter/form';
 import App from './app.vue';
 import { router } from './router';
+import { isProjectFlowProgressDemoRoute } from './router/guard-routes';
 import './styles/crud-interactions.css';
 
 async function bootstrap(namespace: string) {
@@ -52,14 +53,23 @@ async function bootstrap(namespace: string) {
   await initStores(app, { namespace });
 
   // 插件运行期能力必须先注册，再读取登录品牌、菜单、上传和通知等 provider。
-  await setupPlugins({ app, namespace });
-  const bootPath = router.resolve(window.location.hash.replace(/^#/, '') || window.location.pathname).path;
-  activateAuthEntry(getLoginEntryByPath(bootPath) || getAuthEntryByRoutePath(bootPath) || getDefaultAuthEntry().entry);
+  await setupPlugins({ app, namespace, router });
+  const bootTarget = window.location.hash.replace(/^#/, '') || `${window.location.pathname}${window.location.search}`;
+  const bootRoute = router.resolve(bootTarget);
+  const bootPath = bootRoute.path;
+  const isFlowProgressDemo = isProjectFlowProgressDemoRoute(bootRoute);
+  activateAuthEntry(
+    isFlowProgressDemo
+      ? getDefaultAuthEntry().entry
+      : getLoginEntryByPath(bootPath) || getAuthEntryByRoutePath(bootPath) || getDefaultAuthEntry().entry,
+  );
 
-  try {
-    applyUiMetaPreferences(await coreAuthApiService.getUiMeta());
-  } catch {
-    // 登录前读取后台品牌配置失败时，继续使用内置品牌配置兜底。
+  if (!isFlowProgressDemo) {
+    try {
+      applyUiMetaPreferences(await coreAuthApiService.getUiMeta());
+    } catch {
+      // 登录前读取后台品牌配置失败时，继续使用内置品牌配置兜底。
+    }
   }
 
   // 安装权限指令

@@ -2,7 +2,12 @@ import type { RouteLocationNormalized } from 'vue-router';
 
 import { describe, expect, it } from 'vitest';
 
-import { routeReentry, shouldPreserveModuleGuideHistory, shouldRebuildAccessRoutes } from '../guard-routes';
+import {
+  isProjectFlowProgressDemoRoute,
+  routeReentry,
+  shouldPreserveModuleGuideHistory,
+  shouldRebuildAccessRoutes,
+} from '../guard-routes';
 
 function route(value: {
   ignoreAccess?: boolean;
@@ -157,5 +162,48 @@ describe('shouldRebuildAccessRoutes', () => {
       query: {},
       replace: false,
     });
+  });
+});
+
+describe('isProjectFlowProgressDemoRoute', () => {
+  it('allows only the dev demo query for project flow progress', () => {
+    expect(isProjectFlowProgressDemoRoute({
+      path: '/project/flow-progress',
+      query: { flow_progress_demo: '1' },
+    } as Pick<RouteLocationNormalized, 'path' | 'query'>, true)).toBe(true);
+
+    expect(isProjectFlowProgressDemoRoute({
+      path: '/project/flow-progress/',
+      query: { flow_progress_demo: ['1'] },
+    } as Pick<RouteLocationNormalized, 'path' | 'query'>, true)).toBe(true);
+
+    expect(isProjectFlowProgressDemoRoute({
+      fullPath: '/project/flow-progress?flow_progress_demo=1',
+      path: '/project/flow-progress',
+      query: {},
+    } as Pick<RouteLocationNormalized, 'fullPath' | 'path' | 'query'>, true)).toBe(true);
+
+    expect(isProjectFlowProgressDemoRoute({
+      fullPath: '/project/gantt?flow_progress_demo=1',
+      path: '/project/gantt',
+      query: {},
+    } as Pick<RouteLocationNormalized, 'fullPath' | 'path' | 'query'>, true)).toBe(true);
+  });
+
+  it('does not allow production, missing query or other project pages', () => {
+    const routeValue = {
+      path: '/project/flow-progress',
+      query: { flow_progress_demo: '1' },
+    } as Pick<RouteLocationNormalized, 'path' | 'query'>;
+
+    expect(isProjectFlowProgressDemoRoute(routeValue, false)).toBe(false);
+    expect(isProjectFlowProgressDemoRoute({
+      path: '/project/flow-progress',
+      query: {},
+    } as Pick<RouteLocationNormalized, 'path' | 'query'>, true)).toBe(false);
+    expect(isProjectFlowProgressDemoRoute({
+      path: '/project/task',
+      query: { flow_progress_demo: '1' },
+    } as Pick<RouteLocationNormalized, 'path' | 'query'>, true)).toBe(false);
   });
 });

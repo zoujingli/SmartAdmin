@@ -39,7 +39,17 @@ declare module 'virtual:xadmin-plugin-auth-entries' {
 }
 
 declare module 'virtual:xadmin-plugin-setups' {
-  export function setupPlugins(appContext?: Record<string, unknown>): Promise<void>;
+  import type { App } from 'vue';
+  import type { Router } from 'vue-router';
+
+  interface PluginSetupContext {
+    app?: App;
+    namespace?: string;
+    router?: Router;
+    [key: string]: unknown;
+  }
+
+  export function setupPlugins(appContext?: PluginSetupContext): Promise<void>;
 }
 
 declare module 'virtual:xadmin-plugin-backend-homes' {

@@ -133,7 +133,7 @@ final class SystemSchedulerContractTest extends TestCase
         self::assertStringContainsString("for (const setupFile of ['setup.ts', 'setup.mts'])", $vite);
         self::assertStringContainsString('export async function setupPlugins(appContext = {})', $vite);
         self::assertStringContainsString("import { setupPlugins } from 'virtual:xadmin-plugin-setups'", $bootstrap);
-        self::assertStringContainsString('await setupPlugins({ app, namespace });', $bootstrap);
+        self::assertStringContainsString('await setupPlugins({ app, namespace, router });', $bootstrap);
         self::assertStringContainsString('configureTaskProgressProvider', $systemSetup);
         self::assertStringContainsString('/system/task/status', $systemSetup);
         self::assertStringContainsString('CrudTableActions', $view);
@@ -297,4 +297,5 @@ final class SystemSchedulerContractTest extends TestCase
         self::assertStringNotContainsString('shell_exec', $database . $logs . $cache);
         self::assertStringNotContainsString('exec(', $database . $logs . $cache);
     }
+
 }

@@ -29,6 +29,7 @@ import { useAuthStore } from '#/store';
 
 import { generateAccess } from './access';
 import {
+  isProjectFlowProgressDemoRoute,
   routeReentry,
   shouldPreserveModuleGuideHistory,
   shouldRebuildAccessRoutes as shouldRebuildAccessRoutesForEntry,
@@ -295,6 +296,13 @@ function setupAccessGuard(router: Router) {
     const accessStore = useAccessStore();
     const userStore = useUserStore();
     const authStore = useAuthStore();
+
+    if (isProjectFlowProgressDemoRoute(to)) {
+      activateAuthEntry(getDefaultAuthEntry().entry);
+
+      return true;
+    }
+
     activateEntryForPath(to.path, userStore.userInfo);
 
     // 基本路由，这些路由不需要进入权限拦截

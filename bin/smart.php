@@ -337,6 +337,45 @@ final class SmartEntrypoint
 }
 
 /**
+ * 开发进程状态检查器。
+ *
+ * Process::kill($pid, 0) 对 zombie 进程也会返回存在；watch 接管时这类进程已经退出且不可再 kill，
+ * 只能等待父进程回收，因此需要用 ps 状态把它们视为已退出，避免阻塞新 watch 启动。
+ */
+final class SmartWatchProcessInspector
+{
+    public static function isRunning(int $pid): bool
+    {
+        if ($pid <= 0 || !@Process::kill($pid, 0)) {
+            return false;
+        }
+
+        return !self::isZombie($pid);
+    }
+
+    private static function isZombie(int $pid): bool
+    {
+        $output = [];
+        $status = 0;
+        @exec('ps -p ' . (int)$pid . ' -o stat=,command= 2>/dev/null', $output, $status);
+        if ($status !== 0 || $output === []) {
+            return false;
+        }
+
+        foreach ($output as $line) {
+            $columns = preg_split('/\s+/', trim((string)$line), 2);
+            $stat = $columns[0] ?? '';
+            $command = $columns[1] ?? '';
+            if (str_contains($stat, 'Z') || str_contains($command, '<defunct>')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
+/**
  * 源码期 watch 运行器。
  *
  * watch 不注册为 Hyperf 命令，避免开发监听器与应用容器、协程事件循环互相污染；这里只用 Swoole Process/Event/Timer
@@ -532,7 +571,7 @@ final class SmartWatchRunner
         rewind($handle);
         $meta = json_decode((string)stream_get_contents($handle), true);
         $pid = is_array($meta) ? (int)($meta['pid'] ?? 0) : 0;
-        if ($pid > 0 && !@Process::kill($pid, 0)) {
+        if ($pid > 0 && !SmartWatchProcessInspector::isRunning($pid)) {
             SmartWatchLogger::warning(sprintf(
                 '⚠️ 覆盖陈旧 SmartAdmin watch 锁 (pid=%d 已不存在)。%s',
                 $pid,
@@ -557,7 +596,7 @@ final class SmartWatchRunner
      */
     private function killPids(array $pids): bool
     {
-        $pids = array_values(array_unique(array_filter($pids, static fn (int $pid): bool => $pid > 0 && $pid !== (int)getmypid() && @Process::kill($pid, 0))));
+        $pids = array_values(array_unique(array_filter($pids, static fn (int $pid): bool => $pid > 0 && $pid !== (int)getmypid() && SmartWatchProcessInspector::isRunning($pid))));
         if ($pids === []) {
             return true;
         }
@@ -590,14 +629,14 @@ final class SmartWatchRunner
     {
         $deadline = microtime(true) + ($timeoutMs / 1000);
         do {
-            $alive = array_values(array_filter($pids, static fn (int $pid): bool => @Process::kill($pid, 0)));
+            $alive = array_values(array_filter($pids, static fn (int $pid): bool => SmartWatchProcessInspector::isRunning($pid)));
             if ($alive === []) {
                 return [];
             }
             usleep(200000);
         } while (microtime(true) < $deadline);
 
-        return array_values(array_filter($pids, static fn (int $pid): bool => @Process::kill($pid, 0)));
+        return array_values(array_filter($pids, static fn (int $pid): bool => SmartWatchProcessInspector::isRunning($pid)));
     }
 }
 
@@ -813,7 +852,7 @@ final class SmartWatchProcessManager
             }
         }
 
-        return array_values(array_unique(array_filter($pids, static fn (int $pid): bool => $pid > 0 && $pid !== (int)getmypid() && @Process::kill($pid, 0))));
+        return array_values(array_unique(array_filter($pids, static fn (int $pid): bool => $pid > 0 && $pid !== (int)getmypid() && SmartWatchProcessInspector::isRunning($pid))));
     }
 
     private function isProjectStartCommand(string $command): bool
