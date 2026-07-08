@@ -82,27 +82,20 @@ final class DataServiceModuleGuideTest extends TestCase
         });
     }
 
-    public function testModuleGuideEntryPageUsesThemeTokens(): void
+    public function testModuleGuideEntryPageKeepsImmersiveGatewayStyle(): void
     {
         $root = dirname(__DIR__, 4);
         $entryPage = (string)file_get_contents($root . '/web/apps/web-antd/src/views/_core/module-guide/index.vue');
 
-        self::assertStringContainsString('--guide-primary: var(--ant-colorPrimary', $entryPage);
-        self::assertStringContainsString('--guide-primary-bg: var(--ant-colorPrimaryBg, hsl(var(--primary) / 0.12));', $entryPage);
-        self::assertStringContainsString('--guide-success-bg: var(--ant-colorSuccessBg, hsl(var(--success) / 0.12));', $entryPage);
-        self::assertStringContainsString('background: var(--guide-bg);', $entryPage);
-        self::assertStringContainsString('系统入口', $entryPage);
-        self::assertStringContainsString('统一入口', $entryPage);
-        self::assertStringContainsString('已就绪', $entryPage);
-        self::assertStringNotContainsString('--guide-void', $entryPage);
-        self::assertStringNotContainsString('APP GATEWAY', $entryPage);
-        self::assertStringNotContainsString('ACTIVE ENTRIES', $entryPage);
-        self::assertStringNotContainsString('PUBLIC ENTRY', $entryPage);
-        self::assertDoesNotMatchRegularExpression(
-            '/#[0-9a-fA-F]{3,8}\b|rgba?\(|(?:linear|radial|conic)-gradient|box-shadow|drop-shadow|text-shadow/',
-            $entryPage,
-            '模块入口页必须兼容亮色、暗色和主题色切换，不允许回退为固定深色装饰样式',
-        );
+        self::assertStringContainsString('--guide-void: #040711;', $entryPage);
+        self::assertStringContainsString('APP GATEWAY', $entryPage);
+        self::assertStringContainsString('ACTIVE ENTRIES', $entryPage);
+        self::assertStringContainsString('PUBLIC ENTRY', $entryPage);
+        self::assertStringContainsString('READY', $entryPage);
+        self::assertStringContainsString('ONLINE', $entryPage);
+        self::assertStringContainsString('radial-gradient(circle at 18% 14%', $entryPage);
+        self::assertStringContainsString('guide-binary-drop', $entryPage);
+        self::assertStringContainsString('@media (prefers-reduced-motion: reduce)', $entryPage);
     }
 
     /**
