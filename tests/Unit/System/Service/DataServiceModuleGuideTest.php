@@ -76,6 +76,9 @@ final class DataServiceModuleGuideTest extends TestCase
 
             self::assertTrue($result['enabled']);
             self::assertSame('demo', $result['entries'][0]['code'] ?? null);
+            self::assertSame('/demo/home', $result['entries'][0]['home_path'] ?? null);
+            self::assertSame('/demo/login', $result['entries'][0]['login_path'] ?? null);
+            self::assertSame('演示入口', $result['entries'][0]['name'] ?? null);
         });
     }
 

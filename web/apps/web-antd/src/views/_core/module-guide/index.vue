@@ -12,6 +12,8 @@ import { Empty, Skeleton, message } from 'ant-design-vue';
 import { getAuthLoginPath } from '#/api';
 import { getModuleGuideProvider } from '#/plugins/module-guide-provider';
 
+import { moduleGuideHomeTarget } from './entry-targets';
+
 const router = useRouter();
 const loading = ref(false);
 const entries = ref<ModuleGuideEntry[]>([]);
@@ -114,11 +116,6 @@ const binaryRainDrops = binaryRainDropSeeds.flatMap(
     }),
 );
 
-function normalizePath(value: string) {
-  const path = `/${String(value || '').trim().replace(/^\/+/, '')}`;
-  return path === '/' ? '/' : path.replace(/\/+$/, '');
-}
-
 function normalizeGuideEntries(source: ModuleGuideEntry[]) {
   const merged = new Map<string, ModuleGuideEntry>();
   for (const entry of source) {
@@ -163,9 +160,13 @@ async function loadGuide() {
   }
 }
 
+function entryHomeTarget(entry: ModuleGuideEntry) {
+  return moduleGuideHomeTarget(entry, getAuthLoginPath());
+}
+
 function openEntry(entry: ModuleGuideEntry) {
-  const target = normalizePath(entry.home_path || entry.login_path || getAuthLoginPath());
-  router.push(target).catch((error) => {
+  const targetPath = entryHomeTarget(entry);
+  router.push(targetPath).catch((error) => {
     console.error('open module entry failed', error);
   });
 }
@@ -212,35 +213,28 @@ onMounted(() => {
 
       <section class="module-guide__hero">
         <div class="module-guide__hero-copy">
-          <div class="module-guide__eyebrow">
-            <span class="module-guide__eyebrow-dot" />
-            系统引导
-          </div>
-          <h1 class="module-guide__name">{{ appName }}</h1>
-          <p class="module-guide__desc">
-            {{ appDescription || '请选择要进入的业务系统。' }}
-          </p>
-        </div>
-
-        <aside class="module-guide__console" aria-label="系统状态">
-          <div class="module-guide__console-head">
-            <span class="module-guide__console-dot"></span>
-            <span class="module-guide__console-dot"></span>
-            <span class="module-guide__console-dot"></span>
-            <span class="module-guide__console-title">ACCESS NODE</span>
-          </div>
-          <div class="module-guide__console-body">
-            <div class="module-guide__metric">
-              <span class="module-guide__metric-value">{{ entries.length }}</span>
-              <span class="module-guide__metric-label">ACTIVE ENTRIES</span>
+          <div class="module-guide__hero-text">
+            <div class="module-guide__eyebrow">
+              <span class="module-guide__eyebrow-dot" />
+              系统引导
             </div>
-            <div class="module-guide__pulse-line"></div>
-            <div class="module-guide__console-row">
-              <span>PUBLIC ENTRY</span>
+            <h1 class="module-guide__name">{{ appName }}</h1>
+            <p class="module-guide__desc">
+              {{ appDescription || '请选择要进入的业务系统。' }}
+            </p>
+          </div>
+
+          <div class="module-guide__hero-status" aria-label="系统状态">
+            <div class="module-guide__status-chip">
+              <span class="module-guide__status-value">{{ entries.length }}</span>
+              <span class="module-guide__status-label">ACTIVE ENTRIES</span>
+            </div>
+            <div class="module-guide__status-chip module-guide__status-chip--ready">
+              <span class="module-guide__status-label">PUBLIC ENTRY</span>
               <strong>READY</strong>
             </div>
           </div>
-        </aside>
+        </div>
       </section>
 
       <section class="module-guide__section">
@@ -259,13 +253,11 @@ onMounted(() => {
           description="暂无可用系统入口"
         />
         <section v-else class="module-guide__grid">
-          <button
+          <article
             v-for="entry in entries"
             :key="entry.code"
-            type="button"
             class="module-guide__card"
             :class="`module-guide__card--${entry.code}`"
-            @click="openEntry(entry)"
           >
             <span class="module-guide__card-glow" aria-hidden="true"></span>
             <div class="module-guide__card-body">
@@ -286,14 +278,16 @@ onMounted(() => {
                 <div class="module-guide__summary">{{ entry.description }}</div>
                 <div class="module-guide__card-foot">
                   <span class="module-guide__entry-code">{{ entry.code }}</span>
-                  <span class="module-guide__enter">
-                    进入系统
-                    <IconifyIcon icon="lucide:chevron-right" />
-                  </span>
+                  <div class="module-guide__actions">
+                    <button type="button" class="module-guide__enter" @click="openEntry(entry)">
+                      立即登录
+                      <IconifyIcon icon="lucide:chevron-right" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </button>
+          </article>
         </section>
       </section>
     </main>
@@ -566,13 +560,17 @@ onMounted(() => {
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .module-guide__hero-copy {
   position: relative;
-  min-height: 108px;
-  padding: 18px 252px 18px 24px;
+  display: flex;
+  min-height: 112px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 22px 18px 24px;
   border: 1px solid var(--guide-line);
   border-radius: 8px;
   overflow: hidden;
@@ -599,6 +597,12 @@ onMounted(() => {
     conic-gradient(from 120deg, transparent, rgb(45 212 191 / 28%), transparent, rgb(56 189 248 / 16%), transparent);
   filter: blur(0.2px);
   opacity: 0.86;
+}
+
+.module-guide__hero-text {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
 }
 
 .module-guide__eyebrow {
@@ -646,111 +650,53 @@ onMounted(() => {
   line-height: 1.65;
 }
 
-.module-guide__console {
-  position: absolute;
-  top: 10px;
-  right: 12px;
-  z-index: 2;
-  display: flex;
-  width: 184px;
-  min-height: 0;
-  flex-direction: column;
-  border: 1px solid var(--guide-line);
-  border-radius: 8px;
-  overflow: hidden;
-  background:
-    linear-gradient(145deg, rgb(45 212 191 / 14%), transparent 48%),
-    linear-gradient(180deg, rgb(255 255 255 / 8%), rgb(255 255 255 / 3%)),
-    rgb(8 14 26 / 82%);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 12%),
-    0 28px 80px rgb(0 0 0 / 34%);
-}
-
-.module-guide__console-head {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  min-height: 24px;
-  padding: 0 9px;
-  border-bottom: 0;
-  background: rgb(255 255 255 / 5%);
-}
-
-.module-guide__console-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 8px;
-  background: rgb(56 189 248 / 74%);
-}
-
-.module-guide__console-dot:nth-child(2) {
-  background: rgb(45 212 191 / 78%);
-}
-
-.module-guide__console-dot:nth-child(3) {
-  background: rgb(245 158 11 / 78%);
-}
-
-.module-guide__console-title {
-  margin-left: auto;
-  color: var(--guide-text-muted);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0;
-}
-
-.module-guide__console-body {
-  display: flex;
+.module-guide__hero-status {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 10px;
   align-items: center;
   justify-content: flex-end;
-  padding: 0 8px 8px;
 }
 
-.module-guide__metric {
-  display: none;
-}
-
-.module-guide__metric-value {
-  color: var(--guide-text);
-  font-size: 28px;
-  font-weight: 850;
-  line-height: 0.95;
-  text-shadow: 0 0 28px rgb(45 212 191 / 26%);
-}
-
-.module-guide__metric-label {
-  color: var(--guide-text-muted);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0;
-}
-
-.module-guide__pulse-line {
-  display: none;
-  height: 10px;
-  margin: 3px 0;
-  background:
-    linear-gradient(90deg, transparent, rgb(45 212 191 / 50%), transparent) center / 100% 1px no-repeat,
-    linear-gradient(90deg, transparent 0 12%, rgb(45 212 191 / 46%) 12% 15%, transparent 15% 28%, rgb(56 189 248 / 70%) 28% 32%, transparent 32% 48%, rgb(163 230 53 / 62%) 48% 51%, transparent 51% 100%) center / 100% 100% no-repeat;
-  filter: drop-shadow(0 0 12px rgb(45 212 191 / 26%));
-}
-
-.module-guide__console-row {
-  display: flex;
+.module-guide__status-chip {
+  display: inline-flex;
+  gap: 8px;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 4px 8px;
+  min-height: 34px;
+  padding: 0 12px;
   border: 1px solid var(--guide-line);
   border-radius: 8px;
   color: var(--guide-text-muted);
-  background: rgb(255 255 255 / 4%);
-  font-size: 10px;
-  font-weight: 750;
+  background:
+    linear-gradient(135deg, rgb(56 189 248 / 12%), rgb(255 255 255 / 4%)),
+    rgb(8 14 26 / 54%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%);
+  font-size: 11px;
+  font-weight: 820;
+  white-space: nowrap;
 }
 
-.module-guide__console-row strong {
+.module-guide__status-value {
+  color: var(--guide-text);
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.module-guide__status-label {
+  letter-spacing: 0;
+}
+
+.module-guide__status-chip--ready {
+  border-color: rgb(163 230 53 / 30%);
+  background:
+    linear-gradient(135deg, rgb(163 230 53 / 12%), rgb(255 255 255 / 4%)),
+    rgb(8 14 26 / 54%);
+}
+
+.module-guide__status-chip strong {
   color: var(--guide-info);
   font-weight: 850;
 }
@@ -764,7 +710,7 @@ onMounted(() => {
   gap: 12px;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .module-guide__section-title {
@@ -799,7 +745,7 @@ onMounted(() => {
 .module-guide__grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
+  gap: 16px;
 }
 
 .module-guide__card {
@@ -827,9 +773,8 @@ onMounted(() => {
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 14%),
     inset 0 0 0 1px rgb(255 255 255 / 4%),
-    0 20px 58px rgb(0 0 0 / 30%),
-    0 0 34px color-mix(in srgb, var(--guide-accent) 10%, transparent);
-  cursor: pointer;
+    0 18px 44px rgb(0 0 0 / 24%),
+    0 0 24px color-mix(in srgb, var(--guide-accent) 8%, transparent);
   transition:
     background 0.18s ease,
     border-color 0.18s ease,
@@ -940,10 +885,10 @@ onMounted(() => {
     var(--guide-card-surface);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 18%),
-    0 26px 70px rgb(0 0 0 / 38%),
+    0 22px 58px rgb(0 0 0 / 34%),
     0 0 0 1px color-mix(in srgb, var(--guide-accent) 16%, transparent),
-    0 0 48px color-mix(in srgb, var(--guide-accent) 18%, transparent);
-  transform: translateY(-4px);
+    0 0 36px color-mix(in srgb, var(--guide-accent) 16%, transparent);
+  transform: translateY(-3px);
 }
 
 .module-guide__card:hover .module-guide__card-glow {
@@ -951,20 +896,15 @@ onMounted(() => {
   transform: scale(1.08);
 }
 
-.module-guide__card:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--guide-accent) 72%, white);
-  outline-offset: 4px;
-}
-
 .module-guide__card-body {
   position: relative;
   z-index: 1;
   display: flex;
   height: 100%;
-  min-height: 236px;
+  min-height: 218px;
   flex-direction: column;
-  gap: 18px;
-  padding: 22px;
+  gap: 16px;
+  padding: 20px;
 }
 
 .module-guide__card-top {
@@ -1030,16 +970,16 @@ onMounted(() => {
 
 .module-guide__title {
   color: var(--guide-text);
-  font-size: 22px;
+  font-size: 21px;
   font-weight: 850;
   line-height: 1.4;
 }
 
 .module-guide__summary {
-  min-height: 66px;
-  margin-top: 12px;
+  min-height: 58px;
+  margin-top: 10px;
   color: var(--guide-text-soft);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   line-height: 1.7;
 }
@@ -1050,12 +990,8 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   margin-top: auto;
-  padding: 11px 12px;
-  border: 1px solid color-mix(in srgb, var(--guide-accent) 24%, rgb(255 255 255 / 12%));
-  border-radius: 8px;
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--guide-accent) 12%, transparent), color-mix(in srgb, var(--guide-accent-2) 8%, transparent)),
-    rgb(255 255 255 / 5%);
+  padding-top: 13px;
+  border-top: 1px solid color-mix(in srgb, var(--guide-accent) 22%, rgb(255 255 255 / 10%));
 }
 
 .module-guide__entry-code {
@@ -1068,15 +1004,34 @@ onMounted(() => {
   white-space: nowrap;
 }
 
+.module-guide__actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 .module-guide__enter {
   display: inline-flex;
   flex: 0 0 auto;
   gap: 4px;
   align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid color-mix(in srgb, var(--guide-accent) 46%, transparent);
+  border-radius: 8px;
   color: color-mix(in srgb, var(--guide-accent) 82%, white);
+  background: color-mix(in srgb, var(--guide-accent) 12%, transparent);
   font-size: 13px;
   font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
   transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
     color 0.18s ease,
     gap 0.18s ease;
 }
@@ -1084,6 +1039,16 @@ onMounted(() => {
 .module-guide__card:hover .module-guide__enter {
   gap: 8px;
   color: var(--guide-accent);
+}
+
+.module-guide__enter:hover {
+  border-color: color-mix(in srgb, var(--guide-accent) 78%, white 8%);
+  background: color-mix(in srgb, var(--guide-accent) 18%, transparent);
+}
+
+.module-guide__enter:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--guide-accent) 72%, white);
+  outline-offset: 3px;
 }
 
 .module-guide__arrow {
@@ -1198,12 +1163,15 @@ onMounted(() => {
   }
 
   .module-guide__hero-copy {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
     min-height: 98px;
     padding-right: 24px;
   }
 
-  .module-guide__console {
-    display: none;
+  .module-guide__hero-status {
+    justify-content: flex-start;
   }
 
   .module-guide__grid {
@@ -1270,6 +1238,7 @@ onMounted(() => {
   }
 
   .module-guide__hero-copy {
+    gap: 12px;
     min-height: 88px;
     padding: 14px 16px;
   }
@@ -1282,8 +1251,17 @@ onMounted(() => {
     display: none;
   }
 
-  .module-guide__console {
-    display: none;
+  .module-guide__hero-status {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .module-guide__status-chip {
+    flex: 1 1 140px;
+    justify-content: center;
+    min-height: 30px;
+    padding: 0 10px;
+    font-size: 10px;
   }
 
   .module-guide__section-head {
@@ -1311,6 +1289,21 @@ onMounted(() => {
     min-height: 204px;
     gap: 14px;
     padding: 18px;
+  }
+
+  .module-guide__card-foot {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .module-guide__actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .module-guide__enter {
+    flex: 1 1 0;
+    justify-content: center;
   }
 
   .module-guide__icon {
