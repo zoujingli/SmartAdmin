@@ -1,6 +1,9 @@
 <template>
   <Modal
     v-model:open="uploadVisible"
+    :closable="!parsing"
+    :keyboard="!parsing"
+    :mask-closable="!parsing"
     :title="`${moduleName}数据导入`"
     :width="popupWidth.xl"
     @cancel="handleUploadClose"
@@ -50,7 +53,7 @@
             <div class="crud-import-dialog__section-title">模板与文件</div>
             <div class="crud-import-dialog__section-desc">支持 .xlsx、.xls、.csv，读取第一个工作表。</div>
           </div>
-          <Button :disabled="importing" @click="downloadTemplate">
+          <Button :disabled="importing || parsing" @click="downloadTemplate">
             <span class="i-lucide-download mr-1" />
             下载导入模板
           </Button>
@@ -59,7 +62,7 @@
         <UploadDragger
           accept=".xlsx,.xls,.csv"
           :before-upload="handleBeforeUpload"
-          :disabled="importing"
+          :disabled="importing || parsing"
           :file-list="fileList"
           :max-count="1"
           :multiple="false"
@@ -73,6 +76,10 @@
         </UploadDragger>
       </div>
 
+      <div v-if="parsing" class="crud-import-dialog__section">
+        <Alert show-icon type="info" message="正在解析导入文件，请稍候。" />
+      </div>
+
       <div v-if="errorMessage" class="crud-import-dialog__section">
         <Alert show-icon type="error" :message="errorMessage" />
       </div>
@@ -80,7 +87,7 @@
 
     <template #footer>
       <Space>
-        <Button @click="handleUploadClose">取消</Button>
+        <Button :disabled="parsing" @click="handleUploadClose">取消</Button>
       </Space>
     </template>
   </Modal>
@@ -198,7 +205,7 @@ import {
 import { popupWidth } from '#/utils/popup';
 
 type CellValue = boolean | number | string | null | undefined;
-type ImportStatus = 'done' | 'idle' | 'importing' | 'preview';
+type ImportStatus = 'done' | 'idle' | 'importing' | 'parsing' | 'preview';
 
 interface ImportColumn {
   example?: CellValue;
@@ -248,6 +255,7 @@ const progress = ref({ current: 0, failed: 0, success: 0, total: 0 });
 const resultRows = ref<ImportResultRow[]>([]);
 
 const importing = computed(() => status.value === 'importing');
+const parsing = computed(() => status.value === 'parsing');
 const failedCount = computed(() => resultRows.value.filter((item) => item.status === 'failed').length);
 const importableColumns = computed(() => props.columns.filter((column) => column.importable !== false));
 const normalizedRules = computed(() => [
@@ -320,10 +328,10 @@ async function handleBeforeUpload(file: File) {
   errorMessage.value = '';
   resultRows.value = [];
   rows.value = [];
-  status.value = 'idle';
+  status.value = 'parsing';
   fileList.value = [{
     name: file.name,
-    status: 'done',
+    status: 'uploading',
     uid: String(Date.now()),
   }];
 
@@ -335,14 +343,17 @@ async function handleBeforeUpload(file: File) {
     if (parsedRows.length === 0) {
       errorMessage.value = '导入文件没有可识别的数据，请检查模板内容。';
       status.value = 'idle';
+      fileList.value = fileList.value.map((item) => ({ ...item, status: 'error' }));
       return false;
     }
     rows.value = parsedRows;
+    fileList.value = fileList.value.map((item) => ({ ...item, status: 'done' }));
     progress.value = { current: 0, failed: 0, success: 0, total: parsedRows.length };
     status.value = 'preview';
     openPreviewLayer();
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : String(error);
+    fileList.value = fileList.value.map((item) => ({ ...item, status: 'error' }));
     status.value = 'idle';
   }
 
@@ -350,7 +361,7 @@ async function handleBeforeUpload(file: File) {
 }
 
 function handleRemoveFile() {
-  if (importing.value) {
+  if (importing.value || parsing.value) {
     return false;
   }
   resetUploadState();
@@ -420,6 +431,10 @@ async function startImport() {
 }
 
 function handleUploadClose() {
+  if (parsing.value) {
+    message.warning('文件解析中，请等待完成后关闭');
+    return;
+  }
   workflowClosed.value = true;
   uploadVisible.value = false;
   emit('close');

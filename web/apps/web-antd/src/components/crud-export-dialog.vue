@@ -37,7 +37,18 @@
         </div>
       </div>
 
-      <Alert v-if="status === 'done'" show-icon type="success" :message="`导出完成，共 ${progress.loaded} 条。`" />
+      <Alert
+        v-if="status === 'done' && progress.loaded > 0"
+        show-icon
+        type="success"
+        :message="`导出完成，共 ${progress.loaded} 条。`"
+      />
+      <Alert
+        v-if="status === 'done' && progress.loaded === 0"
+        show-icon
+        type="warning"
+        message="当前筛选条件下没有可导出的数据，已生成空模板文件。"
+      />
       <Alert v-if="errorMessage" show-icon type="error" :message="errorMessage" />
     </div>
 
@@ -107,6 +118,12 @@ async function startExport() {
     return;
   }
 
+  if (props.columnCount <= 0) {
+    errorMessage.value = '没有可导出的字段，请检查导出配置。';
+    status.value = 'failed';
+    return;
+  }
+
   status.value = 'exporting';
   errorMessage.value = '';
   progress.value = { loaded: 0, total: 0 };
@@ -118,9 +135,18 @@ async function startExport() {
     progress.value = { loaded: result.total, total: result.total };
     status.value = 'done';
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : String(error);
+    errorMessage.value = resolveErrorMessage(error);
     status.value = 'failed';
   }
+}
+
+function resolveErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message.trim() !== '') {
+    return error.message;
+  }
+
+  const message = String(error || '').trim();
+  return message || '导出失败，请稍后重试。';
 }
 
 function handleClose() {

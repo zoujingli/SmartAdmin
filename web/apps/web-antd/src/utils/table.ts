@@ -1,31 +1,31 @@
-interface TableColumnLike {
+export interface TableColumnLike {
   children?: TableColumnLike[];
   minWidth?: number | string;
   width?: number | string;
 }
 
-interface BuildTableScrollXOptions {
+export interface BuildTableScrollXOptions {
   defaultColumnWidth?: number;
   extraWidth?: number;
   minWidth?: number;
   selectionWidth?: number;
 }
 
-type TableActionText = false | null | string | undefined;
+export type TableActionText = false | null | string | undefined;
 
 
-interface TableActionWidthLike {
+export interface TableActionWidthLike {
   label?: TableActionText;
   visible?: boolean;
 }
 
-interface EstimateVisibleActionColumnWidthOptions extends EstimateActionColumnWidthOptions {
+export interface EstimateVisibleActionColumnWidthOptions extends EstimateActionColumnWidthOptions {
   inlineBeforeMore?: number;
   maxInline?: number;
   moreLabel?: string;
 }
 
-interface EstimateActionColumnWidthOptions {
+export interface EstimateActionColumnWidthOptions {
   charWidth?: number;
   gapWidth?: number;
   horizontalPadding?: number;

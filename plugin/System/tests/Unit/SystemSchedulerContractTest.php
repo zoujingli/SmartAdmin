@@ -297,5 +297,4 @@ final class SystemSchedulerContractTest extends TestCase
         self::assertStringNotContainsString('shell_exec', $database . $logs . $cache);
         self::assertStringNotContainsString('exec(', $database . $logs . $cache);
     }
-
 }

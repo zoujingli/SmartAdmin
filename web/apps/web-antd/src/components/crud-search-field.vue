@@ -2,6 +2,7 @@
   <div
     ref="fieldRef"
     class="crud-search-field"
+    :style="fieldStyle"
     @click.capture="handleDropdownTrigger"
     @focusin.capture="handleDropdownTrigger"
     @keydown.capture="handleDropdownTrigger"
@@ -15,20 +16,42 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 
-defineProps<{
+const props = withDefaults(defineProps<{
+  dropdownMaxRatio?: number;
+  dropdownMinWidth?: number;
   /** 搜索区标签固定使用 4 个汉字，保证列表筛选条件横向对齐。 */
   label: string;
-}>();
+  labelWidth?: number | string;
+}>(), {
+  dropdownMaxRatio: 2,
+  dropdownMinWidth: 160,
+  labelWidth: '5.25em',
+});
 
 const fieldRef = ref<HTMLElement>();
 const pendingTimers: number[] = [];
+const fieldStyle = computed(() => ({
+  '--crud-search-label-width': normalizeCssSize(props.labelWidth, '5.25em'),
+}));
 
 function clearPendingTimers() {
   while (pendingTimers.length > 0) {
     window.clearTimeout(pendingTimers.pop()!);
   }
+}
+
+function normalizeCssSize(value: number | string | undefined, fallback: string) {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    return `${value}px`;
+  }
+
+  if (typeof value === 'string' && value.trim() !== '') {
+    return value.trim();
+  }
+
+  return fallback;
 }
 
 function handleDropdownTrigger(event: Event) {
@@ -57,8 +80,11 @@ function queueDropdownWidthApply(triggerWidth: number) {
 
 function applyDropdownWidth(triggerWidth: number) {
   if (triggerWidth <= 0) return;
-  const minWidth = Math.max(160, Math.round(triggerWidth));
-  const maxWidth = Math.max(minWidth, Math.min(minWidth * 2, window.innerWidth - 24));
+  const baseMinWidth = Math.max(120, Number(props.dropdownMinWidth) || 160);
+  const ratio = Number.isFinite(props.dropdownMaxRatio) && props.dropdownMaxRatio > 0 ? props.dropdownMaxRatio : 2;
+  const viewportMaxWidth = Math.max(baseMinWidth, window.innerWidth - 24);
+  const minWidth = Math.min(viewportMaxWidth, Math.max(baseMinWidth, Math.round(triggerWidth)));
+  const maxWidth = Math.max(minWidth, Math.min(Math.round(minWidth * ratio), viewportMaxWidth));
   document
     .querySelectorAll<HTMLElement>('.ant-select-dropdown, .ant-tree-select-dropdown, .ant-cascader-dropdown')
     .forEach((dropdown) => {
@@ -90,9 +116,15 @@ function applyDropdownOptionTitles(dropdown: HTMLElement) {
     .forEach((node) => {
       const text = (node.textContent || '').replace(/\s+/g, ' ').trim();
       if (!text) return;
-      node.setAttribute('title', text);
-      node.closest<HTMLElement>('.ant-select-item-option, .ant-select-tree-treenode, .ant-cascader-menu-item')?.setAttribute('title', text);
+      setStableTitle(node, text);
+      const option = node.closest<HTMLElement>('.ant-select-item-option, .ant-select-tree-treenode, .ant-cascader-menu-item');
+      if (option) setStableTitle(option, text);
     });
+}
+
+function setStableTitle(node: HTMLElement, text: string) {
+  if (node.getAttribute('title') === text) return;
+  node.setAttribute('title', text);
 }
 
 function estimateDropdownContentWidth(dropdown: HTMLElement) {
@@ -151,15 +183,18 @@ onBeforeUnmount(clearPendingTimers);
 
 .crud-search-field__label {
   display: inline-flex;
-  flex: 0 0 5.25em;
+  flex: 0 0 var(--crud-search-label-width, 5.25em);
   align-items: center;
   align-self: stretch;
   box-sizing: border-box;
+  max-width: 45%;
   padding: 0 10px;
   color: var(--ant-colorTextSecondary, hsl(var(--muted-foreground)));
   font-size: 13px;
   font-weight: 500;
   line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
   background: var(--ant-colorFillQuaternary, hsl(var(--muted) / 38%));
   border-right: 1px solid var(--ant-colorBorderSecondary, hsl(var(--border)));
@@ -364,6 +399,10 @@ onBeforeUnmount(clearPendingTimers);
 }
 
 @media (max-width: 767.98px) {
+  .crud-search-field__label {
+    flex-basis: min(var(--crud-search-label-width, 5.25em), 6.5em);
+  }
+
   :global(.crud-search-grid.ant-row > .ant-col) {
     flex: 1 1 100% !important;
     max-width: 100% !important;
