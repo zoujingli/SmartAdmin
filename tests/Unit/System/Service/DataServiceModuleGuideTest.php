@@ -82,6 +82,27 @@ final class DataServiceModuleGuideTest extends TestCase
         });
     }
 
+    public function testModuleGuideEntryPageUsesThemeTokens(): void
+    {
+        $root = dirname(__DIR__, 4);
+        $entryPage = (string)file_get_contents($root . '/web/apps/web-antd/src/views/_core/module-guide/index.vue');
+
+        self::assertStringContainsString('--guide-primary: var(--ant-colorPrimary', $entryPage);
+        self::assertStringContainsString('background: var(--guide-bg);', $entryPage);
+        self::assertStringContainsString('系统入口', $entryPage);
+        self::assertStringContainsString('统一入口', $entryPage);
+        self::assertStringContainsString('已就绪', $entryPage);
+        self::assertStringNotContainsString('--guide-void', $entryPage);
+        self::assertStringNotContainsString('APP GATEWAY', $entryPage);
+        self::assertStringNotContainsString('ACTIVE ENTRIES', $entryPage);
+        self::assertStringNotContainsString('PUBLIC ENTRY', $entryPage);
+        self::assertDoesNotMatchRegularExpression(
+            '/#[0-9a-fA-F]{3,8}\b|rgba?\(|(?:linear|radial|conic)-gradient|box-shadow|drop-shadow|text-shadow/',
+            $entryPage,
+            '模块入口页必须兼容亮色、暗色和主题色切换，不允许回退为固定深色装饰样式',
+        );
+    }
+
     /**
      * 构造仅覆盖模块引导读取链路的 DataService，避免单测依赖真实数据库配置表。
      *

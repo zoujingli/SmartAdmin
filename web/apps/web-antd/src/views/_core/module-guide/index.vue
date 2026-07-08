@@ -207,7 +207,7 @@ onMounted(() => {
           <span class="module-guide__brand-mark">
             <IconifyIcon icon="lucide:layout-dashboard" />
           </span>
-          <span>APP GATEWAY</span>
+          <span>系统入口</span>
         </div>
       </header>
 
@@ -227,11 +227,11 @@ onMounted(() => {
           <div class="module-guide__hero-status" aria-label="系统状态">
             <div class="module-guide__status-chip">
               <span class="module-guide__status-value">{{ entries.length }}</span>
-              <span class="module-guide__status-label">ACTIVE ENTRIES</span>
+              <span class="module-guide__status-label">可用入口</span>
             </div>
             <div class="module-guide__status-chip module-guide__status-chip--ready">
-              <span class="module-guide__status-label">PUBLIC ENTRY</span>
-              <strong>READY</strong>
+              <span class="module-guide__status-label">统一入口</span>
+              <strong>已就绪</strong>
             </div>
           </div>
         </div>
@@ -267,7 +267,7 @@ onMounted(() => {
                 </div>
                 <div class="module-guide__status">
                   <span class="module-guide__status-dot" />
-                  ONLINE
+                  可用
                 </div>
               </div>
               <div class="module-guide__content">
@@ -296,226 +296,38 @@ onMounted(() => {
 
 <style scoped>
 .module-guide {
-  --guide-void: #040711;
-  --guide-base: #080d18;
-  --guide-panel: rgb(11 18 32 / 78%);
-  --guide-panel-strong: rgb(15 24 42 / 92%);
-  --guide-text: #f8fbff;
-  --guide-text-soft: rgb(226 238 255 / 84%);
-  --guide-text-muted: rgb(184 199 225 / 68%);
-  --guide-line: rgb(124 205 255 / 18%);
-  --guide-line-strong: rgb(146 220 255 / 36%);
-  --guide-primary: #38bdf8;
-  --guide-success: #2dd4bf;
-  --guide-info: #a3e635;
-  --guide-warm: #f59e0b;
+  --guide-bg: var(--ant-colorBgLayout, hsl(var(--background)));
+  --guide-panel: var(--ant-colorBgContainer, hsl(var(--card)));
+  --guide-panel-muted: var(--ant-colorFillQuaternary, hsl(var(--muted)));
+  --guide-text: var(--ant-colorText, hsl(var(--foreground)));
+  --guide-text-soft: var(--ant-colorTextSecondary, hsl(var(--muted-foreground)));
+  --guide-text-muted: var(--ant-colorTextTertiary, hsl(var(--muted-foreground)));
+  --guide-line: var(--ant-colorBorderSecondary, hsl(var(--border)));
+  --guide-line-strong: var(--ant-colorBorder, hsl(var(--border)));
+  --guide-primary: var(--ant-colorPrimary, hsl(var(--primary)));
+  --guide-primary-bg: var(--ant-colorPrimaryBg, hsl(var(--primary)));
+  --guide-primary-hover: var(--ant-colorPrimaryHover, hsl(var(--primary)));
+  --guide-solid-text: var(--ant-colorTextLightSolid, hsl(var(--primary-foreground)));
+  --guide-success: var(--ant-colorSuccess, hsl(var(--success)));
+  --guide-success-bg: var(--ant-colorSuccessBg, hsl(var(--success)));
+  --guide-warning: var(--ant-colorWarning, hsl(var(--warning)));
+  --guide-warning-bg: var(--ant-colorWarningBg, hsl(var(--warning)));
+  --guide-info: var(--ant-colorInfo, var(--guide-primary));
+  --guide-info-bg: var(--ant-colorInfoBg, var(--guide-primary-bg));
 
-  position: relative;
   min-height: 100vh;
-  padding: 14px 24px 32px;
+  padding: 16px 24px 32px;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 18% 14%, rgb(56 189 248 / 30%), transparent 30%),
-    radial-gradient(circle at 82% 16%, rgb(45 212 191 / 18%), transparent 30%),
-    radial-gradient(circle at 48% 88%, rgb(245 158 11 / 10%), transparent 30%),
-    linear-gradient(145deg, var(--guide-void) 0%, var(--guide-base) 46%, #0d111f 100%);
+  background: var(--guide-bg);
   color: var(--guide-text);
-  isolation: isolate;
 }
 
-.module-guide::before {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  content: "";
-  background:
-    radial-gradient(circle at 50% 0%, rgb(146 220 255 / 10%), transparent 36%),
-    linear-gradient(90deg, transparent, rgb(90 196 255 / 6%) 50%, transparent);
-  mask-image:
-    linear-gradient(180deg, rgb(0 0 0 / 72%), rgb(0 0 0 / 24%) 42%, transparent 76%);
-}
-
-.module-guide::after {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  content: "";
-  background:
-    linear-gradient(90deg, rgb(255 255 255 / 2%), transparent 20%, transparent 80%, rgb(255 255 255 / 2%)),
-    radial-gradient(circle at 20% 24%, rgb(56 189 248 / 8%), transparent 28%),
-    radial-gradient(circle at 78% 18%, rgb(45 212 191 / 7%), transparent 24%);
-  mix-blend-mode: screen;
-  opacity: 0.26;
-}
-
-/* 动态背景只作为公开引导页装饰层，避免参与布局和交互，移动端通过媒体查询降噪。 */
 .module-guide__backdrop {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.module-guide__aurora {
-  position: absolute;
-  inset: -38%;
-  background:
-    conic-gradient(from 35deg at 52% 50%, transparent 0deg, rgb(56 189 248 / 28%) 58deg, transparent 126deg, rgb(45 212 191 / 18%) 194deg, transparent 268deg, rgb(163 230 53 / 12%) 316deg, transparent 360deg),
-    radial-gradient(circle at 30% 46%, rgb(56 189 248 / 18%), transparent 36%),
-    radial-gradient(circle at 72% 44%, rgb(45 212 191 / 14%), transparent 38%);
-  filter: blur(34px);
-  mix-blend-mode: screen;
-  opacity: 0.76;
-  transform-origin: center;
-  animation: guide-aurora-pulse 12s ease-in-out infinite;
-  will-change: opacity;
-}
-
-.module-guide__flow {
-  position: absolute;
-  width: 62vw;
-  height: 62vw;
-  min-width: 520px;
-  min-height: 520px;
-  border: 1px solid rgb(56 189 248 / 12%);
-  border-radius: 50%;
-  background:
-    radial-gradient(circle, rgb(56 189 248 / 14%), transparent 58%),
-    conic-gradient(from 90deg, transparent, rgb(56 189 248 / 18%), transparent, rgb(45 212 191 / 16%), transparent);
-  filter: blur(0.2px);
-  opacity: 0.62;
-  transform-origin: center;
-  animation: guide-ring-pulse 10s ease-in-out infinite;
-  will-change: opacity;
-}
-
-.module-guide__flow--one {
-  top: -24vw;
-  right: -20vw;
-}
-
-.module-guide__flow--two {
-  bottom: -28vw;
-  left: -22vw;
-  border-color: rgb(45 212 191 / 10%);
-  background:
-    radial-gradient(circle, rgb(45 212 191 / 12%), transparent 60%),
-    conic-gradient(from 210deg, transparent, rgb(45 212 191 / 16%), transparent, rgb(245 158 11 / 10%), transparent);
-  animation-delay: -8s;
-  animation-direction: alternate-reverse;
-}
-
-.module-guide__stars {
-  position: absolute;
-  inset: -20%;
-  background-repeat: repeat;
-  mix-blend-mode: screen;
-  opacity: 0.52;
-  transform: translate3d(0, 0, 0);
-  will-change: opacity;
-}
-
-.module-guide__stars--near {
-  background-image:
-    radial-gradient(circle, rgb(255 255 255 / 82%) 0 1px, transparent 1.5px),
-    radial-gradient(circle, rgb(56 189 248 / 64%) 0 1px, transparent 1.5px),
-    radial-gradient(circle, rgb(45 212 191 / 58%) 0 1px, transparent 1.5px);
-  background-position:
-    0 0,
-    42px 68px,
-    96px 24px;
-  background-size:
-    136px 136px,
-    184px 184px,
-    220px 220px;
-  animation: guide-stars-pulse 7s ease-in-out infinite;
-}
-
-.module-guide__stars--far {
-  background-image:
-    radial-gradient(circle, rgb(146 220 255 / 54%) 0 1px, transparent 1.5px),
-    radial-gradient(circle, rgb(255 255 255 / 34%) 0 1px, transparent 1.5px);
-  background-position:
-    18px 42px,
-    78px 18px;
-  background-size:
-    240px 240px,
-    320px 320px;
-  opacity: 0.38;
-}
-
-.module-guide__binary-drop {
-  position: absolute;
-  color: rgb(146 220 255 / 46%);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0;
-  line-height: 2.2;
-  text-shadow:
-    0 0 12px rgb(56 189 248 / 42%),
-    0 0 28px rgb(45 212 191 / 24%);
-  white-space: pre-line;
-  mask-image: linear-gradient(90deg, transparent, rgb(0 0 0 / 74%) 18%, rgb(0 0 0 / 62%) 72%, transparent);
-  mix-blend-mode: screen;
-  opacity: 0.34;
-  will-change: transform, opacity;
-}
-
-.module-guide__binary-drop {
-  top: -10vh;
-  left: var(--x);
-  display: block;
-  min-width: 1ch;
-  color: rgb(146 220 255 / 52%);
-  font-size: var(--size);
-  line-height: 1.16;
-  text-align: center;
-  white-space: nowrap;
-  opacity: 0;
-  mask-image: none;
-  animation: guide-binary-drop var(--duration) linear infinite;
-  animation-delay: var(--delay);
-  will-change: transform, opacity;
-}
-
-.module-guide__binary-drop--soft {
-  color: rgb(45 212 191 / 34%);
-}
-
-.module-guide__beam {
-  position: absolute;
-  width: 620px;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, rgb(56 189 248 / 72%), transparent);
-  filter: drop-shadow(0 0 18px rgb(56 189 248 / 48%));
-  transform: rotate(-22deg);
-  animation: guide-beam-sweep 9s ease-in-out infinite;
-  will-change: transform, opacity;
-}
-
-.module-guide__beam--one {
-  top: 148px;
-  right: -120px;
-  animation-delay: -2s;
-}
-
-.module-guide__beam--two {
-  bottom: 178px;
-  left: -150px;
-  background: linear-gradient(90deg, transparent, rgb(45 212 191 / 62%), transparent);
-  filter: drop-shadow(0 0 18px rgb(45 212 191 / 42%));
-  animation-delay: -6s;
-  animation-direction: alternate-reverse;
-}
-
-.module-guide__scan {
   display: none;
 }
 
 .module-guide__main {
   position: relative;
-  z-index: 1;
   width: min(1280px, 100%);
   margin: 0 auto;
 }
@@ -525,7 +337,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   min-height: 30px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .module-guide__brand-mini {
@@ -547,24 +359,17 @@ onMounted(() => {
   border: 1px solid var(--guide-line-strong);
   border-radius: 8px;
   color: var(--guide-primary);
-  background:
-    linear-gradient(135deg, rgb(56 189 248 / 24%), rgb(45 212 191 / 10%)),
-    rgb(255 255 255 / 4%);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 14%),
-    0 0 28px rgb(56 189 248 / 16%);
+  background: var(--guide-primary-bg);
   font-size: 17px;
 }
 
 .module-guide__hero {
-  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   margin-bottom: 18px;
 }
 
 .module-guide__hero-copy {
-  position: relative;
   display: flex;
   min-height: 112px;
   align-items: center;
@@ -573,46 +378,19 @@ onMounted(() => {
   padding: 18px 22px 18px 24px;
   border: 1px solid var(--guide-line);
   border-radius: 8px;
-  overflow: hidden;
-  background:
-    linear-gradient(120deg, rgb(56 189 248 / 14%), transparent 46%),
-    linear-gradient(180deg, rgb(255 255 255 / 8%), rgb(255 255 255 / 3%)),
-    var(--guide-panel);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 12%),
-    0 28px 80px rgb(0 0 0 / 38%);
-}
-
-.module-guide__hero-copy::before {
-  position: absolute;
-  right: -140px;
-  bottom: -180px;
-  width: 300px;
-  height: 300px;
-  content: "";
-  border: 1px solid rgb(56 189 248 / 18%);
-  border-radius: 50%;
-  background:
-    radial-gradient(circle, rgb(56 189 248 / 20%), transparent 58%),
-    conic-gradient(from 120deg, transparent, rgb(45 212 191 / 28%), transparent, rgb(56 189 248 / 16%), transparent);
-  filter: blur(0.2px);
-  opacity: 0.86;
+  background: var(--guide-panel);
 }
 
 .module-guide__hero-text {
-  position: relative;
-  z-index: 1;
   min-width: 0;
 }
 
 .module-guide__eyebrow {
-  position: relative;
-  z-index: 1;
   display: inline-flex;
   gap: 8px;
   align-items: center;
   margin-bottom: 8px;
-  color: rgb(129 231 255);
+  color: var(--guide-primary);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0;
@@ -623,25 +401,19 @@ onMounted(() => {
   width: 7px;
   height: 7px;
   border-radius: 8px;
-  background: var(--guide-info);
-  box-shadow: 0 0 18px rgb(163 230 53 / 68%);
+  background: var(--guide-primary);
 }
 
 .module-guide__name {
-  position: relative;
-  z-index: 1;
   max-width: 820px;
   margin: 0;
   color: var(--guide-text);
   font-size: 26px;
   font-weight: 850;
   line-height: 1.18;
-  text-shadow: 0 0 30px rgb(56 189 248 / 18%);
 }
 
 .module-guide__desc {
-  position: relative;
-  z-index: 1;
   max-width: 760px;
   margin: 8px 0 0;
   color: var(--guide-text-soft);
@@ -651,8 +423,6 @@ onMounted(() => {
 }
 
 .module-guide__hero-status {
-  position: relative;
-  z-index: 1;
   display: inline-flex;
   flex: 0 0 auto;
   gap: 10px;
@@ -669,10 +439,7 @@ onMounted(() => {
   border: 1px solid var(--guide-line);
   border-radius: 8px;
   color: var(--guide-text-muted);
-  background:
-    linear-gradient(135deg, rgb(56 189 248 / 12%), rgb(255 255 255 / 4%)),
-    rgb(8 14 26 / 54%);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%);
+  background: var(--guide-panel-muted);
   font-size: 11px;
   font-weight: 820;
   white-space: nowrap;
@@ -690,14 +457,12 @@ onMounted(() => {
 }
 
 .module-guide__status-chip--ready {
-  border-color: rgb(163 230 53 / 30%);
-  background:
-    linear-gradient(135deg, rgb(163 230 53 / 12%), rgb(255 255 255 / 4%)),
-    rgb(8 14 26 / 54%);
+  border-color: var(--guide-success);
+  background: var(--guide-success-bg);
 }
 
 .module-guide__status-chip strong {
-  color: var(--guide-info);
+  color: var(--guide-success);
   font-weight: 850;
 }
 
@@ -737,7 +502,7 @@ onMounted(() => {
   border: 1px solid var(--guide-line);
   border-radius: 8px;
   color: var(--guide-text-soft);
-  background: rgb(255 255 255 / 5%);
+  background: var(--guide-panel);
   font-size: 13px;
   font-weight: 800;
 }
@@ -750,155 +515,68 @@ onMounted(() => {
 
 .module-guide__card {
   --guide-accent: var(--guide-primary);
-  --guide-accent-2: #0ea5e9;
-  --guide-card-surface: rgb(15 24 42 / 94%);
-  --guide-card-soft: color-mix(in srgb, var(--guide-accent) 14%, transparent);
+  --guide-accent-bg: var(--guide-primary-bg);
 
   position: relative;
   display: block;
   width: 100%;
   height: 100%;
   padding: 0;
-  border: 1px solid color-mix(in srgb, var(--guide-accent) 46%, rgb(255 255 255 / 14%));
+  border: 1px solid var(--guide-line);
   border-radius: 8px;
   overflow: hidden;
   color: inherit;
   text-align: left;
-  background:
-    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--guide-accent) 22%, transparent), transparent 30%),
-    radial-gradient(circle at 88% 12%, color-mix(in srgb, var(--guide-accent-2) 18%, transparent), transparent 34%),
-    linear-gradient(150deg, var(--guide-card-soft), transparent 50%),
-    linear-gradient(180deg, rgb(255 255 255 / 8%), rgb(255 255 255 / 4%)),
-    var(--guide-card-surface);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 14%),
-    inset 0 0 0 1px rgb(255 255 255 / 4%),
-    0 18px 44px rgb(0 0 0 / 24%),
-    0 0 24px color-mix(in srgb, var(--guide-accent) 8%, transparent);
+  background: var(--guide-panel);
   transition:
     background 0.18s ease,
     border-color 0.18s ease,
-    box-shadow 0.18s ease,
     transform 0.18s ease;
 }
 
-.module-guide__card--project {
-  --guide-accent: #38bdf8;
-  --guide-accent-2: #6366f1;
-  --guide-card-surface: rgb(13 24 44 / 94%);
-  --guide-card-soft: rgb(56 189 248 / 16%);
+.module-guide__card--website,
+.module-guide__card--points {
+  --guide-accent: var(--guide-success);
+  --guide-accent-bg: var(--guide-success-bg);
 }
 
-.module-guide__card--website {
-  --guide-accent: #34d399;
-  --guide-accent-2: #14b8a6;
-  --guide-card-surface: rgb(10 31 30 / 94%);
-  --guide-card-soft: rgb(52 211 153 / 15%);
-}
-
-.module-guide__card--material {
-  --guide-accent: #fb923c;
-  --guide-accent-2: #ef4444;
-  --guide-card-surface: rgb(42 24 15 / 94%);
-  --guide-card-soft: rgb(251 146 60 / 14%);
+.module-guide__card--material,
+.module-guide__card--license {
+  --guide-accent: var(--guide-warning);
+  --guide-accent-bg: var(--guide-warning-bg);
 }
 
 .module-guide__card--asset {
-  --guide-accent: #a78bfa;
-  --guide-accent-2: #f472b6;
-  --guide-card-surface: rgb(31 24 47 / 94%);
-  --guide-card-soft: rgb(167 139 250 / 14%);
+  --guide-accent: var(--guide-info);
+  --guide-accent-bg: var(--guide-info-bg);
 }
 
-.module-guide__card--license {
-  --guide-accent: #facc15;
-  --guide-accent-2: #22c55e;
-  --guide-card-surface: rgb(37 32 14 / 94%);
-  --guide-card-soft: rgb(250 204 21 / 13%);
-}
-
-.module-guide__card--points {
-  --guide-accent: #bef264;
-  --guide-accent-2: #84cc16;
-  --guide-card-surface: rgb(25 36 15 / 94%);
-  --guide-card-soft: rgb(190 242 100 / 12%);
-}
-
-.module-guide__card--system {
-  --guide-accent: #94a3b8;
-  --guide-accent-2: #38bdf8;
-  --guide-card-surface: rgb(24 29 39 / 96%);
-  --guide-card-soft: rgb(148 163 184 / 11%);
-}
-
+.module-guide__card--system,
 .module-guide__card--default {
-  --guide-accent: #cbd5e1;
-  --guide-accent-2: #64748b;
-  --guide-card-surface: rgb(20 24 32 / 96%);
-  --guide-card-soft: rgb(203 213 225 / 10%);
+  --guide-accent: var(--guide-text-muted);
+  --guide-accent-bg: var(--guide-panel-muted);
 }
 
 .module-guide__card::before {
   position: absolute;
-  inset: 0 0 auto;
-  height: 3px;
+  inset: 0 auto 0 0;
+  width: 3px;
   content: "";
-  background: linear-gradient(90deg, transparent, var(--guide-accent), var(--guide-accent-2), transparent);
-  box-shadow: 0 0 24px color-mix(in srgb, var(--guide-accent) 46%, transparent);
-}
-
-.module-guide__card::after {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  content: "";
-  background-image:
-    linear-gradient(90deg, color-mix(in srgb, var(--guide-accent) 11%, transparent) 1px, transparent 1px),
-    linear-gradient(color-mix(in srgb, var(--guide-accent-2) 10%, transparent) 1px, transparent 1px);
-  background-size: 28px 28px;
-  mask-image: linear-gradient(180deg, rgb(0 0 0 / 45%), transparent 62%);
-  opacity: 0.72;
+  background: var(--guide-accent);
 }
 
 .module-guide__card-glow {
-  position: absolute;
-  right: -82px;
-  bottom: -88px;
-  width: 210px;
-  height: 210px;
-  pointer-events: none;
-  border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--guide-accent-2) 28%, transparent), transparent 68%);
-  opacity: 0.7;
-  transition:
-    opacity 0.18s ease,
-    transform 0.18s ease;
+  display: none;
 }
 
 .module-guide__card:hover {
-  border-color: color-mix(in srgb, var(--guide-accent) 86%, white 8%);
-  background:
-    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--guide-accent) 28%, transparent), transparent 31%),
-    radial-gradient(circle at 88% 12%, color-mix(in srgb, var(--guide-accent-2) 24%, transparent), transparent 35%),
-    linear-gradient(150deg, color-mix(in srgb, var(--guide-accent) 20%, transparent), transparent 48%),
-    linear-gradient(180deg, rgb(255 255 255 / 11%), rgb(255 255 255 / 5%)),
-    var(--guide-card-surface);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 18%),
-    0 22px 58px rgb(0 0 0 / 34%),
-    0 0 0 1px color-mix(in srgb, var(--guide-accent) 16%, transparent),
-    0 0 36px color-mix(in srgb, var(--guide-accent) 16%, transparent);
-  transform: translateY(-3px);
-}
-
-.module-guide__card:hover .module-guide__card-glow {
-  opacity: 1;
-  transform: scale(1.08);
+  border-color: var(--guide-accent);
+  background: var(--guide-accent-bg);
+  transform: translateY(-2px);
 }
 
 .module-guide__card-body {
   position: relative;
-  z-index: 1;
   display: flex;
   height: 100%;
   min-height: 218px;
@@ -920,16 +598,11 @@ onMounted(() => {
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  border: 1px solid color-mix(in srgb, var(--guide-accent) 54%, transparent);
+  border: 1px solid var(--guide-line);
   border-radius: 8px;
   color: var(--guide-accent);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--guide-accent) 24%, transparent), color-mix(in srgb, var(--guide-accent-2) 12%, transparent)),
-    rgb(255 255 255 / 5%);
+  background: var(--guide-accent-bg);
   font-size: 28px;
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 14%),
-    0 12px 28px color-mix(in srgb, var(--guide-accent) 18%, transparent);
 }
 
 .module-guide__status {
@@ -937,10 +610,10 @@ onMounted(() => {
   gap: 7px;
   align-items: center;
   padding: 6px 9px;
-  border: 1px solid color-mix(in srgb, var(--guide-accent) 34%, rgb(255 255 255 / 14%));
+  border: 1px solid var(--guide-line);
   border-radius: 8px;
   color: var(--guide-text-soft);
-  background: color-mix(in srgb, var(--guide-accent) 10%, rgb(255 255 255 / 5%));
+  background: var(--guide-panel-muted);
   font-size: 11px;
   font-weight: 850;
   line-height: 1;
@@ -951,7 +624,6 @@ onMounted(() => {
   height: 6px;
   border-radius: 999px;
   background: var(--guide-accent);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--guide-accent) 64%, transparent);
 }
 
 .module-guide__content {
@@ -991,7 +663,7 @@ onMounted(() => {
   justify-content: space-between;
   margin-top: auto;
   padding-top: 13px;
-  border-top: 1px solid color-mix(in srgb, var(--guide-accent) 22%, rgb(255 255 255 / 10%));
+  border-top: 1px solid var(--guide-line);
 }
 
 .module-guide__entry-code {
@@ -1020,10 +692,10 @@ onMounted(() => {
   justify-content: center;
   min-height: 34px;
   padding: 0 13px;
-  border: 1px solid color-mix(in srgb, var(--guide-accent) 46%, transparent);
+  border: 1px solid var(--guide-primary);
   border-radius: 8px;
-  color: color-mix(in srgb, var(--guide-accent) 82%, white);
-  background: color-mix(in srgb, var(--guide-accent) 12%, transparent);
+  color: var(--guide-solid-text);
+  background: var(--guide-primary);
   font-size: 13px;
   font-weight: 850;
   line-height: 1;
@@ -1032,22 +704,20 @@ onMounted(() => {
   transition:
     background 0.18s ease,
     border-color 0.18s ease,
-    color 0.18s ease,
     gap 0.18s ease;
 }
 
 .module-guide__card:hover .module-guide__enter {
   gap: 8px;
-  color: var(--guide-accent);
 }
 
 .module-guide__enter:hover {
-  border-color: color-mix(in srgb, var(--guide-accent) 78%, white 8%);
-  background: color-mix(in srgb, var(--guide-accent) 18%, transparent);
+  border-color: var(--guide-primary-hover);
+  background: var(--guide-primary-hover);
 }
 
 .module-guide__enter:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--guide-accent) 72%, white);
+  outline: 2px solid var(--guide-primary);
   outline-offset: 3px;
 }
 
@@ -1055,7 +725,7 @@ onMounted(() => {
   flex: 0 0 auto;
   color: var(--guide-accent);
   font-size: 20px;
-  opacity: 0.5;
+  opacity: 0.6;
   transition:
     opacity 0.18s ease,
     transform 0.18s ease;
@@ -1071,90 +741,6 @@ onMounted(() => {
   border: 1px solid var(--guide-line);
   border-radius: 8px;
   background: var(--guide-panel);
-}
-
-@keyframes guide-aurora-pulse {
-  0% {
-    opacity: 0.58;
-  }
-
-  50% {
-    opacity: 0.82;
-  }
-
-  100% {
-    opacity: 0.58;
-  }
-}
-
-@keyframes guide-ring-pulse {
-  0% {
-    opacity: 0.46;
-  }
-
-  50% {
-    opacity: 0.66;
-  }
-
-  100% {
-    opacity: 0.46;
-  }
-}
-
-@keyframes guide-stars-pulse {
-  0% {
-    opacity: 0.44;
-  }
-
-  50% {
-    opacity: 0.68;
-  }
-
-  100% {
-    opacity: 0.44;
-  }
-}
-
-@keyframes guide-binary-drop {
-  0% {
-    opacity: 0;
-    transform: translate3d(calc(var(--drift) * -0.3), -12vh, 0) scale(0.88);
-  }
-
-  12% {
-    opacity: var(--alpha);
-  }
-
-  46% {
-    opacity: calc(var(--alpha) * 0.9);
-    transform: translate3d(calc(var(--drift) * 0.35), 48vh, 0) scale(1);
-  }
-
-  70% {
-    opacity: calc(var(--alpha) * 0.64);
-  }
-
-  100% {
-    opacity: 0;
-    transform: translate3d(var(--drift), 118vh, 0) scale(0.96);
-  }
-}
-
-@keyframes guide-beam-sweep {
-  0% {
-    opacity: 0;
-    transform: translate3d(-16%, 0, 0) rotate(-22deg) scaleX(0.68);
-  }
-
-  18%,
-  68% {
-    opacity: 0.86;
-  }
-
-  100% {
-    opacity: 0;
-    transform: translate3d(22%, 0, 0) rotate(-22deg) scaleX(1.18);
-  }
 }
 
 @media (max-width: 1024px) {
@@ -1182,44 +768,6 @@ onMounted(() => {
 @media (max-width: 640px) {
   .module-guide {
     padding: 8px 10px 22px;
-  }
-
-  .module-guide::before {
-    background-size: 34px 34px;
-    opacity: 0.64;
-  }
-
-  .module-guide__aurora {
-    inset: -48%;
-    opacity: 0.48;
-  }
-
-  .module-guide__flow {
-    min-width: 360px;
-    min-height: 360px;
-    opacity: 0.38;
-  }
-
-  .module-guide__stars {
-    opacity: 0.26;
-  }
-
-  .module-guide__binary-drop {
-    opacity: 0.18;
-  }
-
-  .module-guide__binary-drop {
-    font-size: clamp(12px, var(--size), 24px);
-    line-height: 1.1;
-  }
-
-  .module-guide__binary-drop--mobile-hidden {
-    display: none;
-  }
-
-  .module-guide__beam {
-    width: 420px;
-    opacity: 0.58;
   }
 
   .module-guide__topbar {
@@ -1314,18 +862,6 @@ onMounted(() => {
 
   .module-guide__title {
     font-size: 20px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .module-guide::before,
-  .module-guide::after,
-  .module-guide__aurora,
-  .module-guide__flow,
-  .module-guide__stars,
-  .module-guide__binary-drop,
-  .module-guide__beam {
-    animation: none;
   }
 }
 </style>
