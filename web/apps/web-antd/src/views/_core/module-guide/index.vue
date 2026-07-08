@@ -298,20 +298,20 @@ onMounted(() => {
 .module-guide {
   --guide-bg: var(--ant-colorBgLayout, hsl(var(--background)));
   --guide-panel: var(--ant-colorBgContainer, hsl(var(--card)));
-  --guide-panel-muted: var(--ant-colorFillQuaternary, hsl(var(--muted)));
+  --guide-panel-muted: var(--ant-colorFillQuaternary, hsl(var(--muted) / 0.52));
   --guide-text: var(--ant-colorText, hsl(var(--foreground)));
   --guide-text-soft: var(--ant-colorTextSecondary, hsl(var(--muted-foreground)));
   --guide-text-muted: var(--ant-colorTextTertiary, hsl(var(--muted-foreground)));
   --guide-line: var(--ant-colorBorderSecondary, hsl(var(--border)));
   --guide-line-strong: var(--ant-colorBorder, hsl(var(--border)));
   --guide-primary: var(--ant-colorPrimary, hsl(var(--primary)));
-  --guide-primary-bg: var(--ant-colorPrimaryBg, hsl(var(--primary)));
+  --guide-primary-bg: var(--ant-colorPrimaryBg, hsl(var(--primary) / 0.12));
   --guide-primary-hover: var(--ant-colorPrimaryHover, hsl(var(--primary)));
   --guide-solid-text: var(--ant-colorTextLightSolid, hsl(var(--primary-foreground)));
   --guide-success: var(--ant-colorSuccess, hsl(var(--success)));
-  --guide-success-bg: var(--ant-colorSuccessBg, hsl(var(--success)));
+  --guide-success-bg: var(--ant-colorSuccessBg, hsl(var(--success) / 0.12));
   --guide-warning: var(--ant-colorWarning, hsl(var(--warning)));
-  --guide-warning-bg: var(--ant-colorWarningBg, hsl(var(--warning)));
+  --guide-warning-bg: var(--ant-colorWarningBg, hsl(var(--warning) / 0.14));
   --guide-info: var(--ant-colorInfo, var(--guide-primary));
   --guide-info-bg: var(--ant-colorInfoBg, var(--guide-primary-bg));
 

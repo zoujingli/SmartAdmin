@@ -88,6 +88,8 @@ final class DataServiceModuleGuideTest extends TestCase
         $entryPage = (string)file_get_contents($root . '/web/apps/web-antd/src/views/_core/module-guide/index.vue');
 
         self::assertStringContainsString('--guide-primary: var(--ant-colorPrimary', $entryPage);
+        self::assertStringContainsString('--guide-primary-bg: var(--ant-colorPrimaryBg, hsl(var(--primary) / 0.12));', $entryPage);
+        self::assertStringContainsString('--guide-success-bg: var(--ant-colorSuccessBg, hsl(var(--success) / 0.12));', $entryPage);
         self::assertStringContainsString('background: var(--guide-bg);', $entryPage);
         self::assertStringContainsString('系统入口', $entryPage);
         self::assertStringContainsString('统一入口', $entryPage);
