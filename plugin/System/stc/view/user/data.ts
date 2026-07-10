@@ -40,7 +40,7 @@ export function useFormSchema(): VbenFormSchema[] {
       },
     },
     {
-      component: 'InputPassword',
+      component: 'Input',
       fieldName: 'password',
       label: '密码',
       componentProps: {

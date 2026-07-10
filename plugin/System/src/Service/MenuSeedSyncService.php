@@ -58,6 +58,15 @@ final class MenuSeedSyncService
      */
     private const DEPRECATED_SEED_MENUS = [
         11 => 'dashboard.analytics',
+        // Customer 早期使用 11021/project-ownership 作为项目确权目录；当前目录已迁移到 11026/project-rights。
+        // 旧目录没有业务子项但会在侧栏形成重复“项目确权”，同步时必须软删。
+        11021 => '',
+        // License 早期客户管理菜单已下线，保留数据库残留会让前端加载不存在的插件页面组件。
+        10010 => 'license.customer.index',
+        100101 => 'license.customer.create',
+        100102 => 'license.customer.update',
+        100103 => 'license.customer.status',
+        100104 => 'license.customer.delete',
     ];
 
     /**

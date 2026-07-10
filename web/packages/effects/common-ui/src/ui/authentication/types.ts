@@ -14,6 +14,11 @@ interface AuthenticationProps {
   loading?: boolean;
 
   /**
+   * @zh_CN 记住账号本地缓存键；插件独立入口需要传入专用键，避免和后台登录账号串用。
+   */
+  rememberMeKey?: string;
+
+  /**
    * @zh_CN 二维码登录路径
    */
   qrCodeLoginPath?: string;

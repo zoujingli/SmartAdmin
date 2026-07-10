@@ -5,7 +5,7 @@ import { computed, nextTick, reactive, ref, watch } from 'vue';
 
 import { useAccess } from '@vben/access';
 import { useAccessStore, useUserStore } from '@vben/stores';
-import { Button, Col, Form, FormItem, Input, InputPassword, message, RadioGroup, Row, Select, Switch, Textarea, TreeSelect } from 'ant-design-vue';
+import { Button, Col, Form, FormItem, Input, message, RadioGroup, Row, Select, Switch, Textarea, TreeSelect } from 'ant-design-vue';
 
 import { tenantApiService, userApiService } from '@plugin/System/stc/view/api';
 import AppDrawer from '#/components/app-drawer.vue';
@@ -340,7 +340,7 @@ watch(
             name="password"
             :rules="[{ required: true, message: '请输入密码' }]"
           >
-            <InputPassword v-model:value="formData.password" placeholder="请输入密码" />
+            <Input v-model:value="formData.password" placeholder="请输入密码" />
           </FormItem>
         </Col>
 

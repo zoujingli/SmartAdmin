@@ -3,7 +3,7 @@ import type { Recordable, UserInfo } from '@vben/types';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { resetAllStores, useAccessStore, useUserStore } from '@vben/stores';
+import { resetAllStores, useAccessStore, useTabbarStore, useUserStore } from '@vben/stores';
 
 import { message, notification } from 'ant-design-vue';
 import { defineStore } from 'pinia';
@@ -20,6 +20,7 @@ import { applySavedUiPreferences } from '#/preferences/user-preferences';
 
 export const useAuthStore = defineStore('auth', () => {
   const accessStore = useAccessStore();
+  const tabbarStore = useTabbarStore();
   const userStore = useUserStore();
   const router = useRouter();
 
@@ -50,6 +51,9 @@ export const useAuthStore = defineStore('auth', () => {
         accessStore.setAccessRoutes([]);
         accessStore.setAccessCodes([]);
         accessStore.setIsAccessChecked(false);
+        // 登录入口或账号切换后，历史标签页可能仍指向上一身份有权访问的页面；
+        // 这里和权限路由一起重置，避免新身份看到不可用标签后再被访问拒绝。
+        tabbarStore.$reset();
 
         // 先获取用户信息，确保 token 生效
         const fetchUserInfoResult = await fetchUserInfo();

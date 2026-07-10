@@ -268,7 +268,6 @@ import {
   Col,
   DescriptionsItem,
   Input,
-  InputPassword,
   message,
   Modal,
   Row,
@@ -645,7 +644,7 @@ const handleResetPassword = (record: UserType) => {
   let nextPassword = '';
   Modal.confirm({
     title: `重置密码：${record.username}`,
-    content: h(InputPassword, {
+    content: h(Input, {
       placeholder: '请输入新密码（至少5位）',
       onInput: (e: any) => {
         nextPassword = e?.target?.value ?? '';

@@ -63,7 +63,7 @@
         </Col>
         <Col v-if="!formData.id" :span="12">
           <FormItem label="管理员初始密码" name="admin_password">
-            <Input.Password v-model:value="formData.admin_password" placeholder="请输入管理员初始密码" />
+            <Input v-model:value="formData.admin_password" placeholder="请输入管理员初始密码" />
           </FormItem>
         </Col>
         <Col v-if="!formData.id" :span="12">
