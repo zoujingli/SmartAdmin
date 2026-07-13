@@ -14,7 +14,7 @@
         show-icon
         type="info"
         message="导入流程"
-        :description="`请先下载模板，按模板字段填写后上传。系统会先预览数据，确认后逐条导入 ${moduleName}。`"
+        :description="`请先下载模板，按模板字段填写后上传。系统会先预览数据，确认后${writeModeText} ${moduleName}。`"
       />
 
       <div class="crud-import-dialog__section">
@@ -83,10 +83,14 @@
       <div v-if="errorMessage" class="crud-import-dialog__section">
         <Alert show-icon type="error" :message="errorMessage" />
       </div>
+
+      <div v-if="warningMessage" class="crud-import-dialog__section">
+        <Alert show-icon type="warning" :message="warningMessage" />
+      </div>
     </div>
 
     <template #footer>
-      <Space>
+      <Space wrap>
         <Button :disabled="parsing" @click="handleUploadClose">取消</Button>
       </Space>
     </template>
@@ -107,11 +111,15 @@
         show-icon
         type="info"
         message="数据预览"
-        :description="`已完成文件解析，请核对预览数据。确认无误后点击“开始导入”，系统将逐条写入 ${moduleName}。`"
+        :description="`已完成文件解析，请核对预览数据。确认无误后点击“开始导入”，系统将${writeModeText} ${moduleName}。`"
       />
 
       <div v-if="errorMessage" class="crud-import-dialog__section">
         <Alert show-icon type="error" :message="errorMessage" />
+      </div>
+
+      <div v-if="warningMessage" class="crud-import-dialog__section">
+        <Alert show-icon type="warning" :message="warningMessage" />
       </div>
 
       <div v-if="rows.length > 0" class="crud-import-dialog__section">
@@ -154,8 +162,8 @@
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'status'">
-              <Tag :color="record.status === 'success' ? 'green' : 'red'">
-                {{ record.status === 'success' ? '成功' : '失败' }}
+              <Tag :color="record.status === 'success' ? 'green' : (record.status === 'failed' ? 'red' : 'default')">
+                {{ record.status === 'success' ? '成功' : (record.status === 'failed' ? '失败' : '本批未提交') }}
               </Tag>
             </template>
           </template>
@@ -164,15 +172,15 @@
     </div>
 
     <template #footer>
-      <Space>
+      <Space wrap>
         <Button :disabled="importing" @click="handleClose">
           {{ status === 'done' ? '关闭' : '取消' }}
         </Button>
-        <Button v-if="status === 'preview'" :disabled="importing" @click="handleReupload">
+        <Button v-if="status === 'preview' || (status === 'done' && unsuccessfulCount > 0)" :disabled="importing" @click="handleReupload">
           重新上传
         </Button>
         <Button
-          v-if="status !== 'done'"
+          v-if="status === 'preview' || status === 'importing'"
           type="primary"
           :disabled="rows.length === 0"
           :loading="importing"
@@ -219,18 +227,23 @@ interface ImportColumn {
 interface ImportResultRow {
   index: number;
   message: string;
-  status: 'failed' | 'success';
+  status: 'failed' | 'skipped' | 'success';
 }
 
 interface ImportRunResult {
+  committed?: boolean;
   results: ImportResultRow[];
   success: number;
   total: number;
+  warning?: string;
 }
 
 const props = defineProps<{
+  atomicBatch?: boolean;
   columns: ImportColumn[];
   downloadTemplate: () => Promise<void> | void;
+  maxFileSizeBytes?: number;
+  maxRows?: number;
   moduleName: string;
   readRows: (file: File) => Promise<Array<Record<string, CellValue>>>;
   rules?: string[];
@@ -251,17 +264,21 @@ const status = ref<ImportStatus>('idle');
 const fileList = ref<UploadProps['fileList']>([]);
 const rows = ref<Array<Record<string, CellValue>>>([]);
 const errorMessage = ref('');
+const warningMessage = ref('');
 const progress = ref({ current: 0, failed: 0, success: 0, total: 0 });
 const resultRows = ref<ImportResultRow[]>([]);
 
 const importing = computed(() => status.value === 'importing');
 const parsing = computed(() => status.value === 'parsing');
-const failedCount = computed(() => resultRows.value.filter((item) => item.status === 'failed').length);
+const unsuccessfulCount = computed(() => resultRows.value.filter((item) => item.status !== 'success').length);
 const importableColumns = computed(() => props.columns.filter((column) => column.importable !== false));
+const writeModeText = computed(() => props.atomicBatch ? '整批校验并一次写入' : '逐条写入');
 const normalizedRules = computed(() => [
   '第一行必须是模板表头，字段名请保持不变。',
   '上传后仅做预览解析，点击“开始导入”后才会写入数据。',
-  '导入按行串行提交；单行失败不会中断后续行，结果中会保留错误原因。',
+  props.atomicBatch
+    ? '本批任一行校验失败时整批不提交，请修正后重新上传。'
+    : '导入按行串行提交；单行失败不会中断后续行，结果中会保留错误原因。',
   ...(props.rules || []),
 ]);
 
@@ -309,7 +326,7 @@ const progressPercent = computed(() => {
 });
 const progressStatus = computed(() => {
   if (status.value === 'done') {
-    return failedCount.value > 0 ? 'exception' : 'success';
+    return unsuccessfulCount.value > 0 ? 'exception' : 'success';
   }
   return 'active';
 });
@@ -326,8 +343,17 @@ async function downloadTemplate() {
 
 async function handleBeforeUpload(file: File) {
   errorMessage.value = '';
+  warningMessage.value = '';
   resultRows.value = [];
   rows.value = [];
+
+  if (props.maxFileSizeBytes && file.size > props.maxFileSizeBytes) {
+    errorMessage.value = `导入文件不能超过 ${formatFileSize(props.maxFileSizeBytes)}。`;
+    status.value = 'idle';
+    fileList.value = [{ name: file.name, status: 'error', uid: String(Date.now()) }];
+    return false;
+  }
+
   status.value = 'parsing';
   fileList.value = [{
     name: file.name,
@@ -342,6 +368,12 @@ async function handleBeforeUpload(file: File) {
     }
     if (parsedRows.length === 0) {
       errorMessage.value = '导入文件没有可识别的数据，请检查模板内容。';
+      status.value = 'idle';
+      fileList.value = fileList.value.map((item) => ({ ...item, status: 'error' }));
+      return false;
+    }
+    if (props.maxRows && parsedRows.length > props.maxRows) {
+      errorMessage.value = `单次最多导入 ${props.maxRows} 条数据，当前文件包含 ${parsedRows.length} 条。`;
       status.value = 'idle';
       fileList.value = fileList.value.map((item) => ({ ...item, status: 'error' }));
       return false;
@@ -373,6 +405,7 @@ function resetUploadState() {
   rows.value = [];
   resultRows.value = [];
   errorMessage.value = '';
+  warningMessage.value = '';
   progress.value = { current: 0, failed: 0, success: 0, total: 0 };
   status.value = 'idle';
 }
@@ -408,6 +441,7 @@ async function startImport() {
   }
 
   errorMessage.value = '';
+  warningMessage.value = '';
   resultRows.value = [];
   status.value = 'importing';
   progress.value = { current: 0, failed: 0, success: 0, total: rows.value.length };
@@ -417,6 +451,7 @@ async function startImport() {
       progress.value = nextProgress;
     });
     resultRows.value = result.results;
+    warningMessage.value = String(result.warning || '');
     progress.value = {
       current: result.total,
       failed: result.total - result.success,
@@ -428,6 +463,11 @@ async function startImport() {
     errorMessage.value = error instanceof Error ? error.message : String(error);
     status.value = 'preview';
   }
+}
+
+function formatFileSize(bytes: number) {
+  const megabytes = bytes / 1024 / 1024;
+  return `${Number.isInteger(megabytes) ? megabytes : megabytes.toFixed(1)} MB`;
 }
 
 function handleUploadClose() {
@@ -499,5 +539,27 @@ function handleClose() {
   margin-top: 8px;
   color: var(--ant-colorTextSecondary);
   font-size: 13px;
+}
+
+@media (max-width: 767px) {
+  .crud-import-dialog {
+    /* 为标题、正文边距和底部操作栏预留空间，避免小屏下操作按钮被挤出视口。 */
+    max-height: calc(100vh - 220px);
+    max-height: calc(100dvh - 220px);
+    padding-right: 0;
+  }
+
+  .crud-import-dialog__section-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .crud-import-dialog__section-head :deep(.ant-btn) {
+    width: 100%;
+  }
+
+  .crud-import-dialog__rules {
+    padding-left: 18px;
+  }
 }
 </style>

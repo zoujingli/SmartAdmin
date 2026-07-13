@@ -2,7 +2,11 @@ import type { ModuleGuideEntry } from '#/plugins/module-guide-provider';
 
 import { describe, expect, it } from 'vitest';
 
-import { moduleGuideHomeTarget, normalizeModuleGuidePath } from '../entry-targets';
+import {
+  moduleGuideAutomaticTarget,
+  moduleGuideHomeTarget,
+  normalizeModuleGuidePath,
+} from '../entry-targets';
 
 function entry(value: Partial<ModuleGuideEntry>): ModuleGuideEntry {
   return {
@@ -47,5 +51,32 @@ describe('module guide entry targets', () => {
     expect(normalizeModuleGuidePath(' partner/login/ ')).toBe('/partner/login');
     expect(normalizeModuleGuidePath('/')).toBe('/');
     expect(normalizeModuleGuidePath('')).toBe('/');
+  });
+
+  it('falls back to the System login when no regular entry is visible', () => {
+    expect(moduleGuideAutomaticTarget([
+      entry({ code: 'system', login_path: '/default/login' }),
+    ], '/default/login')).toBe('/default/login');
+  });
+
+  it('opens the only regular entry login and ignores System in the count', () => {
+    expect(moduleGuideAutomaticTarget([
+      entry({ code: 'project', home_path: '/project/portal', login_path: '/project/login' }),
+      entry({ code: 'system', login_path: '/default/login' }),
+    ], '/default/login')).toBe('/project/login');
+  });
+
+  it('falls back to the only regular entry home when it has no login path', () => {
+    expect(moduleGuideAutomaticTarget([
+      entry({ code: 'project', home_path: '/project/portal' }),
+    ], '/default/login')).toBe('/project/portal');
+  });
+
+  it('keeps the guide page when multiple regular entries are visible', () => {
+    expect(moduleGuideAutomaticTarget([
+      entry({ code: 'project', login_path: '/project/login' }),
+      entry({ code: 'points', login_path: '/points/login' }),
+      entry({ code: 'system', login_path: '/default/login' }),
+    ], '/default/login')).toBe('');
   });
 });

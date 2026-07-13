@@ -406,8 +406,8 @@ final class TenantRepairService extends CoreService
                 }
             }
         } catch (\Throwable) {
-            // SQLite 等驱动不支持 SchemaBuilder::getTables()，发布安装仍必须能扫描并修复 tenant_id 脏数据。
-            foreach (Db::connection()->getDoctrineSchemaManager()->listTableNames() as $table) {
+            // SQLite 等驱动不支持 SchemaBuilder::getTables()；DBAL 4 的 schema manager 必须由 Doctrine Connection 创建。
+            foreach (Db::connection()->getDoctrineConnection()->createSchemaManager()->listTableNames() as $table) {
                 $table = strtolower((string)$table);
                 if ($table !== '' && Schema::hasColumn($table, 'tenant_id')) {
                     $tables[] = $table;

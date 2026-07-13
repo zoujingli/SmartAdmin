@@ -82,6 +82,77 @@ final class DataServiceModuleGuideTest extends TestCase
         });
     }
 
+    public function testModuleGuideUsesRuntimeVisibilityForBusinessAndSystemEntries(): void
+    {
+        $this->withPluginManifests([
+            [
+                'plugin' => 'Demo',
+                'code' => 'demo',
+                'guide_entry' => [
+                    'name' => '演示入口',
+                    'description' => '业务入口',
+                    'icon' => 'lucide:blocks',
+                    'home_path' => '/demo/home',
+                    'login_path' => '/demo/login',
+                    'sort' => 10,
+                    'enabled' => true,
+                ],
+            ],
+            [
+                'plugin' => 'System',
+                'code' => 'system',
+                'guide_entry' => [
+                    'name' => '系统后台',
+                    'description' => '管理入口',
+                    'icon' => 'lucide:shield-check',
+                    'home_path' => '/dashboard/workspace',
+                    'login_path' => '/system/login',
+                    'sort' => -100,
+                    'enabled' => true,
+                ],
+            ],
+        ], function (): void {
+            $result = $this->makeService([
+                'module_guide_enable' => true,
+                'module_guide_visibility' => [
+                    'demo' => true,
+                    'system' => false,
+                ],
+            ])->getModuleGuide();
+
+            self::assertTrue($result['enabled']);
+            self::assertSame(['demo'], array_column($result['entries'], 'code'));
+            self::assertArrayNotHasKey('module_guide_visibility', $result);
+        });
+    }
+
+    public function testGlobalSwitchDisablesAllRuntimeVisibleEntries(): void
+    {
+        $this->withPluginManifests([
+            [
+                'plugin' => 'Demo',
+                'code' => 'demo',
+                'guide_entry' => [
+                    'name' => '演示入口',
+                    'description' => '业务入口',
+                    'icon' => 'lucide:blocks',
+                    'home_path' => '/demo/home',
+                    'login_path' => '/demo/login',
+                    'sort' => 10,
+                    'enabled' => true,
+                ],
+            ],
+        ], function (): void {
+            $result = $this->makeService([
+                'module_guide_enable' => false,
+                'module_guide_visibility' => ['demo' => true],
+            ])->getModuleGuide();
+
+            self::assertFalse($result['enabled']);
+            self::assertSame([], $result['entries']);
+        });
+    }
+
     public function testModuleGuideEntryPageKeepsImmersiveGatewayStyle(): void
     {
         $root = dirname(__DIR__, 4);

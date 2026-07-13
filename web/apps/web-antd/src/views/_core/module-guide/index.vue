@@ -12,7 +12,7 @@ import { Empty, Skeleton, message } from 'ant-design-vue';
 import { getAuthLoginPath } from '#/api';
 import { getModuleGuideProvider } from '#/plugins/module-guide-provider';
 
-import { moduleGuideHomeTarget } from './entry-targets';
+import { moduleGuideAutomaticTarget, moduleGuideHomeTarget } from './entry-targets';
 
 const router = useRouter();
 const loading = ref(false);
@@ -146,6 +146,12 @@ async function loadGuide() {
     const guideEntries = normalizeGuideEntries(Array.isArray(guide.entries) ? guide.entries : []);
     if (!guide.enabled || guideEntries.length === 0) {
       await router.replace(getAuthLoginPath());
+      return;
+    }
+
+    const automaticTarget = moduleGuideAutomaticTarget(guideEntries, getAuthLoginPath());
+    if (automaticTarget) {
+      await router.replace(automaticTarget);
       return;
     }
 

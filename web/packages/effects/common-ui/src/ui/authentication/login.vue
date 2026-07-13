@@ -124,10 +124,10 @@ defineExpose({
     <Form />
 
     <div
-      v-if="showRememberMe || showForgetPassword"
-      class="mb-6 flex justify-between"
+      v-if="showRememberMe || showForgetPassword || $slots['remember-extra']"
+      class="mb-6 flex flex-wrap items-start justify-between gap-x-4 gap-y-2"
     >
-      <div class="flex-center">
+      <div class="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
         <VbenCheckbox
           v-if="showRememberMe"
           v-model="rememberMe"
@@ -135,6 +135,7 @@ defineExpose({
         >
           {{ $t('authentication.rememberMe') }}
         </VbenCheckbox>
+        <slot name="remember-extra"></slot>
       </div>
 
       <span

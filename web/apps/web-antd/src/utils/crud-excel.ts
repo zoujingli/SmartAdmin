@@ -48,22 +48,34 @@ interface ExportCrudXlsxOptions<T> {
   transformItems?: (items: T[]) => T[];
 }
 
-interface ImportCrudRowsOptions<TPayload> {
+export interface ImportCrudRowsOptions<TPayload> {
+  atomicBatch?: boolean;
   columns: CrudExcelColumn[];
   moduleName: string;
   submit?: (payload: TPayload, row: Record<string, CellValue>, index: number) => Promise<unknown>;
   submitRows?: (payloads: TPayload[], rows: Array<Record<string, CellValue>>) => Promise<unknown>;
-  afterDone?: () => Promise<void> | void;
-  buildPayload?: (row: Record<string, CellValue>, index: number) => TPayload;
+  afterDone?: (result?: unknown) => Promise<void> | void;
+  buildPayload?: (
+    row: Record<string, CellValue>,
+    index: number,
+    rows: Array<Record<string, CellValue>>,
+  ) => TPayload;
+  maxFileSizeBytes?: number;
+  maxRows?: number;
   rules?: string[];
   sampleRow?: Record<string, CellValue>;
   templateFilename?: string;
+  validateRow?: (
+    row: Record<string, CellValue>,
+    index: number,
+    rows: Array<Record<string, CellValue>>,
+  ) => void;
 }
 
 interface ImportResultRow {
   index: number;
   message: string;
-  status: 'failed' | 'success';
+  status: 'failed' | 'skipped' | 'success';
 }
 
 interface ImportProgress {
@@ -173,8 +185,11 @@ export async function openCrudImport<TPayload extends Record<string, any>>(optio
   }
 
   await mountDialog(CrudImportDialog, {
+    atomicBatch: Boolean(options.atomicBatch),
     columns,
     downloadTemplate: () => downloadImportTemplate(options),
+    maxFileSizeBytes: options.maxFileSizeBytes,
+    maxRows: options.maxRows,
     moduleName: options.moduleName,
     readRows: readWorkbookRows,
     rules: options.rules || [],
@@ -184,7 +199,7 @@ export async function openCrudImport<TPayload extends Record<string, any>>(optio
     ) => {
       if (options.submitRows) {
         // 部分业务（如测试用例导入）必须一次提交全部行，避免逐条提交时中途触发状态闭环导致后续行被拒绝。
-        return await runBatchImport(options, columns, rows, onProgress);
+        return await runCrudBatchImport(options, columns, rows, onProgress);
       }
 
       const results: ImportResultRow[] = [];
@@ -194,8 +209,9 @@ export async function openCrudImport<TPayload extends Record<string, any>>(optio
       for (const [index, row] of rows.entries()) {
         try {
           validateRequiredColumns(columns, row);
+          options.validateRow?.(row, index, rows);
           const payload = options.buildPayload
-            ? options.buildPayload(row, index)
+            ? options.buildPayload(row, index, rows)
             : buildPayloadFromColumns<TPayload>(columns, row);
           await options.submit!(payload, row, index);
           results.push({ index: index + 1, message: '处理成功', status: 'success' });
@@ -212,13 +228,13 @@ export async function openCrudImport<TPayload extends Record<string, any>>(optio
         });
       }
 
-      await options.afterDone?.();
-      return { results, success, total: rows.length };
+      const warning = success > 0 ? await runAfterImport(options.afterDone) : '';
+      return { committed: success > 0, results, success, total: rows.length, warning };
     },
   });
 }
 
-async function runBatchImport<TPayload extends Record<string, any>>(
+export async function runCrudBatchImport<TPayload extends Record<string, any>>(
   options: ImportCrudRowsOptions<TPayload>,
   columns: CrudExcelColumn[],
   rows: Array<Record<string, CellValue>>,
@@ -232,7 +248,8 @@ async function runBatchImport<TPayload extends Record<string, any>>(
   for (const [index, row] of rows.entries()) {
     try {
       validateRequiredColumns(columns, row);
-      payloads.push(options.buildPayload ? options.buildPayload(row, index) : buildPayloadFromColumns<TPayload>(columns, row));
+      options.validateRow?.(row, index, rows);
+      payloads.push(options.buildPayload ? options.buildPayload(row, index, rows) : buildPayloadFromColumns<TPayload>(columns, row));
       validRows.push(row);
       validIndexes.push(index + 1);
     } catch (error) {
@@ -246,16 +263,25 @@ async function runBatchImport<TPayload extends Record<string, any>>(
     });
   }
 
+  // 原子批次中任何一行不合法都不能向后端发送部分有效数据；有效行显式标记为本批未提交。
+  if (options.atomicBatch && results.length > 0) {
+    validIndexes.forEach((index) => results.push({
+      index,
+      message: '本批未提交：请先修正其他错误行',
+      status: 'skipped',
+    }));
+    results.sort((left, right) => left.index - right.index);
+    onProgress({ current: rows.length, failed: rows.length, success: 0, total: rows.length });
+    return { committed: false, results, success: 0, total: rows.length, warning: '' };
+  }
+
   let success = 0;
+  let submitResult: unknown;
   if (payloads.length > 0) {
-    try {
-      await options.submitRows!(payloads, validRows);
-      validIndexes.forEach((index) => results.push({ index, message: '处理成功', status: 'success' }));
-      success = payloads.length;
-    } catch (error) {
-      const message = resolveErrorMessage(error);
-      validIndexes.forEach((index) => results.push({ index, message, status: 'failed' }));
-    }
+    // 批量接口失败时保留预览态供用户使用同一 request_id 重试；不能把网络不确定结果误判成可重新导入的新批次。
+    submitResult = await options.submitRows!(payloads, validRows);
+    validIndexes.forEach((index) => results.push({ index, message: '处理成功', status: 'success' }));
+    success = payloads.length;
   }
 
   results.sort((left, right) => left.index - right.index);
@@ -265,9 +291,22 @@ async function runBatchImport<TPayload extends Record<string, any>>(
     success,
     total: rows.length,
   });
-  await options.afterDone?.();
+  const warning = success > 0 ? await runAfterImport(options.afterDone, submitResult) : '';
 
-  return { results, success, total: rows.length };
+  return { committed: success > 0, results, success, total: rows.length, warning };
+}
+
+async function runAfterImport(afterDone?: (result?: unknown) => Promise<void> | void, result?: unknown) {
+  if (!afterDone) {
+    return '';
+  }
+  try {
+    await afterDone(result);
+    return '';
+  } catch (error) {
+    const detail = resolveErrorMessage(error);
+    return `数据已写入成功，但页面刷新失败，请手动刷新查看最新结果。${detail ? `（${detail}）` : ''}`;
+  }
 }
 
 // 状态枚举允许中文和常见布尔文本，导入模板不要求用户记住后端数字值。

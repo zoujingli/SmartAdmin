@@ -277,7 +277,7 @@ function currentLoginEntry() {
 }
 
 export namespace AuthApi {
-  export interface LoginParams { password?: string; username?: string }
+  export interface LoginParams { keep_login?: 0 | 1; password?: string; username?: string }
   export interface LoginResult { token: string; user: any; auth_user_model?: string }
   export interface StandardResponse<T = unknown> { path: string; info: string; code: number; data: T }
   export type RefreshTokenResult = StandardResponse<string>;

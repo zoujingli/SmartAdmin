@@ -9,6 +9,11 @@ const projectRoot = path.resolve(__dirname, '..');
 
 export default defineConfig({
   plugins: [vue()],
+  resolve: {
+    alias: {
+      '#': path.resolve(__dirname, 'apps/web-antd/src'),
+    },
+  },
   server: {
     fs: {
       allow: [projectRoot],

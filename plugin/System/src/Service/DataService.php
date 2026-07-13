@@ -18,9 +18,9 @@ use Library\Exception\UnauthorizedResponseException;
 use Library\Support\CacheDriverResolver;
 use Library\Support\ModelChangeLog;
 use Library\Support\ModuleRegistry;
-use Library\Support\PluginManifestRegistry;
 use System\Mapper\DataMapper;
 use System\Mapper\UserMapper;
+use System\Support\ModuleGuideVisibility;
 use System\Support\SystemAppMeta;
 
 /**
@@ -136,10 +136,7 @@ final class DataService extends CoreService
         $meta = $this->getAppMetaConfig();
         $guideEnabled = $this->normalizeBool($meta['module_guide_enable'] ?? true, true);
         $entries = $guideEnabled
-            ? array_values(array_filter(
-                PluginManifestRegistry::guideEntries(),
-                static fn (array $entry): bool => (bool)($entry['enabled'] ?? true)
-            ))
+            ? ModuleGuideVisibility::visibleEntries($meta['module_guide_visibility'] ?? [])
             : [];
         // 模块引导页只有在全局开关开启且至少存在一个可展示入口时才生效，避免未登录首页停留在空引导页。
         $enabled = $guideEnabled && $entries !== [];

@@ -44,6 +44,7 @@ final class SystemAppMeta
             'logo_url' => '',
             'logo_file_id' => 0,
             'module_guide_enable' => true,
+            'module_guide_visibility' => [],
             'copyright_enable' => true,
             'company_name' => self::DEFAULT_APP_NAME,
             'company_site_link' => '',

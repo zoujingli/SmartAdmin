@@ -14,6 +14,7 @@ namespace System\Service;
 use Library\CoreService;
 use Library\Support\ModelChangeLog;
 use System\Mapper\DataMapper;
+use System\Support\ModuleGuideVisibility;
 use System\Support\SystemAppMeta;
 
 /**
@@ -37,7 +38,11 @@ final class SettingService extends CoreService
      */
     public function getInfo(): array
     {
-        return $this->normalizeAppMeta($this->readAppMeta(), true);
+        $info = $this->normalizeAppMeta($this->readAppMeta(), true);
+        // 入口名称和图标来自已安装插件清单，只作为设置页只读选项返回，不接受客户端回写。
+        $info['module_guide_options'] = ModuleGuideVisibility::options();
+
+        return $info;
     }
 
     /**
@@ -84,6 +89,10 @@ final class SettingService extends CoreService
     private function normalizeAppMeta(array $meta, bool $withDefaults): array
     {
         $source = $withDefaults ? array_merge(SystemAppMeta::defaults(), $meta) : $meta;
+        if ($withDefaults && !is_array($source['module_guide_visibility'] ?? null)) {
+            // 历史配置可能被通用配置页写成字符串；读取时回退清单默认值，保存请求仍由 array 规则严格校验。
+            $source['module_guide_visibility'] = [];
+        }
         // 系统参数是配置型业务数据，先由 _vali 过滤白名单并校验数值字段，再按界面展示约束做归一化。
         $source = _vali([
             // ValidateHelper 只会把带规则的字段放入 validated 结果；配置字段使用 default 规则同时完成白名单过滤与缺省兜底。
@@ -95,6 +104,7 @@ final class SettingService extends CoreService
             'logo_url.default' => $source['logo_url'] ?? '',
             'logo_file_id.default' => $source['logo_file_id'] ?? 0,
             'module_guide_enable.default' => $source['module_guide_enable'] ?? true,
+            'module_guide_visibility.default' => $source['module_guide_visibility'] ?? [],
             'copyright_enable.default' => $source['copyright_enable'] ?? true,
             'company_name.default' => $source['company_name'] ?? '',
             'company_site_link.default' => $source['company_site_link'] ?? '',
@@ -103,6 +113,7 @@ final class SettingService extends CoreService
             'icp_link.default' => $source['icp_link'] ?? '',
             'logo_file_id.integer' => 'Logo 文件 ID 必须为数字',
             'logo_file_id.min:0' => 'Logo 文件 ID 不能小于 0',
+            'module_guide_visibility.array' => '模块入口展示配置必须是对象',
         ], $source);
 
         return [
@@ -114,6 +125,7 @@ final class SettingService extends CoreService
             'logo_url' => $this->stringValue($source['logo_url'] ?? '', 500),
             'logo_file_id' => max(0, (int)($source['logo_file_id'] ?? 0)),
             'module_guide_enable' => $this->boolValue($source['module_guide_enable'] ?? true),
+            'module_guide_visibility' => ModuleGuideVisibility::normalize($source['module_guide_visibility'] ?? []),
             'copyright_enable' => $this->boolValue($source['copyright_enable'] ?? true),
             'company_name' => $this->stringValue($source['company_name'] ?? '', 120),
             'company_site_link' => $this->stringValue($source['company_site_link'] ?? '', 500),

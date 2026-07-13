@@ -61,7 +61,7 @@ final class TenantRepairServiceContractTest extends TestCase
         $this->assertStringContainsString("where('name', 'config_upload')", $repair);
         $this->assertStringContainsString('默认租户已有独立配置后，修复命令不得再次覆盖租户自行保存的配置', $repair);
         $this->assertStringContainsString("whereNull('tenant_id')->orWhere('tenant_id', '<=', TenantContext::UNSET_TENANT_ID)", $repair);
-        $this->assertStringContainsString('getDoctrineSchemaManager()->listTableNames()', $repair);
+        $this->assertStringContainsString('getDoctrineConnection()->createSchemaManager()->listTableNames()', $repair);
         $this->assertStringContainsString('$table !== self::PLATFORM_LOG_TABLE', $repair);
         $this->assertStringContainsString("'system_logs_change'", $repair);
         $this->assertMatchesRegularExpression('/tenant_rows[\s\S]+legacy_upload_config/', $repair);

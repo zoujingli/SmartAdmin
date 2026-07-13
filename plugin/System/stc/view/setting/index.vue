@@ -113,6 +113,32 @@
                   />
                 </FormItem>
               </Col>
+              <Col v-if="moduleGuideOptions.length > 0" :span="24">
+                <FormItem label="入口展示范围" name="module_guide_visibility">
+                  <div class="system-setting-entry-list">
+                    <div
+                      v-for="entry in moduleGuideOptions"
+                      :key="entry.code"
+                      class="system-setting-entry-list__item"
+                    >
+                      <div class="system-setting-entry-list__identity">
+                        <span class="system-setting-entry-list__icon" aria-hidden="true">
+                          <IconifyIcon :icon="entry.icon || 'lucide:blocks'" />
+                        </span>
+                        <span class="system-setting-entry-list__content">
+                          <strong>{{ entry.name }}</strong>
+                          <span>{{ entry.description }}</span>
+                        </span>
+                      </div>
+                      <Switch
+                        v-model:checked="formState.module_guide_visibility[entry.code]"
+                        :aria-label="`${entry.name}在入口页展示`"
+                        :disabled="!canSaveSettings || !formState.module_guide_enable"
+                      />
+                    </div>
+                  </div>
+                </FormItem>
+              </Col>
             </Row>
           </Card>
         </Col>
@@ -201,6 +227,7 @@ import type { UploadAsset, UploadFieldValue } from '@vben/common-ui';
 
 import { AdminImageUpload, CrudNoticeAlert, Page } from '@vben/common-ui';
 import { useAccess } from '@vben/access';
+import { IconifyIcon } from '@vben/icons';
 
 import {
   Button,
@@ -227,8 +254,9 @@ const loading = ref(false);
 const saving = ref(false);
 const formRef = ref();
 const logoAsset = ref<null | UploadAsset>(null);
+const moduleGuideOptions = ref<SettingApi.ModuleGuideOption[]>([]);
 
-const defaultSystemSetting: SettingApi.SystemSetting = {
+const defaultSystemSetting: SettingApi.SystemSettingPayload = {
   app_name: 'SmartAdmin',
   app_version: '1.0.0',
   app_description: '',
@@ -237,6 +265,7 @@ const defaultSystemSetting: SettingApi.SystemSetting = {
   logo_url: '',
   logo_file_id: 0,
   module_guide_enable: true,
+  module_guide_visibility: {},
   copyright_enable: true,
   company_name: 'SmartAdmin',
   company_site_link: '',
@@ -245,7 +274,7 @@ const defaultSystemSetting: SettingApi.SystemSetting = {
   icp_link: '',
 };
 
-const formState = reactive<SettingApi.SystemSetting>({ ...defaultSystemSetting });
+const formState = reactive<SettingApi.SystemSettingPayload>({ ...defaultSystemSetting });
 
 const formRules: any = {
   app_name: [{ message: '请输入系统名称', required: true, trigger: 'blur' }],
@@ -334,18 +363,38 @@ function normalizeSettingResponse(data: unknown): SettingApi.SystemSetting {
   const normalizedPayload = nestedAppMeta ? { ...nestedAppMeta, ...payload } : { ...payload };
   delete normalizedPayload.app_meta;
   const source = normalizedPayload as Partial<SettingApi.SystemSetting>;
+  const visibility = toPlainObject(source.module_guide_visibility) ?? {};
+  const moduleGuideVisibility = Object.fromEntries(
+    Object.entries(visibility).map(([code, enabled]) => [code, toBool(enabled, true)]),
+  );
+  const moduleGuideOptions = Array.isArray(source.module_guide_options)
+    ? source.module_guide_options
+        .filter((entry) => Boolean(entry && typeof entry === 'object'))
+        .map((entry) => ({
+          code: String(entry.code || '').trim(),
+          description: String(entry.description || '').trim(),
+          icon: String(entry.icon || '').trim(),
+          name: String(entry.name || '').trim(),
+        }))
+        .filter((entry) => entry.code !== '' && entry.name !== '')
+    : [];
 
   return {
     ...defaultSystemSetting,
     ...source,
     module_guide_enable: toBool(source.module_guide_enable, defaultSystemSetting.module_guide_enable),
+    module_guide_options: moduleGuideOptions,
+    module_guide_visibility: moduleGuideVisibility,
     copyright_enable: toBool(source.copyright_enable, defaultSystemSetting.copyright_enable),
     logo_file_id: Number(source.logo_file_id || 0),
   };
 }
 
 function applySetting(data: unknown) {
-  Object.assign(formState, normalizeSettingResponse(data));
+  const normalized = normalizeSettingResponse(data);
+  const { module_guide_options: options, ...setting } = normalized;
+  moduleGuideOptions.value = options;
+  Object.assign(formState, setting);
   logoAsset.value = formState.logo_url ? createLogoAsset(formState.logo_url, formState.logo_file_id) : null;
 }
 
@@ -369,7 +418,10 @@ async function handleSave() {
   try {
     await formRef.value?.validate();
     saving.value = true;
-    applySetting(await settingApiService.updateInfo({ ...formState }));
+    applySetting(await settingApiService.updateInfo({
+      ...formState,
+      module_guide_visibility: { ...formState.module_guide_visibility },
+    }));
     applyUiMetaPreferences(await dataApiService.getUiMeta());
     message.success('系统参数已保存');
   } catch (error) {
@@ -408,6 +460,64 @@ onMounted(() => {
   margin-top: 0.25rem;
   color: var(--ant-colorTextSecondary);
   font-size: 14px;
+}
+
+.system-setting-entry-list {
+  overflow: hidden;
+  border: 1px solid var(--ant-colorBorderSecondary);
+  border-radius: 8px;
+  background: var(--ant-colorBgContainer);
+}
+
+.system-setting-entry-list__item {
+  display: flex;
+  min-height: 68px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 14px;
+}
+
+.system-setting-entry-list__item + .system-setting-entry-list__item {
+  border-top: 1px solid var(--ant-colorBorderSecondary);
+}
+
+.system-setting-entry-list__identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.system-setting-entry-list__icon {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--ant-colorFillSecondary);
+  color: var(--ant-colorPrimary);
+  font-size: 18px;
+}
+
+.system-setting-entry-list__content {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.system-setting-entry-list__content strong {
+  color: var(--ant-colorText);
+  font-weight: 600;
+}
+
+.system-setting-entry-list__content span {
+  overflow: hidden;
+  color: var(--ant-colorTextSecondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .system-setting-preview {
@@ -465,6 +575,10 @@ onMounted(() => {
 @media (max-width: 640px) {
   .system-setting-toolbar {
     flex-direction: column;
+  }
+
+  .system-setting-entry-list__content span {
+    white-space: normal;
   }
 }
 </style>
