@@ -61,35 +61,28 @@
   }
 
   function inferAuthEntry(path) {
-    return /^\/project(?:\/|$)/.test(cleanPath(path)) ? "project" : "system";
+    return "system";
   }
 
   function resolveAuthEntry(controls, path) {
     var selected = controls && controls.authEntry ? controls.authEntry.value : "auto";
-    if (selected === "system" || selected === "project") {
+    if (selected === "system") {
       return selected;
     }
     return inferAuthEntry(path);
   }
 
   function authEntryLabel(entry) {
-    return entry === "project" ? "Project 应用入口" : "System 后台入口";
+    return "System 后台入口";
   }
 
   function authRoutes(entry) {
-    return entry === "project"
-      ? {
-        login: "/project/account/auth/login",
-        logout: "/project/account/auth/logout",
-        password: "/project/account/auth/password",
-        passwordCrypto: "/project/account/auth/password-crypto",
-      }
-      : {
-        login: "/system/auth/login",
-        logout: "/system/auth/logout",
-        password: "/system/auth/password",
-        passwordCrypto: "/system/auth/password-crypto",
-      };
+    return {
+      login: "/system/auth/login",
+      logout: "/system/auth/logout",
+      password: "/system/auth/password",
+      passwordCrypto: "/system/auth/password-crypto",
+    };
   }
 
   function storageGet(key, fallback) {
@@ -290,7 +283,6 @@
     var options = [
       ["auto", "自动识别入口"],
       ["system", "System 后台"],
-      ["project", "Project 应用"],
     ];
 
     options.forEach(function (item) {
@@ -523,12 +515,12 @@
 
   function isLoginPath(path) {
     var pathOnly = cleanPath(path);
-    return pathOnly === authRoutes("system").login || pathOnly === authRoutes("project").login;
+    return pathOnly === authRoutes("system").login || pathOnly === authRoutes("system").login;
   }
 
   function isLogoutPath(path) {
     var pathOnly = cleanPath(path);
-    return pathOnly === authRoutes("system").logout || pathOnly === authRoutes("project").logout;
+    return pathOnly === authRoutes("system").logout || pathOnly === authRoutes("system").logout;
   }
 
   function isUnauthorized(result) {
@@ -633,7 +625,7 @@
       fields.password = PASSWORD_PURPOSES.login;
       return fields;
     }
-    if (pathOnly === authRoutes("system").password || pathOnly === authRoutes("project").password) {
+    if (pathOnly === authRoutes("system").password || pathOnly === authRoutes("system").password) {
       fields.old_password = PASSWORD_PURPOSES.changeOld;
       fields.new_password = PASSWORD_PURPOSES.changeNew;
       return fields;
@@ -699,7 +691,7 @@
     var pathOnly = cleanPath(controls.path.value);
     var isPasswordPath = isLoginPath(pathOnly)
       || pathOnly === authRoutes("system").password
-      || pathOnly === authRoutes("project").password
+      || pathOnly === authRoutes("system").password
       || /\/system\/user\/create$/.test(pathOnly)
       || /\/system\/user\/update\/[^/]+$/.test(pathOnly)
       || /\/system\/user\/reset-password\/[^/]+$/.test(pathOnly);
@@ -942,9 +934,9 @@
     var row2 = createNode("div", "api-tester__row api-tester__row--three");
     var row3 = createNode("div", "api-tester__row api-tester__row--three");
     var row4 = createNode("div", "api-tester__row");
-    var credentialHint = createNode("div", "api-tester__credential-hint", "调试器会按登录入口选择密码加密参数：System 使用 /system/auth/password-crypto，Project 使用 /project/account/auth/password-crypto；缓存使用 AES-GCM 加密，但不抵御同源 XSS。");
+    var credentialHint = createNode("div", "api-tester__credential-hint", "调试器使用 /system/auth/password-crypto 获取密码加密参数；缓存使用 AES-GCM 加密，但不抵御同源 XSS。");
     var bodyUsername = config.body && typeof config.body === "object" && typeof config.body.username === "string" ? config.body.username : "";
-    var defaultUsername = inferredEntry === "project" ? "project_user" : "admin";
+    var defaultUsername = "admin";
     var initialUsername = bodyUsername && secureState.username === DEFAULT_STATE.username ? bodyUsername : (secureState.username || defaultUsername);
     var baseInput = createInput("url", secureState.baseUrl || config.baseUrl || getDefaultBaseUrl(), getDefaultBaseUrl());
     var pathInput = createInput("text", config.path || "", "/system/auth/login");

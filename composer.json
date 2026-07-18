@@ -138,10 +138,5 @@
       "Composer\\Config::disableProcessTimeout",
       "./bin/smart.php"
     ]
-  },
-  "autoload-dev": {
-    "files": [
-      ".phpstan/ProjectModelTestStubs.php"
-    ]
   }
 }

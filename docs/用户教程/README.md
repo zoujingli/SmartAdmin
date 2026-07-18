@@ -18,7 +18,6 @@
 | 页面 | 前端路由 | 主要用途 |
 |------|----------|----------|
 | System 后台登录 | `/system/login` | 后台用户登录并获取 System Token |
-| Project 应用登录 | `/project/login` | ProjectAccount 登录并进入项目应用，入口由 Project 插件声明 |
 | 工作台 | `/dashboard/workspace` | 查看待办、系统概览和快捷入口 |
 | 工作台 | `/dashboard/workspace` | 查看系统规模、待办提醒、快捷入口和运行概览 |
 | 个人资料 | `/account/profile` | 修改资料、头像、密码和界面偏好 |
