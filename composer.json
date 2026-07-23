@@ -81,12 +81,9 @@
     "web:build": "cd web && pnpm -F @vben/web-antd run typecheck && pnpm -F @vben/web-antd run build",
     "docs:serve": "@php -S 127.0.0.1:18100 -t docs",
     "docs:check": "./bin/smart.php xadmin:docs:check",
-    "release:backup": "./bin/smart.php xadmin:release:backup --install",
+    "release:backup": "@php .php-sfx-packer.php snapshot .",
     "release:restore:dry-run": "./bin/smart.php xadmin:release:restore --install --dry-run --json",
-    "release:snapshot": [
-      "@composer release:backup",
-      "@composer release:restore:dry-run"
-    ],
+    "release:snapshot": "@composer release:backup",
     "release:check": [
       "@composer analyse",
       "@composer test",
@@ -113,7 +110,7 @@
     ],
     "build:clean": "rm -f system.bin build/system build/system-linux-x64 build/system-linux-a64 build/system-macos-a64 build/upgrade/system build/upgrade/system-linux-x64 build/upgrade/system-linux-a64 build/upgrade/system-macos-a64 build/.env build/.env.example build/.DS_Store && rm -rf build/public build/runtime runtime/container storage/extra/release",
     "build:install-prod": "export COMPOSER_ALLOW_SUPERUSER=1 && ./bin/smart.php composer install --no-dev --optimize-autoloader --classmap-authoritative --no-interaction --prefer-dist --no-progress",
-    "build:snapshot": "./bin/smart.php xadmin:release:backup --install",
+    "build:snapshot": "@php .php-sfx-packer.php snapshot .",
     "build:precompile": "@php .php-sfx-packer.php precompile .",
     "build:phar": [
       "rm -f system.bin",

@@ -17,6 +17,9 @@ try {
         case 'build':
             runReleaseBuild($target ?? '.');
             break;
+        case 'snapshot':
+            runStandaloneReleaseSnapshot($target ?? '.');
+            break;
         case 'precompile':
             runBuildPrecompile($target ?? '.');
             break;
@@ -48,6 +51,9 @@ function parseSfxArguments(array $argv): array
     if ($command === 'build') {
         return ['build', null, $argv[2] ?? '.'];
     }
+    if ($command === 'snapshot') {
+        return ['snapshot', null, $argv[2] ?? '.'];
+    }
     if ($command === 'precompile') {
         return ['precompile', null, $argv[2] ?? '.'];
     }
@@ -68,6 +74,7 @@ function usageText(): string
     return implode(PHP_EOL, [
         'Wrong arguments!',
         'Build example: ./.php-sfx-packer.php build',
+        'Snapshot example: ./.php-sfx-packer.php snapshot .',
         'Precompile example: ./.php-sfx-packer.php precompile .',
         'Pack example: ./.php-sfx-packer.php pack system.bin build/system',
         'Audit example: ./.php-sfx-packer.php audit build/system',
@@ -89,6 +96,9 @@ function runReleaseBuild(string $baseDir): void
         throw new RuntimeException("切换构建目录失败：{$baseDir}");
     }
 
+    // 只要已确认是合法源码目录，新构建就必须立即作废上一版安装包。
+    // 后续即使在运行时、前端产物或任何快照前置检查失败，也不得留下可被误打包的旧 final/staging。
+    invalidateReleaseInstallArtifacts();
     assertBundledSwooleRuntime();
     putenv('COMPOSER_ALLOW_SUPERUSER=1');
 
@@ -99,9 +109,6 @@ function runReleaseBuild(string $baseDir): void
 
     try {
         assertFrontendDistReady();
-        runBuildCommand('同步菜单种子', ['./bin/smart.php', 'xadmin:menu:sync', '--details']);
-        runBuildCommand('同步权限节点', ['./bin/smart.php', 'xadmin:node:sync', '--details']);
-
         cleanReleaseWorkspace();
         runReleaseSnapshot();
 
@@ -188,6 +195,25 @@ function runReleaseBuild(string $baseDir): void
 }
 
 /**
+ * 独立安装快照入口。发布快照必须从 fresh 临时库生成，不能读取或修改开发、测试及业务数据库。
+ */
+function runStandaloneReleaseSnapshot(string $baseDir): void
+{
+    assertPhp84BuildRuntime();
+
+    $baseDir = rtrim(str_replace('\\', '/', realpath($baseDir) ?: $baseDir), '/');
+    if ($baseDir === '' || !is_file($baseDir . '/composer.json')) {
+        throw new RuntimeException("快照目录无效或缺少 composer.json：{$baseDir}");
+    }
+    if (!chdir($baseDir)) {
+        throw new RuntimeException("切换快照目录失败：{$baseDir}");
+    }
+
+    assertBundledSwooleRuntime();
+    runReleaseSnapshot();
+}
+
+/**
  * 发布构建直接复用现有 web/dist，避免 composer build 隐式触发前端编译。
  *
  * 前端产物应由独立流水线或人工执行 composer web:build 生成；这里校验入口与 static 资源存在，
@@ -233,14 +259,7 @@ function hasFrontendStaticFile(string $path): bool
 function runBuildCommand(string $title, array $command, bool $discardStdout = false, array $env = []): void
 {
     echo "[build] {$title}" . PHP_EOL;
-    $parts = [];
-    foreach ($env as $name => $value) {
-        $parts[] = $name . '=' . escapeshellarg($value);
-    }
-    foreach ($command as $argument) {
-        $parts[] = escapeshellarg($argument);
-    }
-    $line = implode(' ', $parts);
+    $line = buildShellCommand($command, $env);
     if ($discardStdout) {
         $line .= ' > ' . (DIRECTORY_SEPARATOR === '\\' ? 'NUL' : '/dev/null');
     }
@@ -253,19 +272,550 @@ function runBuildCommand(string $title, array $command, bool $discardStdout = fa
 }
 
 /**
+ * 运行必须返回单一 JSON 对象的构建命令；发布恢复验证依赖结构化报告，不能只看退出码。
+ *
+ * @param string[] $command
+ * @param array<string,string> $env
+ * @return array<string,mixed>
+ */
+function runBuildJsonCommand(string $title, array $command, array $env = []): array
+{
+    echo "[build] {$title}" . PHP_EOL;
+    $output = [];
+    $exitCode = 0;
+    exec(buildShellCommand($command, $env) . ' 2>&1', $output, $exitCode);
+    $payload = implode(PHP_EOL, $output);
+    if ($payload !== '') {
+        echo $payload . PHP_EOL;
+    }
+    if ($exitCode !== 0) {
+        throw new RuntimeException("构建命令失败({$exitCode})：{$title}");
+    }
+
+    try {
+        $report = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
+    } catch (JsonException $exception) {
+        throw new RuntimeException("构建命令未返回合法 JSON：{$title}", 0, $exception);
+    }
+    if (!is_array($report)) {
+        throw new RuntimeException("构建命令未返回 JSON 对象：{$title}");
+    }
+
+    return $report;
+}
+
+/**
+ * @param string[] $command
+ * @param array<string,string> $env
+ */
+function buildShellCommand(array $command, array $env = []): string
+{
+    $parts = [];
+    foreach ($env as $name => $value) {
+        $parts[] = $name . '=' . escapeshellarg($value);
+    }
+    foreach ($command as $argument) {
+        $parts[] = escapeshellarg($argument);
+    }
+
+    return implode(' ', $parts);
+}
+
+/**
  * 构建前生成 Phar 内安装包；安装包只包含完整结构与 release 必要数据，不携带运行期全量数据。
  */
 function runReleaseSnapshot(): void
 {
-    runBuildCommand('生成数据库安装包', ['./bin/smart.php', 'xadmin:release:backup', '--install']);
-    runBuildCommand('预览安装包恢复 SQL', ['./bin/smart.php', 'xadmin:release:restore', '--install', '--dry-run', '--json']);
+    $finalPath = str_replace('\\', '/', (getcwd() ?: '.') . '/storage/extra/release');
+    $token = date('YmdHis') . '_' . getmypid() . '_' . bin2hex(random_bytes(4));
+    $stagingPath = str_replace('\\', '/', (getcwd() ?: '.') . '/storage/extra/release.staging-' . $token);
+    // 新一轮生成开始即让旧 final 失效；任何失败都保持 final 缺失，禁止误打包上一轮安装快照。
+    invalidateReleaseInstallArtifacts();
+    removePath($stagingPath);
 
-    foreach (['database.schema.gz', 'database.data.gz', 'database.meta.json'] as $filename) {
-        $source = 'storage/extra/release/' . $filename;
-        if (!is_file($source) || filesize($source) === 0) {
-            throw new RuntimeException("数据库安装包缺失或为空：{$source}");
+    $temporaryDatabases = [];
+    $failure = null;
+    $cleanupFailure = null;
+
+    try {
+        // SQLite 与 MySQL 必须各自 fresh 生成原生 Doctrine Schema；共享必要数据固定由 SQLite 源写入一次。
+        foreach (['sqlite', 'mysql'] as $driver) {
+            $source = createTemporaryReleaseDatabase($driver, 'source');
+            $temporaryDatabases[] = $source;
+            prepareTemporaryReleaseSource($source);
+            $environment = array_merge($source['environment'], [
+                'RELEASE_INSTALL_STAGING_DIR' => $stagingPath,
+                'RELEASE_INSTALL_WRITE_DATA' => $driver === 'sqlite' ? '1' : '0',
+            ]);
+            runBuildCommand(
+                "从 {$driver} fresh 隔离库采集安装快照",
+                ['./bin/smart.php', 'xadmin:release:backup', '--install'],
+                false,
+                $environment
+            );
+        }
+
+        assertReleaseInstallStaging($stagingPath);
+
+        // 每个方言都恢复到第二个全新空目标，真实执行写入后再次 dry-run，验证安装包不是只可反序列化而是确实可安装。
+        foreach (['sqlite', 'mysql'] as $driver) {
+            $target = createTemporaryReleaseDatabase($driver, 'target');
+            $temporaryDatabases[] = $target;
+            $environment = array_merge($target['environment'], [
+                'RELEASE_INSTALL_STAGING_DIR' => $stagingPath,
+            ]);
+            $restoreReport = runBuildJsonCommand(
+                "在空 {$driver} 目标真实恢复安装快照",
+                ['./bin/smart.php', 'xadmin:release:restore', '--install', '--json'],
+                $environment
+            );
+            $verifyReport = runBuildJsonCommand(
+                "复查 {$driver} 安装目标结构差异",
+                ['./bin/smart.php', 'xadmin:release:restore', '--install', '--dry-run', '--json'],
+                $environment
+            );
+            assertRestoredReleaseTarget($driver, $stagingPath, $restoreReport, $verifyReport);
+        }
+    } catch (Throwable $throwable) {
+        $failure = $throwable;
+    } finally {
+        foreach (array_reverse($temporaryDatabases) as $temporaryDatabase) {
+            try {
+                cleanupTemporaryReleaseDatabase($temporaryDatabase);
+            } catch (Throwable $throwable) {
+                $cleanupFailure ??= $throwable;
+            }
         }
     }
+
+    if ($failure !== null || $cleanupFailure !== null) {
+        removePath($stagingPath);
+        removePath($finalPath);
+        $messages = [];
+        if ($failure !== null) {
+            $messages[] = $failure->getMessage();
+        }
+        if ($cleanupFailure !== null) {
+            $messages[] = '清理隔离数据库失败：' . $cleanupFailure->getMessage();
+        }
+        throw new RuntimeException(implode(PHP_EOL, $messages), 0, $failure ?? $cleanupFailure);
+    }
+
+    try {
+        assertReleaseInstallStaging($stagingPath);
+        if (!rename($stagingPath, $finalPath)) {
+            throw new RuntimeException("原子发布数据库安装包失败：{$finalPath}");
+        }
+    } catch (Throwable $throwable) {
+        removePath($stagingPath);
+        removePath($finalPath);
+        throw $throwable;
+    }
+}
+
+/**
+ * 空目标恢复必须写入完整必要数据，且恢复后的第二次比较不能再产生任何结构 SQL。
+ *
+ * @param array<string,mixed> $restoreReport
+ * @param array<string,mixed> $verifyReport
+ */
+function assertRestoredReleaseTarget(string $driver, string $stagingPath, array $restoreReport, array $verifyReport): void
+{
+    $meta = json_decode((string)file_get_contents($stagingPath . '/database.meta.json'), true, 512, JSON_THROW_ON_ERROR);
+    $schemaFilename = "database.schema.{$driver}.gz";
+    $schemaPath = str_replace('\\', '/', (string)($restoreReport['schema_path'] ?? ''));
+    if (
+        ($restoreReport['install'] ?? null) !== true
+        || ($restoreReport['dry_run'] ?? null) !== false
+        || !str_ends_with($schemaPath, '/' . $schemaFilename)
+        || (array)($restoreReport['skipped_tables'] ?? []) !== []
+        || (int)($restoreReport['data_rows'] ?? -1) !== (int)($meta['data_rows'] ?? -2)
+    ) {
+        throw new RuntimeException("{$driver} 安装快照恢复结果与 staging 元数据不一致");
+    }
+    if (
+        ($verifyReport['install'] ?? null) !== true
+        || ($verifyReport['dry_run'] ?? null) !== true
+        || (array)($verifyReport['safe_sql'] ?? []) !== []
+        || (array)($verifyReport['destructive_sql'] ?? []) !== []
+    ) {
+        throw new RuntimeException("{$driver} 安装快照恢复验证仍存在结构差异");
+    }
+}
+
+/**
+ * 在 fresh 源库执行迁移与注册表同步；目标验证库保持创建后的真正空库，不复用源库状态。
+ *
+ * @param array{driver:string,database:string,directory:?string,environment:array<string,string>} $temporaryDatabase
+ */
+function prepareTemporaryReleaseSource(array $temporaryDatabase): void
+{
+    $driver = $temporaryDatabase['driver'];
+    $environment = $temporaryDatabase['environment'];
+    runBuildCommand("在 {$driver} 隔离源重建完整结构", [
+        './bin/smart.php',
+        'migrate:fresh',
+        '--force',
+        '--no-interaction',
+    ], false, $environment);
+    runBuildCommand("在 {$driver} 隔离源同步菜单种子", [
+        './bin/smart.php',
+        'xadmin:menu:sync',
+        '--details',
+    ], false, $environment);
+    runBuildCommand("在 {$driver} 隔离源同步权限节点", [
+        './bin/smart.php',
+        'xadmin:node:sync',
+        '--details',
+    ], false, $environment);
+}
+
+/**
+ * staging 只有在双 schema、共享 data、元数据映射和哈希全部一致时才允许发布。
+ */
+function assertReleaseInstallStaging(string $stagingPath): void
+{
+    $normalized = rtrim(str_replace('\\', '/', $stagingPath), '/');
+    $controlledParent = rtrim(str_replace('\\', '/', (getcwd() ?: '.') . '/storage/extra'), '/');
+    $controlledRealPath = realpath($controlledParent);
+    $stagingRealPath = realpath($normalized);
+    if (
+        dirname($normalized) !== $controlledParent
+        || preg_match('/^release\.staging-[a-zA-Z0-9][a-zA-Z0-9._-]*$/', basename($normalized)) !== 1
+        || is_link($normalized)
+        || $controlledRealPath === false
+        || $stagingRealPath === false
+        || str_replace('\\', '/', $controlledRealPath) !== $controlledParent
+        || str_replace('\\', '/', dirname($stagingRealPath)) !== str_replace('\\', '/', $controlledRealPath)
+    ) {
+        throw new RuntimeException("数据库安装包 staging 必须是受控构建目录中的真实直属目录：{$stagingPath}");
+    }
+
+    $required = [
+        'database.schema.mysql.gz',
+        'database.schema.sqlite.gz',
+        'database.data.gz',
+        'database.meta.json',
+    ];
+    foreach ($required as $filename) {
+        $path = $stagingPath . '/' . $filename;
+        if (!is_file($path) || filesize($path) <= 0) {
+            throw new RuntimeException("数据库安装包 staging 缺失或为空：{$path}");
+        }
+    }
+    if (is_file($stagingPath . '/database.schema.gz')) {
+        throw new RuntimeException('数据库安装包 format v2 禁止包含旧 database.schema.gz');
+    }
+
+    $meta = json_decode((string)file_get_contents($stagingPath . '/database.meta.json'), true);
+    if (
+        !is_array($meta)
+        || (int)($meta['format_version'] ?? 0) !== 2
+        || ($meta['kind'] ?? null) !== 'install'
+        || ($meta['with_data'] ?? true) !== false
+    ) {
+        throw new RuntimeException('数据库安装包 staging 元数据必须为 format_version=2、kind=install、with_data=false');
+    }
+    $databasePrefix = $meta['database_prefix'] ?? null;
+    $expectedDatabasePrefix = releaseBuildEnvironment()['DB_PREFIX'];
+    if (
+        !is_string($databasePrefix)
+        || $databasePrefix !== trim($databasePrefix)
+        || ($databasePrefix !== '' && preg_match('/^[a-zA-Z0-9_]+$/D', $databasePrefix) !== 1)
+        || $databasePrefix !== $expectedDatabasePrefix
+    ) {
+        throw new RuntimeException('数据库安装包 staging 的 database_prefix 与构建环境 DB_PREFIX 不一致');
+    }
+
+    $schemas = is_array($meta['schema'] ?? null) ? $meta['schema'] : [];
+    $projectRequiredStructures = (glob('plugin/*/stc/migrations/*_project_task_acceptance_criteria.php') ?: []) !== []
+        ? ['acceptance_criteria', 'task_category', 'project_task_acceptance_snapshot']
+        : [];
+    foreach (['mysql', 'sqlite'] as $driver) {
+        $filename = "database.schema.{$driver}.gz";
+        $entry = is_array($schemas[$driver] ?? null) ? $schemas[$driver] : [];
+        $path = $stagingPath . '/' . $filename;
+        if (
+            (string)($entry['driver'] ?? '') !== $driver
+            || (string)($entry['file'] ?? '') !== $filename
+            || !hash_equals((string)($entry['sha256'] ?? ''), (string)hash_file('sha256', $path))
+        ) {
+            throw new RuntimeException("数据库安装包 {$driver} schema 映射或哈希不一致");
+        }
+        $payload = gzdecode((string)file_get_contents($path));
+        if (!is_string($payload) || $payload === '') {
+            throw new RuntimeException("数据库安装包 {$driver} schema 无法解压");
+        }
+        foreach (['kpi_item', 'idx_proj_task_perf_kpi'] as $legacyName) {
+            if (str_contains($payload, $legacyName)) {
+                throw new RuntimeException("数据库安装包 {$driver} schema 仍包含已删除结构：{$legacyName}");
+            }
+        }
+        foreach ($projectRequiredStructures as $requiredName) {
+            if (!str_contains($payload, $requiredName)) {
+                throw new RuntimeException("数据库安装包 {$driver} schema 缺少当前任务验收结构：{$requiredName}");
+            }
+        }
+    }
+
+    $data = is_array($meta['data'] ?? null) ? $meta['data'] : [];
+    $dataPath = $stagingPath . '/database.data.gz';
+    if (
+        (string)($data['file'] ?? '') !== 'database.data.gz'
+        || !hash_equals((string)($data['sha256'] ?? ''), (string)hash_file('sha256', $dataPath))
+    ) {
+        throw new RuntimeException('数据库安装包共享 data 映射或哈希不一致');
+    }
+    if ((array)($meta['skipped_tables'] ?? []) !== []) {
+        throw new RuntimeException('数据库安装包 fresh 源缺少必要数据表，禁止发布不完整安装包');
+    }
+}
+
+/**
+ * 创建发布快照专用数据库。所有后续命令只通过子进程环境变量使用该库，当前进程和原 `.env` 始终不变。
+ *
+ * @return array{driver:string,database:string,directory:?string,environment:array<string,string>}
+ */
+function createTemporaryReleaseDatabase(string $driver, string $role): array
+{
+    $source = releaseBuildEnvironment();
+    $driver = strtolower(trim($driver));
+    if (!in_array($driver, ['sqlite', 'mysql'], true)) {
+        throw new InvalidArgumentException("发布快照仅支持 SQLite 或 MySQL，当前驱动：{$driver}");
+    }
+    $role = strtolower(trim($role));
+    if (!in_array($role, ['source', 'target'], true)) {
+        throw new InvalidArgumentException("不支持的发布隔离库角色：{$role}");
+    }
+    $token = $role . '_' . date('YmdHis') . '_' . getmypid() . '_' . bin2hex(random_bytes(6));
+    $environment = $source;
+    $environment['APP_ENV'] = 'dev';
+    $environment['CACHE_DRIVER'] = 'file';
+    $environment['CACHE_PREFIX'] = 'release_build_' . $token;
+
+    if ($driver === 'sqlite') {
+        $directory = str_replace('\\', '/', (getcwd() ?: '.') . '/runtime/release-build/' . $token);
+        if (!is_dir($directory) && !mkdir($directory, 0755, true) && !is_dir($directory)) {
+            throw new RuntimeException("创建 SQLite 隔离目录失败：{$directory}");
+        }
+        $database = $directory . '/system.db';
+        if (file_put_contents($database, '', LOCK_EX) === false) {
+            removePath($directory);
+            throw new RuntimeException("创建 SQLite 隔离数据库失败：{$database}");
+        }
+        $environment['DB_DRIVER'] = 'sqlite';
+        $environment['DB_DATABASE'] = $database;
+
+        echo "[build] 使用 SQLite 隔离数据库 {$database}" . PHP_EOL;
+        return [
+            'driver' => 'sqlite',
+            'database' => $database,
+            'directory' => $directory,
+            'environment' => $environment,
+        ];
+    }
+
+    $database = '_release_build_' . $token;
+    assertTemporaryMysqlDatabaseName($database);
+    $environment['DB_DRIVER'] = 'mysql';
+    $environment['DB_DATABASE'] = $database;
+    controlTemporaryMysqlDatabase('create', $database, $environment);
+    rememberTemporaryMysqlDatabase($database);
+
+    echo "[build] 使用 MySQL 隔离数据库 {$database}" . PHP_EOL;
+    return [
+        'driver' => 'mysql',
+        'database' => $database,
+        'directory' => null,
+        'environment' => $environment,
+    ];
+}
+
+/**
+ * @param array{driver:string,database:string,directory:?string,environment:array<string,string>} $temporaryDatabase
+ */
+function cleanupTemporaryReleaseDatabase(array $temporaryDatabase): void
+{
+    if ($temporaryDatabase['driver'] === 'sqlite') {
+        $directory = (string)$temporaryDatabase['directory'];
+        $expectedRoot = str_replace('\\', '/', (getcwd() ?: '.') . '/runtime/release-build/');
+        $normalized = rtrim(str_replace('\\', '/', $directory), '/') . '/';
+        if ($directory === '' || !str_starts_with($normalized, $expectedRoot)) {
+            throw new RuntimeException("拒绝清理非发布隔离目录：{$directory}");
+        }
+        removePath($directory);
+        @rmdir(dirname($directory));
+        return;
+    }
+
+    assertTemporaryMysqlDatabaseName($temporaryDatabase['database']);
+    if (!ownsTemporaryMysqlDatabase($temporaryDatabase['database'])) {
+        throw new RuntimeException("拒绝删除非本次进程创建的 MySQL 发布隔离数据库：{$temporaryDatabase['database']}");
+    }
+    controlTemporaryMysqlDatabase('drop', $temporaryDatabase['database'], $temporaryDatabase['environment']);
+    forgetTemporaryMysqlDatabase($temporaryDatabase['database']);
+}
+
+/**
+ * MySQL 临时库名固定使用受控前缀；DROP 前再次校验，避免环境或参数错误伤及现有数据库。
+ */
+function assertTemporaryMysqlDatabaseName(string $database): void
+{
+    if (!preg_match('/^_release_build_[a-z0-9_]+$/', $database)) {
+        throw new RuntimeException("拒绝操作非发布隔离 MySQL 数据库：{$database}");
+    }
+}
+
+function rememberTemporaryMysqlDatabase(string $database): void
+{
+    $GLOBALS['xadmin_release_build_mysql_databases'][$database] = true;
+}
+
+function ownsTemporaryMysqlDatabase(string $database): bool
+{
+    return isset($GLOBALS['xadmin_release_build_mysql_databases'][$database]);
+}
+
+function forgetTemporaryMysqlDatabase(string $database): void
+{
+    unset($GLOBALS['xadmin_release_build_mysql_databases'][$database]);
+}
+
+/**
+ * @param array<string,string> $environment
+ */
+function controlTemporaryMysqlDatabase(string $action, string $database, array $environment): void
+{
+    if (!in_array($action, ['create', 'drop'], true)) {
+        throw new InvalidArgumentException("不支持的 MySQL 隔离库动作：{$action}");
+    }
+    assertTemporaryMysqlDatabaseName($database);
+
+    $code = <<<'PHP_CODE'
+$action = (string)getenv('RELEASE_BUILD_DB_ACTION');
+$database = (string)getenv('RELEASE_BUILD_DB_NAME');
+if (!in_array($action, ['create', 'drop'], true) || !preg_match('/^_release_build_[a-z0-9_]+$/', $database)) {
+    fwrite(STDERR, "拒绝操作非发布隔离 MySQL 数据库\n");
+    exit(64);
+}
+$charset = (string)(getenv('DB_CHARSET') ?: 'utf8mb4');
+$collation = (string)(getenv('DB_COLLATION') ?: 'utf8mb4_unicode_ci');
+if (!preg_match('/^[a-z0-9_]+$/i', $charset) || !preg_match('/^[a-z0-9_]+$/i', $collation)) {
+    fwrite(STDERR, "MySQL 字符集或排序规则不安全\n");
+    exit(64);
+}
+try {
+    $pdo = new PDO(
+        sprintf(
+            'mysql:host=%s;port=%d;charset=%s',
+            (string)(getenv('DB_HOST') ?: '127.0.0.1'),
+            (int)(getenv('DB_PORT') ?: 3306),
+            $charset
+        ),
+        (string)getenv('DB_USERNAME'),
+        (string)getenv('DB_PASSWORD'),
+        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+    );
+    $quoted = '`' . $database . '`';
+    if ($action === 'create') {
+        $pdo->exec("CREATE DATABASE {$quoted} CHARACTER SET {$charset} COLLATE {$collation}");
+    } else {
+        $pdo->exec("DROP DATABASE {$quoted}");
+    }
+} catch (Throwable $throwable) {
+    fwrite(STDERR, sprintf(
+        "MySQL 发布隔离库%s失败；构建账号必须具备 CREATE/DROP DATABASE 权限：%s\n",
+        $action === 'create' ? '创建' : '删除',
+        $throwable->getMessage()
+    ));
+    exit(1);
+}
+PHP_CODE;
+
+    $environment['RELEASE_BUILD_DB_ACTION'] = $action;
+    $environment['RELEASE_BUILD_DB_NAME'] = $database;
+    runBuildCommand(
+        ($action === 'create' ? '创建' : '删除') . ' MySQL 发布隔离数据库',
+        ['./bin/smart.php', 'runtime', '-r', $code],
+        false,
+        $environment
+    );
+}
+
+/**
+ * 读取构建数据库环境，显式进程变量优先于 `.env`；敏感值只传给子进程，不输出到构建日志。
+ *
+ * @return array<string,string>
+ */
+function releaseBuildEnvironment(): array
+{
+    $fileValues = [];
+    foreach (['.env', '.env.example'] as $filename) {
+        if (is_file($filename)) {
+            $fileValues = readReleaseEnvFile($filename);
+            break;
+        }
+    }
+
+    $defaults = [
+        'DB_DRIVER' => 'sqlite',
+        'DB_HOST' => '127.0.0.1',
+        'DB_PORT' => '3306',
+        'DB_DATABASE' => 'runtime/system.db',
+        'DB_USERNAME' => 'root',
+        'DB_PASSWORD' => '',
+        'DB_PREFIX' => '',
+        'DB_CHARSET' => 'utf8mb4',
+        'DB_COLLATION' => 'utf8mb4_unicode_ci',
+        'CACHE_DRIVER' => 'file',
+        'CACHE_PREFIX' => 'smartadmin',
+    ];
+    $result = [];
+    foreach ($defaults as $name => $default) {
+        $processValue = getenv($name);
+        $result[$name] = $processValue !== false ? (string)$processValue : (string)($fileValues[$name] ?? $default);
+    }
+    $result['DB_PREFIX'] = trim($result['DB_PREFIX']);
+    if ($result['DB_PREFIX'] !== '' && preg_match('/^[a-zA-Z0-9_]+$/D', $result['DB_PREFIX']) !== 1) {
+        throw new RuntimeException('DB_PREFIX 只能包含字母、数字和下划线');
+    }
+
+    return $result;
+}
+
+/**
+ * @return array<string,string>
+ */
+function readReleaseEnvFile(string $path): array
+{
+    $values = [];
+    foreach (file($path, FILE_IGNORE_NEW_LINES) ?: [] as $line) {
+        $line = trim($line);
+        if ($line === '' || str_starts_with($line, '#')) {
+            continue;
+        }
+        if (str_starts_with($line, 'export ')) {
+            $line = substr($line, 7);
+        }
+        $separator = strpos($line, '=');
+        if ($separator === false) {
+            continue;
+        }
+        $name = trim(substr($line, 0, $separator));
+        if (!preg_match('/^[A-Z][A-Z0-9_]*$/', $name)) {
+            continue;
+        }
+        $value = trim(substr($line, $separator + 1));
+        if (strlen($value) >= 2) {
+            $quote = $value[0];
+            if (($quote === '"' || $quote === "'") && str_ends_with($value, $quote)) {
+                $value = substr($value, 1, -1);
+            }
+        }
+        $values[$name] = $value;
+    }
+
+    return $values;
 }
 
 /**
@@ -273,7 +823,7 @@ function runReleaseSnapshot(): void
  */
 function cleanReleaseWorkspace(): void
 {
-    removePath('storage/extra/release');
+    invalidateReleaseInstallArtifacts();
     removePaths(array_merge(
         glob('build/system*') ?: [],
         glob('build/upgrade/system*') ?: [],
@@ -287,6 +837,17 @@ function cleanReleaseWorkspace(): void
             'runtime/container',
         ]
     ));
+}
+
+/**
+ * 作废当前可发布安装包及上次异常留下的 staging。
+ *
+ * 只处理固定的 storage/extra/release 边界，不扫描或删除其它 storage 数据。
+ */
+function invalidateReleaseInstallArtifacts(): void
+{
+    removePath('storage/extra/release');
+    removePaths(glob('storage/extra/release.staging-*') ?: []);
 }
 
 /**
@@ -826,7 +1387,8 @@ function auditPharPrecompileState(string $pharFile): array
         'vendor/composer/autoload_real.php',
         'vendor/composer/autoload_classmap.php',
         'storage/extra/web-dist.zip',
-        'storage/extra/release/database.schema.gz',
+        'storage/extra/release/database.schema.mysql.gz',
+        'storage/extra/release/database.schema.sqlite.gz',
         'storage/extra/release/database.data.gz',
         'storage/extra/release/database.meta.json',
     ];
@@ -865,7 +1427,8 @@ function auditReleaseInstallPackage(string $pharFile): array
 {
     $phar = new Phar($pharFile);
     $required = [
-        'storage/extra/release/database.schema.gz',
+        'storage/extra/release/database.schema.mysql.gz',
+        'storage/extra/release/database.schema.sqlite.gz',
         'storage/extra/release/database.data.gz',
         'storage/extra/release/database.meta.json',
     ];
@@ -876,10 +1439,50 @@ function auditReleaseInstallPackage(string $pharFile): array
         }
     }
 
+    if (isset($phar['storage/extra/release/database.schema.gz'])) {
+        $errors[] = '数据库安装包 format v2 不能包含旧 database.schema.gz';
+    }
     if (isset($phar['storage/extra/release/database.meta.json'])) {
         $meta = json_decode($phar['storage/extra/release/database.meta.json']->getContent(), true);
-        if (!is_array($meta) || ($meta['kind'] ?? null) !== 'install' || ($meta['with_data'] ?? true) !== false) {
-            $errors[] = '数据库安装包元数据非法，必须 kind=install 且 with_data=false';
+        if (
+            !is_array($meta)
+            || (int)($meta['format_version'] ?? 0) !== 2
+            || ($meta['kind'] ?? null) !== 'install'
+            || ($meta['with_data'] ?? true) !== false
+        ) {
+            $errors[] = '数据库安装包元数据非法，必须 format_version=2、kind=install 且 with_data=false';
+        } else {
+            $databasePrefix = $meta['database_prefix'] ?? null;
+            if (
+                !is_string($databasePrefix)
+                || $databasePrefix !== trim($databasePrefix)
+                || ($databasePrefix !== '' && preg_match('/^[a-zA-Z0-9_]+$/D', $databasePrefix) !== 1)
+            ) {
+                $errors[] = '数据库安装包 database_prefix 缺失或非法';
+            }
+            $schemas = is_array($meta['schema'] ?? null) ? $meta['schema'] : [];
+            foreach (['mysql', 'sqlite'] as $driver) {
+                $filename = "database.schema.{$driver}.gz";
+                $path = 'storage/extra/release/' . $filename;
+                $entry = is_array($schemas[$driver] ?? null) ? $schemas[$driver] : [];
+                $content = isset($phar[$path]) ? $phar[$path]->getContent() : '';
+                if (
+                    (string)($entry['driver'] ?? '') !== $driver
+                    || (string)($entry['file'] ?? '') !== $filename
+                    || !hash_equals((string)($entry['sha256'] ?? ''), hash('sha256', $content))
+                ) {
+                    $errors[] = "数据库安装包 {$driver} schema 映射或哈希非法";
+                }
+            }
+            $data = is_array($meta['data'] ?? null) ? $meta['data'] : [];
+            $dataPath = 'storage/extra/release/database.data.gz';
+            $dataContent = isset($phar[$dataPath]) ? $phar[$dataPath]->getContent() : '';
+            if (
+                (string)($data['file'] ?? '') !== 'database.data.gz'
+                || !hash_equals((string)($data['sha256'] ?? ''), hash('sha256', $dataContent))
+            ) {
+                $errors[] = '数据库安装包共享 data 映射或哈希非法';
+            }
         }
     }
 
