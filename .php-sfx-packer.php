@@ -326,12 +326,24 @@ function buildShellCommand(array $command, array $env = []): string
  */
 function runReleaseSnapshot(): void
 {
-    $finalPath = str_replace('\\', '/', (getcwd() ?: '.') . '/storage/extra/release');
+    $workingDirectory = getcwd() ?: '.';
+    $projectRoot = realpath($workingDirectory) ?: $workingDirectory;
+    $controlledParent = str_replace('\\', '/', rtrim($projectRoot, '/\\') . '/storage/extra');
+    $finalPath = $controlledParent . '/release';
     $token = date('YmdHis') . '_' . getmypid() . '_' . bin2hex(random_bytes(4));
-    $stagingPath = str_replace('\\', '/', (getcwd() ?: '.') . '/storage/extra/release.staging-' . $token);
+    $stagingPath = $controlledParent . '/release.staging-' . $token;
     // 新一轮生成开始即让旧 final 失效；任何失败都保持 final 缺失，禁止误打包上一轮安装快照。
     invalidateReleaseInstallArtifacts();
     removePath($stagingPath);
+    if (!is_dir($controlledParent) && !mkdir($controlledParent, 0755, true) && !is_dir($controlledParent)) {
+        throw new RuntimeException("创建数据库安装包受控目录失败：{$controlledParent}");
+    }
+    $controlledRealPath = realpath($controlledParent);
+    if ($controlledRealPath === false
+        || str_replace('\\', '/', $controlledRealPath) !== $controlledParent
+        || is_link($controlledParent)) {
+        throw new RuntimeException("数据库安装包受控目录必须是项目内真实目录：{$controlledParent}");
+    }
 
     $temporaryDatabases = [];
     $failure = null;
