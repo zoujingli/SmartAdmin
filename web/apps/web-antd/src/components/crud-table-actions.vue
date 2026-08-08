@@ -1,5 +1,5 @@
 <template>
-  <Space class="crud-table-actions" :class="{ 'is-busy': running }" size="small">
+  <Space v-if="visibleActions.length > 0" class="crud-table-actions" :class="{ 'is-busy': running }" size="small">
     <Button
       v-for="item in inlineActions"
       :key="item.key"
@@ -73,6 +73,7 @@ export interface CrudTableAction {
   group?: string;
   groupOrder?: number;
   icon?: string;
+  inline?: boolean;
   key?: number | string;
   label: string;
   loading?: boolean;
@@ -98,11 +99,13 @@ type CrudTableDropdownEntry = {
 
 const props = withDefaults(defineProps<{
   actions: CrudTableAction[];
+  explicitInline?: boolean;
   inlineBeforeMore?: number;
   loadingText?: string;
   maxInline?: number;
   moreText?: string;
 }>(), {
+  explicitInline: false,
   inlineBeforeMore: 2,
   loadingText: '执行中',
   maxInline: 3,
@@ -117,12 +120,23 @@ const visibleActions = computed<CrudTableActionItem[]>(() => props.actions
   }))
   .filter((item) => item.action.visible !== false));
 const shouldCollapse = computed(() => visibleActions.value.length > props.maxInline);
-const inlineActions = computed(() => shouldCollapse.value
-  ? visibleActions.value.slice(0, props.inlineBeforeMore)
-  : visibleActions.value);
-const dropdownActions = computed(() => shouldCollapse.value
-  ? visibleActions.value.slice(props.inlineBeforeMore)
-  : []);
+// 任务等高密度列表可显式固定直显动作，其余已授权动作统一进入“更多”；默认模式保持原阈值行为。
+const inlineActions = computed(() => {
+  if (props.explicitInline) {
+    return visibleActions.value.filter((item) => item.action.inline === true);
+  }
+  return shouldCollapse.value
+    ? visibleActions.value.slice(0, props.inlineBeforeMore)
+    : visibleActions.value;
+});
+const dropdownActions = computed(() => {
+  if (props.explicitInline) {
+    return visibleActions.value.filter((item) => item.action.inline !== true);
+  }
+  return shouldCollapse.value
+    ? visibleActions.value.slice(props.inlineBeforeMore)
+    : [];
+});
 const dropdownEntries = computed<CrudTableDropdownEntry[]>(() => {
   const actions = dropdownActions.value;
   if (!actions.some((item) => normalizedActionGroup(item.action) !== '')) {

@@ -15,11 +15,13 @@ export type TableActionText = false | null | string | undefined;
 
 
 export interface TableActionWidthLike {
+  inline?: boolean;
   label?: TableActionText;
   visible?: boolean;
 }
 
 export interface EstimateVisibleActionColumnWidthOptions extends EstimateActionColumnWidthOptions {
+  explicitInline?: boolean;
   inlineBeforeMore?: number;
   maxInline?: number;
   moreLabel?: string;
@@ -156,7 +158,7 @@ export function estimateActionColumnWidth(
 
 function normalizeVisibleActionRows(
   actionRows: (TableActionText | TableActionWidthLike)[] | (TableActionText | TableActionWidthLike)[][],
-): string[][] {
+): (TableActionText | TableActionWidthLike)[][] {
   if (!Array.isArray(actionRows) || actionRows.length === 0) {
     return [];
   }
@@ -165,18 +167,38 @@ function normalizeVisibleActionRows(
     ? actionRows as (TableActionText | TableActionWidthLike)[][]
     : [actionRows as (TableActionText | TableActionWidthLike)[]];
 
-  return rows.map((row) => row
-    .filter((action) => {
-      if (typeof action === 'object' && action !== null && 'visible' in action) {
-        return action.visible !== false;
-      }
-      return Boolean(action);
-    })
-    .map((action) => (typeof action === 'object' && action !== null ? action.label : action))
-    .filter((label): label is string => Boolean(label)));
+  return rows;
 }
 
-function collapseActionLabels(labels: string[], maxInline: number, inlineBeforeMore: number, moreLabel: string) {
+function actionIsVisible(action: TableActionText | TableActionWidthLike) {
+  if (typeof action === 'object' && action !== null) {
+    return action.visible !== false && Boolean(action.label);
+  }
+  return Boolean(action);
+}
+
+function actionLabel(action: TableActionText | TableActionWidthLike) {
+  return typeof action === 'object' && action !== null ? action.label : action;
+}
+
+function collapseActionRow(
+  row: (TableActionText | TableActionWidthLike)[],
+  maxInline: number,
+  inlineBeforeMore: number,
+  moreLabel: string,
+  explicitInline: boolean,
+) {
+  const visible = row.filter(actionIsVisible);
+  if (explicitInline) {
+    const inlineLabels = visible
+      .filter((action) => typeof action === 'object' && action !== null && action.inline === true)
+      .map(actionLabel)
+      .filter((label): label is string => Boolean(label));
+    const hasDropdown = visible.some((action) => typeof action !== 'object' || action === null || action.inline !== true);
+    return hasDropdown ? [...inlineLabels, moreLabel] : inlineLabels;
+  }
+
+  const labels = visible.map(actionLabel).filter((label): label is string => Boolean(label));
   if (labels.length <= maxInline) {
     return labels;
   }
@@ -189,6 +211,7 @@ export function estimateVisibleActionColumnWidth(
   options: EstimateVisibleActionColumnWidthOptions = {},
 ) {
   const {
+    explicitInline = false,
     inlineBeforeMore = 2,
     maxInline = 3,
     maxWidth = 220,
@@ -198,7 +221,7 @@ export function estimateVisibleActionColumnWidth(
   } = options;
 
   const rows = normalizeVisibleActionRows(actionRows)
-    .map((labels) => collapseActionLabels(labels, maxInline, inlineBeforeMore, moreLabel));
+    .map((row) => collapseActionRow(row, maxInline, inlineBeforeMore, moreLabel, explicitInline));
 
   return estimateActionColumnWidth(rows, { ...rest, maxWidth, minWidth });
 }

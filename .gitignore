@@ -32,6 +32,8 @@
 
 # === 前端（web/）===
 # 依赖目录（pnpm install 自动生成）
+/node_modules/
+/.pnpm-store/
 web/**/node_modules/
 # Turbo 构建缓存
 web/**/.turbo/

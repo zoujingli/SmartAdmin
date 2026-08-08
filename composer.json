@@ -81,7 +81,7 @@
     "web:build": "cd web && pnpm -F @vben/web-antd run typecheck && pnpm -F @vben/web-antd run build",
     "docs:serve": "@php -S 127.0.0.1:18100 -t docs",
     "docs:check": "./bin/smart.php xadmin:docs:check",
-    "release:backup": "@php .php-sfx-packer.php snapshot .",
+    "release:backup": "@php .php-sfx-packer.php snapshot-isolated .",
     "release:restore:dry-run": "./bin/smart.php xadmin:release:restore --install --dry-run --json",
     "release:snapshot": "@composer release:backup",
     "release:check": [

@@ -8,6 +8,7 @@ import CrudTableActions from '../crud-table-actions.vue';
 
 interface CrudTableActionsProps {
   actions: CrudTableAction[];
+  explicitInline?: boolean;
   inlineBeforeMore?: number;
   loadingText?: string;
   maxInline?: number;
@@ -111,6 +112,62 @@ afterEach(() => {
 });
 
 describe('CrudTableActions', () => {
+  it('keeps only explicitly inline actions outside the more menu', () => {
+    const wrapper = mountActions({
+      actions: [
+        { inline: true, label: '查看' },
+        { inline: true, label: '编辑' },
+        { label: '验收标准' },
+        { label: '取消', visible: false },
+      ],
+      explicitInline: true,
+    });
+
+    expect(wrapper.findAll('button').map((button) => button.text())).toEqual(['查看', '编辑', '更多']);
+    expect(wrapper.findAll('li').map((item) => item.text())).toEqual(['验收标准']);
+  });
+
+  it('does not render more when every visible action is inline', () => {
+    const wrapper = mountActions({
+      actions: [
+        { inline: true, label: '查看' },
+        { label: '验收标准', visible: false },
+      ],
+      explicitInline: true,
+    });
+
+    expect(wrapper.findAll('button').map((button) => button.text())).toEqual(['查看']);
+    expect(wrapper.findAll('li')).toHaveLength(0);
+  });
+
+  it('renders only more when no visible action is explicitly inline', () => {
+    const wrapper = mountActions({
+      actions: [
+        { inline: true, label: '查看', visible: false },
+        { label: '验收标准' },
+        { label: '指派', visible: false },
+      ],
+      explicitInline: true,
+    });
+
+    expect(wrapper.findAll('button').map((button) => button.text())).toEqual(['更多']);
+    expect(wrapper.findAll('li').map((item) => item.text())).toEqual(['验收标准']);
+  });
+
+  it('renders no action container when every action is hidden', () => {
+    const wrapper = mountActions({
+      actions: [
+        { inline: true, label: '查看', visible: false },
+        { label: '验收标准', visible: false },
+      ],
+      explicitInline: true,
+    });
+
+    expect(wrapper.find('.crud-table-actions').exists()).toBe(false);
+    expect(wrapper.findAll('button')).toHaveLength(0);
+    expect(wrapper.findAll('li')).toHaveLength(0);
+  });
+
   it('collapses actions after maxInline and keeps danger actions in the dropdown', () => {
     const wrapper = mountActions({
       actions: [

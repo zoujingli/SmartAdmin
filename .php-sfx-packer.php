@@ -18,7 +18,10 @@ try {
             runReleaseBuild($target ?? '.');
             break;
         case 'snapshot':
-            runStandaloneReleaseSnapshot($target ?? '.');
+            runStandaloneReleaseSnapshot($target ?? '.', false);
+            break;
+        case 'snapshot-isolated':
+            runStandaloneReleaseSnapshot($target ?? '.', true);
             break;
         case 'precompile':
             runBuildPrecompile($target ?? '.');
@@ -54,6 +57,9 @@ function parseSfxArguments(array $argv): array
     if ($command === 'snapshot') {
         return ['snapshot', null, $argv[2] ?? '.'];
     }
+    if ($command === 'snapshot-isolated') {
+        return ['snapshot-isolated', null, $argv[2] ?? '.'];
+    }
     if ($command === 'precompile') {
         return ['precompile', null, $argv[2] ?? '.'];
     }
@@ -75,6 +81,7 @@ function usageText(): string
         'Wrong arguments!',
         'Build example: ./.php-sfx-packer.php build',
         'Snapshot example: ./.php-sfx-packer.php snapshot .',
+        'Strict snapshot example: ./.php-sfx-packer.php snapshot-isolated .',
         'Precompile example: ./.php-sfx-packer.php precompile .',
         'Pack example: ./.php-sfx-packer.php pack system.bin build/system',
         'Audit example: ./.php-sfx-packer.php audit build/system',
@@ -110,7 +117,7 @@ function runReleaseBuild(string $baseDir): void
     try {
         assertFrontendDistReady();
         cleanReleaseWorkspace();
-        runReleaseSnapshot();
+        runReleaseSnapshot(false);
 
         $restoreDevDependencies = true;
         runBuildCommand('安装生产依赖并启用权威 classmap', [
@@ -195,9 +202,9 @@ function runReleaseBuild(string $baseDir): void
 }
 
 /**
- * 独立安装快照入口。发布快照必须从 fresh 临时库生成，不能读取或修改开发、测试及业务数据库。
+ * 独立安装快照入口。日常构建读取当前配置库，严格检查才使用 fresh 双库隔离。
  */
-function runStandaloneReleaseSnapshot(string $baseDir): void
+function runStandaloneReleaseSnapshot(string $baseDir, bool $strictIsolation): void
 {
     assertPhp84BuildRuntime();
 
@@ -210,7 +217,7 @@ function runStandaloneReleaseSnapshot(string $baseDir): void
     }
 
     assertBundledSwooleRuntime();
-    runReleaseSnapshot();
+    runReleaseSnapshot($strictIsolation);
 }
 
 /**
@@ -324,7 +331,7 @@ function buildShellCommand(array $command, array $env = []): string
 /**
  * 构建前生成 Phar 内安装包；安装包只包含完整结构与 release 必要数据，不携带运行期全量数据。
  */
-function runReleaseSnapshot(): void
+function runReleaseSnapshot(bool $strictIsolation): void
 {
     $workingDirectory = getcwd() ?: '.';
     $projectRoot = realpath($workingDirectory) ?: $workingDirectory;
@@ -350,43 +357,10 @@ function runReleaseSnapshot(): void
     $cleanupFailure = null;
 
     try {
-        // SQLite 与 MySQL 必须各自 fresh 生成原生 Doctrine Schema；共享必要数据固定由 SQLite 源写入一次。
-        foreach (['sqlite', 'mysql'] as $driver) {
-            $source = createTemporaryReleaseDatabase($driver, 'source');
-            $temporaryDatabases[] = $source;
-            prepareTemporaryReleaseSource($source);
-            $environment = array_merge($source['environment'], [
-                'RELEASE_INSTALL_STAGING_DIR' => $stagingPath,
-                'RELEASE_INSTALL_WRITE_DATA' => $driver === 'sqlite' ? '1' : '0',
-            ]);
-            runBuildCommand(
-                "从 {$driver} fresh 隔离库采集安装快照",
-                ['./bin/smart.php', 'xadmin:release:backup', '--install'],
-                false,
-                $environment
-            );
-        }
-
-        assertReleaseInstallStaging($stagingPath);
-
-        // 每个方言都恢复到第二个全新空目标，真实执行写入后再次 dry-run，验证安装包不是只可反序列化而是确实可安装。
-        foreach (['sqlite', 'mysql'] as $driver) {
-            $target = createTemporaryReleaseDatabase($driver, 'target');
-            $temporaryDatabases[] = $target;
-            $environment = array_merge($target['environment'], [
-                'RELEASE_INSTALL_STAGING_DIR' => $stagingPath,
-            ]);
-            $restoreReport = runBuildJsonCommand(
-                "在空 {$driver} 目标真实恢复安装快照",
-                ['./bin/smart.php', 'xadmin:release:restore', '--install', '--json'],
-                $environment
-            );
-            $verifyReport = runBuildJsonCommand(
-                "复查 {$driver} 安装目标结构差异",
-                ['./bin/smart.php', 'xadmin:release:restore', '--install', '--dry-run', '--json'],
-                $environment
-            );
-            assertRestoredReleaseTarget($driver, $stagingPath, $restoreReport, $verifyReport);
+        if ($strictIsolation) {
+            buildIsolatedReleaseSnapshot($stagingPath, $temporaryDatabases);
+        } else {
+            buildConfiguredReleaseSnapshot($stagingPath, $temporaryDatabases);
         }
     } catch (Throwable $throwable) {
         $failure = $throwable;
@@ -423,6 +397,152 @@ function runReleaseSnapshot(): void
         removePath($finalPath);
         throw $throwable;
     }
+}
+
+/**
+ * 日常构建从 `.env` 当前库采集必要数据和当前方言结构，只对另一方言创建临时源与恢复目标。
+ *
+ * 配置库只执行 backup 与 restore dry-run，不执行 migrate、restore 或任何建库删库操作；当前配置为
+ * MySQL 时，整个日常构建不会申请 CREATE/DROP DATABASE 权限。
+ *
+ * @param array<int,array{driver:string,database:string,directory:?string,environment:array<string,string>}> $temporaryDatabases
+ */
+function buildConfiguredReleaseSnapshot(string $stagingPath, array &$temporaryDatabases): void
+{
+    $configuredEnvironment = releaseBuildEnvironment();
+    $configuredDriver = normalizeReleaseDatabaseDriver($configuredEnvironment['DB_DRIVER']);
+    $token = date('YmdHis') . '_' . getmypid() . '_' . bin2hex(random_bytes(4));
+    $configuredEnvironment['APP_ENV'] = 'dev';
+    $configuredEnvironment['CACHE_DRIVER'] = 'file';
+    $configuredEnvironment['CACHE_PREFIX'] = 'release_build_configured_' . $token;
+
+    $captureEnvironment = array_merge($configuredEnvironment, [
+        'RELEASE_INSTALL_STAGING_DIR' => $stagingPath,
+        'RELEASE_INSTALL_WRITE_DATA' => '1',
+    ]);
+    runBuildCommand(
+        "从 .env {$configuredDriver} 数据库采集安装快照",
+        ['./bin/smart.php', 'xadmin:release:backup', '--install'],
+        false,
+        $captureEnvironment
+    );
+
+    $secondaryDriver = $configuredDriver === 'mysql' ? 'sqlite' : 'mysql';
+    $secondarySource = createTemporaryReleaseDatabase($secondaryDriver, 'source');
+    $temporaryDatabases[] = $secondarySource;
+    prepareTemporaryReleaseSource($secondarySource);
+    $secondaryEnvironment = array_merge($secondarySource['environment'], [
+        'RELEASE_INSTALL_STAGING_DIR' => $stagingPath,
+        'RELEASE_INSTALL_WRITE_DATA' => '0',
+    ]);
+    runBuildCommand(
+        "从 {$secondaryDriver} fresh 隔离库补充兼容结构",
+        ['./bin/smart.php', 'xadmin:release:backup', '--install'],
+        false,
+        $secondaryEnvironment
+    );
+
+    assertReleaseInstallStaging($stagingPath);
+
+    $configuredVerifyReport = runBuildJsonCommand(
+        "只读复查 .env {$configuredDriver} 数据库与安装快照",
+        ['./bin/smart.php', 'xadmin:release:restore', '--install', '--dry-run', '--json'],
+        array_merge($configuredEnvironment, ['RELEASE_INSTALL_STAGING_DIR' => $stagingPath])
+    );
+    assertConfiguredReleaseSource($configuredDriver, $stagingPath, $configuredVerifyReport);
+
+    $secondaryTarget = createTemporaryReleaseDatabase($secondaryDriver, 'target');
+    $temporaryDatabases[] = $secondaryTarget;
+    $targetEnvironment = array_merge($secondaryTarget['environment'], [
+        'RELEASE_INSTALL_STAGING_DIR' => $stagingPath,
+    ]);
+    $restoreReport = runBuildJsonCommand(
+        "在空 {$secondaryDriver} 目标真实恢复安装快照",
+        ['./bin/smart.php', 'xadmin:release:restore', '--install', '--json'],
+        $targetEnvironment
+    );
+    $verifyReport = runBuildJsonCommand(
+        "复查 {$secondaryDriver} 安装目标结构差异",
+        ['./bin/smart.php', 'xadmin:release:restore', '--install', '--dry-run', '--json'],
+        $targetEnvironment
+    );
+    assertRestoredReleaseTarget($secondaryDriver, $stagingPath, $restoreReport, $verifyReport);
+}
+
+/**
+ * CI 与完整发布检查继续从 fresh SQLite/MySQL 双源生成，并在两个空目标真实恢复。
+ *
+ * @param array<int,array{driver:string,database:string,directory:?string,environment:array<string,string>}> $temporaryDatabases
+ */
+function buildIsolatedReleaseSnapshot(string $stagingPath, array &$temporaryDatabases): void
+{
+    foreach (['sqlite', 'mysql'] as $driver) {
+        $source = createTemporaryReleaseDatabase($driver, 'source');
+        $temporaryDatabases[] = $source;
+        prepareTemporaryReleaseSource($source);
+        $environment = array_merge($source['environment'], [
+            'RELEASE_INSTALL_STAGING_DIR' => $stagingPath,
+            'RELEASE_INSTALL_WRITE_DATA' => $driver === 'sqlite' ? '1' : '0',
+        ]);
+        runBuildCommand(
+            "从 {$driver} fresh 隔离库采集安装快照",
+            ['./bin/smart.php', 'xadmin:release:backup', '--install'],
+            false,
+            $environment
+        );
+    }
+
+    assertReleaseInstallStaging($stagingPath);
+
+    foreach (['sqlite', 'mysql'] as $driver) {
+        $target = createTemporaryReleaseDatabase($driver, 'target');
+        $temporaryDatabases[] = $target;
+        $environment = array_merge($target['environment'], [
+            'RELEASE_INSTALL_STAGING_DIR' => $stagingPath,
+        ]);
+        $restoreReport = runBuildJsonCommand(
+            "在空 {$driver} 目标真实恢复安装快照",
+            ['./bin/smart.php', 'xadmin:release:restore', '--install', '--json'],
+            $environment
+        );
+        $verifyReport = runBuildJsonCommand(
+            "复查 {$driver} 安装目标结构差异",
+            ['./bin/smart.php', 'xadmin:release:restore', '--install', '--dry-run', '--json'],
+            $environment
+        );
+        assertRestoredReleaseTarget($driver, $stagingPath, $restoreReport, $verifyReport);
+    }
+}
+
+/**
+ * `.env` 源只能做 dry-run 比较；出现结构差异时说明当前开发库尚未同步，禁止把不一致快照打包。
+ *
+ * @param array<string,mixed> $verifyReport
+ */
+function assertConfiguredReleaseSource(string $driver, string $stagingPath, array $verifyReport): void
+{
+    $schemaPath = str_replace('\\', '/', (string)($verifyReport['schema_path'] ?? ''));
+    if (
+        ($verifyReport['install'] ?? null) !== true
+        || ($verifyReport['dry_run'] ?? null) !== true
+        || !str_ends_with($schemaPath, "/database.schema.{$driver}.gz")
+        || (array)($verifyReport['safe_sql'] ?? []) !== []
+        || (array)($verifyReport['destructive_sql'] ?? []) !== []
+        || !is_file($stagingPath . "/database.schema.{$driver}.gz")
+    ) {
+        throw new RuntimeException(".env {$driver} 数据库与刚采集的安装快照存在结构差异");
+    }
+}
+
+function normalizeReleaseDatabaseDriver(string $driver): string
+{
+    $driver = strtolower(trim($driver));
+    $driver = str_starts_with($driver, 'pdo_') ? substr($driver, 4) : $driver;
+    if (!in_array($driver, ['sqlite', 'mysql'], true)) {
+        throw new RuntimeException("发布安装快照只支持 SQLite 或 MySQL，当前 .env 驱动：{$driver}");
+    }
+
+    return $driver;
 }
 
 /**

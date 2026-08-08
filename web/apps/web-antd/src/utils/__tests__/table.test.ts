@@ -60,6 +60,23 @@ describe('table width helpers', () => {
     })).toBe(30);
   });
 
+  it('estimates explicit inline actions plus the more menu', () => {
+    expect(estimateVisibleActionColumnWidth([
+      { inline: true, label: '查看' },
+      { inline: true, label: '编辑' },
+      { label: '验收标准' },
+      { label: '取消', visible: false },
+    ], {
+      charWidth: 10,
+      explicitInline: true,
+      gapWidth: 5,
+      horizontalPadding: 10,
+      maxWidth: 999,
+      minWidth: 0,
+      safetyWidth: 0,
+    })).toBe(100);
+  });
+
   it('respects min and max width bounds for raw action labels', () => {
     expect(estimateActionColumnWidth(['查看', '编辑'], {
       charWidth: 10,
