@@ -729,8 +729,19 @@ onBeforeUnmount(() => {
   line-height: 1;
 }
 
-.admin-rich-text-editor :deep(.w-e-bar) {
-  background: transparent !important;
+.admin-rich-text-editor :deep(.w-e-hover-bar) {
+  /* 浮层与顶部栏共用 w-e-bar，必须独立提供实色背景，避免正文透出；定位仍由编辑器维护。 */
+  z-index: 4;
+  max-width: 100%;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px;
+  overflow: visible;
+  border: 1px solid var(--ant-colorBorderSecondary, hsl(var(--border)));
+  border-radius: 8px;
+  background: var(--ant-colorBgElevated, var(--ant-colorBgContainer, hsl(var(--background))));
+  box-shadow: var(--ant-boxShadowSecondary, 0 8px 24px hsl(var(--foreground) / 12%));
+  color: var(--ant-colorText, hsl(var(--foreground)));
 }
 
 .admin-rich-text-editor :deep(.w-e-bar-item) {
@@ -740,7 +751,6 @@ onBeforeUnmount(() => {
 }
 
 .admin-rich-text-editor :deep(.w-e-bar-item button) {
-  width: 30px;
   min-width: 30px;
   height: 30px;
   border: 0 !important;
@@ -749,16 +759,48 @@ onBeforeUnmount(() => {
   color: inherit !important;
 }
 
-.admin-rich-text-editor :deep(.w-e-bar-item button:hover),
-.admin-rich-text-editor :deep(.w-e-bar-item button:focus) {
+.admin-rich-text-editor :deep(.w-e-toolbar .w-e-bar-item button) {
+  width: 30px;
+}
+
+.admin-rich-text-editor :deep(.w-e-hover-bar .w-e-bar-item) {
+  flex: none;
+  padding: 0;
+}
+
+.admin-rich-text-editor :deep(.w-e-hover-bar .w-e-bar-item button) {
+  /* 百分比、语言等文字菜单按内容展开；不能套用顶部图标按钮的固定宽度。 */
+  width: auto;
+  padding: 0 8px;
+}
+
+.admin-rich-text-editor :deep(.w-e-bar-item button svg) {
+  fill: currentColor;
+}
+
+.admin-rich-text-editor :deep(.w-e-bar-item button:where(:not(.disabled):not(:disabled)):hover),
+.admin-rich-text-editor :deep(.w-e-bar-item button:where(:not(.disabled):not(:disabled)):focus-visible) {
   background: var(--ant-colorFillSecondary, hsl(var(--muted))) !important;
   color: var(--ant-colorText, hsl(var(--foreground))) !important;
+}
+
+.admin-rich-text-editor :deep(.w-e-bar-item button:focus-visible) {
+  outline: 2px solid var(--ant-colorPrimary, hsl(var(--primary)));
+  outline-offset: -2px;
 }
 
 .admin-rich-text-editor :deep(.w-e-bar-item button.active),
 .admin-rich-text-editor :deep(.w-e-bar-item button[data-active='true']) {
   background: var(--ant-colorPrimaryBg, hsl(var(--primary) / 0.12)) !important;
   color: var(--ant-colorPrimary, hsl(var(--primary))) !important;
+}
+
+.admin-rich-text-editor :deep(.w-e-bar-item button.disabled),
+.admin-rich-text-editor :deep(.w-e-bar-item button:disabled) {
+  /* wangEditor 使用 disabled 类标记禁用态，悬停时也不能恢复为可操作的高亮。 */
+  background: transparent !important;
+  color: var(--ant-colorTextDisabled, hsl(var(--muted-foreground) / 50%)) !important;
+  cursor: not-allowed;
 }
 
 .admin-rich-text-editor :deep(.w-e-bar-item .title) {
@@ -770,7 +812,7 @@ onBeforeUnmount(() => {
 .admin-rich-text-editor :deep(.w-e-bar-divider) {
   height: 18px;
   margin: 6px 4px;
-  border-left-color: var(--ant-colorBorderSecondary, hsl(var(--border))) !important;
+  background: var(--ant-colorBorderSecondary, hsl(var(--border))) !important;
 }
 
 .admin-rich-text-editor :deep(.w-e-select-list),

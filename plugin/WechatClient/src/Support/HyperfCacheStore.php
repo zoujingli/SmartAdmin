@@ -11,7 +11,7 @@ declare(strict_types=1);
 
 namespace Plugin\WechatClient\Support;
 
-use We\Contract\StoreCacheInterface;
+use We\Wechat\Common\StoreCacheInterface;
 
 /**
  * 微信 SDK 在 SmartAdmin 内的缓存适配器。

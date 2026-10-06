@@ -64,7 +64,8 @@ final class WechatClientPaymentRefundService extends CoreService
         [$refund, $outRefundNo, $payload] = $this->createLocalRefund($order, $merchant, $amountRefund, $notifyUrl, (string)($data['reason'] ?? ''));
 
         try {
-            $result = $this->merchants->paymentRequest($merchant, 'refund', $payload);
+            // SDK 只接收官方相对路径，不再解释退款等业务别名。
+            $result = $this->merchants->paymentRequest($merchant, 'v3/refund/domestic/refunds', $payload);
         } catch (\Throwable $exception) {
             // 微信退款申请异常时标记为 FAIL，并保留请求上下文和失败原因。
             $refund->update([

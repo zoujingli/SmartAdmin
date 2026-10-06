@@ -17,10 +17,15 @@ use Library\Exception\ErrorResponseException;
 use Library\Support\TenantContext;
 use Plugin\WechatClient\Mapper\WechatClientPaymentMerchantMapper;
 use Plugin\WechatClient\Model\WechatClientPaymentMerchant;
+use Plugin\WechatClient\Support\PaymentNotification;
+use Plugin\WechatClient\Support\SdkRequest;
 use Plugin\WechatClient\Support\Secret;
-use We\Client as WechatSdkClient;
-use We\Config\WechatPaymentConfig;
-use We\Support\Signature;
+use We\Common\Provider\PemSigningKeyProvider;
+use We\Common\Provider\StaticTrustMaterialProvider;
+use We\Common\Runtime;
+use We\Common\Transport\HttpTransportInterface;
+use We\Wechat\WxPayConfig;
+use We\WxPayClient;
 
 /**
  * 微信支付商户服务。
@@ -35,7 +40,8 @@ final class WechatClientPaymentMerchantService extends CoreService
     private const SECRET_FIELDS = ['api_v3_key', 'merchant_serial', 'merchant_private_key', 'platform_public_key', 'platform_serial'];
 
     public function __construct(
-        protected WechatClientPaymentMerchantMapper $mapper
+        protected WechatClientPaymentMerchantMapper $mapper,
+        private readonly ?HttpTransportInterface $transport = null,
     ) {}
 
     /**
@@ -52,26 +58,28 @@ final class WechatClientPaymentMerchantService extends CoreService
         array $options = [],
     ): array {
         $merchant = $this->requireMerchant($merchant);
-        $config = new WechatPaymentConfig(
+        if (ltrim($uriOrPath, '/') === 'decrypt_notification') {
+            // 回调只需要 APIv3 密钥和平台信任材料，不要求商户出站私钥可用。
+            return PaymentNotification::decrypt(
+                is_array($options['headers'] ?? null) ? $options['headers'] : [],
+                is_string($options['raw_body'] ?? null) ? $options['raw_body'] : '',
+                Secret::decrypt((string)$merchant->api_v3_key),
+                Secret::decrypt((string)$merchant->platform_serial),
+                Secret::decrypt((string)$merchant->platform_public_key),
+            );
+        }
+        $config = new WxPayConfig(
             (string)$merchant->appid,
             (string)$merchant->mch_id,
-            Secret::decrypt((string)$merchant->api_v3_key),
-            Secret::decrypt((string)$merchant->merchant_serial),
-            Secret::decrypt((string)$merchant->merchant_private_key),
-            '',
-            // 平台公钥与平台序列号分别传入，避免回调验签时误把序列号当公钥使用。
-            Secret::decrypt((string)$merchant->platform_public_key),
-            Secret::decrypt((string)$merchant->platform_serial),
+            new PemSigningKeyProvider(Secret::decrypt((string)$merchant->merchant_serial), Secret::decrypt((string)$merchant->merchant_private_key)),
+            // SDK 按平台序列号选择验签材料，未知序列号必须拒绝。
+            new StaticTrustMaterialProvider(['wechat.payment' => [Secret::decrypt((string)$merchant->platform_serial) => Secret::decrypt((string)$merchant->platform_public_key)]]),
         );
 
-        $payment = $this->sdkClient()->wechatPayment($config);
-        $method = strtoupper(trim($httpMethod) === '' ? 'POST' : $httpMethod);
+        $response = WxPayClient::mk($config, new Runtime(transport: $this->transport))->call(SdkRequest::make($uriOrPath, $params, $httpMethod, $options));
 
-        return match ($method) {
-            'GET' => $payment->get($uriOrPath, $params, $options),
-            'POST' => $payment->post($uriOrPath, $params, $options),
-            default => $payment->call($uriOrPath, $params, $method, $options),
-        };
+        // 关单等接口成功返回 204；仍由 SDK 完成验签，不把空响应当成 JSON 解析。
+        return $response->status() === 204 ? [] : $response->json();
     }
 
     /**
@@ -159,8 +167,8 @@ final class WechatClientPaymentMerchantService extends CoreService
             'nonceStr' => $nonceStr,
             'package' => $package,
             'signType' => 'RSA',
-            // 微信 JSAPI 官方字段名固定为 paySign；本地签名方法使用 Payment 命名，避免 SDK 公开 API 出现缩写。
-            'paySign' => Signature::paymentV3Sign(Secret::decrypt((string)$merchant->merchant_private_key), $message),
+            // SDK 已移除前端调起工具，保留微信原始签名串，复用公开的 RSA 签名 Provider。
+            'paySign' => (new PemSigningKeyProvider(Secret::decrypt((string)$merchant->merchant_serial), Secret::decrypt((string)$merchant->merchant_private_key)))->sign($message),
         ];
     }
 
@@ -217,13 +225,5 @@ final class WechatClientPaymentMerchantService extends CoreService
         }
 
         return $data;
-    }
-
-    /**
-     * 创建微信 SDK 客户端实例，便于后续替换或测试隔离。
-     */
-    private function sdkClient(): WechatSdkClient
-    {
-        return new WechatSdkClient();
     }
 }

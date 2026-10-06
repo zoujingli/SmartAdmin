@@ -16,6 +16,7 @@
     "ext-openssl": "*",
     "guzzlehttp/guzzle": "^7.0",
     "zoujingli/smart-admin-library": "^1.0",
+    "zoujingli/smart-admin-wechat-message-crypto": "^1.0",
     "zoujingli/wechat-developer": "^2.0@dev"
   },
   "autoload": {

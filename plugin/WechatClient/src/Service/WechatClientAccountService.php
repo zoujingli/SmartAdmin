@@ -18,15 +18,19 @@ use Library\CoreService;
 use Library\Exception\ErrorResponseException;
 use Library\Helper\CoderHelper;
 use Library\Support\TenantContext;
+use Library\Support\WechatMessageCrypto;
 use Plugin\WechatClient\Mapper\WechatClientAccountMapper;
 use Plugin\WechatClient\Model\WechatClientAccount;
 use Plugin\WechatClient\Support\HyperfCacheStore;
+use Plugin\WechatClient\Support\SdkRequest;
 use Plugin\WechatClient\Support\Secret;
-use We\Client as WechatSdkClient;
-use We\Config\WechatPlatformConfig;
-use We\Config\WechatWxappConfig;
-use We\Support\MessageCrypto;
-use We\Support\Signature;
+use We\Common\Runtime;
+use We\Common\Transport\HttpTransportInterface;
+use We\Wechat\Common\StoreCacheInterface;
+use We\Wechat\WeChatConfig;
+use We\Wechat\WxAppConfig;
+use We\WeChatClient;
+use We\WxAppClient;
 
 /**
  * 微信接口账号服务。
@@ -41,7 +45,10 @@ final class WechatClientAccountService extends CoreService
     private const SECRET_FIELDS = ['appsecret', 'token', 'encodingaeskey', 'access_token', 'refresh_token'];
 
     public function __construct(
-        protected WechatClientAccountMapper $mapper
+        protected WechatClientAccountMapper $mapper,
+        // 可替换传输和缓存仅承载基础设施，不在单例内保存账号、租户或凭据。
+        private readonly ?HttpTransportInterface $transport = null,
+        private readonly ?StoreCacheInterface $cache = null,
     ) {}
 
     /**
@@ -66,27 +73,15 @@ final class WechatClientAccountService extends CoreService
 
         $storageScope = 't' . (string)$account->tenant_id . ':a' . (string)$account->id;
         $appSecret = Secret::decrypt((string)$account->appsecret);
-        $sdk = $this->sdkClient();
+        $runtime = new Runtime(cache: $this->cache ?? new HyperfCacheStore(), transport: $this->transport);
         if ((string)$account->account_type === 'mini_program') {
-            // 新版 WechatDeveloper 拆分了公众号与小程序通道；小程序接口走 wxapp 通道，只依赖 AppSecret 和独立缓存桶。
-            $platform = $sdk->wechatWxapp(new WechatWxappConfig((string)$account->appid, $appSecret, $storageScope));
+            // SDK 通道配置只承载出站凭据，租户和账号隔离继续由 storageScope 保证。
+            $platform = WxAppClient::mk(new WxAppConfig((string)$account->appid, $appSecret, $storageScope), $runtime);
         } else {
-            // 公众号普通接口仍走 platform 通道，access_token 缓存与消息安全参数共享同一账号隔离范围。
-            $platform = $sdk->wechatPlatform(new WechatPlatformConfig(
-                (string)$account->appid,
-                $appSecret,
-                Secret::decrypt((string)$account->token),
-                Secret::decrypt((string)$account->encodingaeskey),
-                $storageScope,
-            ));
+            $platform = WeChatClient::mk(new WeChatConfig((string)$account->appid, $appSecret, $storageScope), $runtime);
         }
-        $method = strtoupper(trim($httpMethod) === '' ? 'POST' : $httpMethod);
 
-        return match ($method) {
-            'GET' => $platform->get($uriOrPath, $payload, $options),
-            'POST' => $platform->post($uriOrPath, $payload, $options),
-            default => $platform->call($uriOrPath, $payload, $method, $options),
-        };
+        return $platform->call(SdkRequest::make($uriOrPath, $payload, $httpMethod, $options))->json();
     }
 
     /**
@@ -139,7 +134,7 @@ final class WechatClientAccountService extends CoreService
             throw new ErrorResponseException('微信回调 Token 未配置');
         }
 
-        Signature::assertSha1((string)($query['signature'] ?? ''), [
+        WechatMessageCrypto::assertSignature((string)($query['signature'] ?? ''), [
             $token,
             (string)($query['timestamp'] ?? ''),
             (string)($query['nonce'] ?? ''),
@@ -210,15 +205,14 @@ final class WechatClientAccountService extends CoreService
     /**
      * 处理微信消息安全模式伪路径。
      *
-     * SDK 新版将消息加解密能力放在协议层客户端内，但客户端配置会校验 AppSecret；
-     * 公众号服务器回调只需要 Token、EncodingAESKey 与 AppID，因此这里直接复用 SDK 的 MessageCrypto 支持类。
+     * SDK 不再提供入站回调协议；只使用 Token、EncodingAESKey 与 AppID，不能依赖 AppSecret 或发起网络请求。
      *
      * @param array<string,mixed> $payload
      * @return array<string,mixed>
      */
     private function messageCryptoRequest(WechatClientAccount $account, string $uri, array $payload): array
     {
-        $crypto = new MessageCrypto(
+        $crypto = new WechatMessageCrypto(
             Secret::decrypt((string)$account->token),
             Secret::decrypt((string)$account->encodingaeskey),
             (string)$account->appid,
@@ -413,13 +407,5 @@ final class WechatClientAccountService extends CoreService
         $model = $this->mapper->read($id, isScope: false);
 
         return $model instanceof WechatClientAccount ? $this->rawExtra($model) : [];
-    }
-
-    /**
-     * 创建微信 SDK 客户端实例，并注入项目缓存适配器。
-     */
-    private function sdkClient(): WechatSdkClient
-    {
-        return new WechatSdkClient(cache: new HyperfCacheStore());
     }
 }

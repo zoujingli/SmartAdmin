@@ -51,4 +51,5 @@ web/**/.vite/
 /web/.vscode
 /web/.github
 /web/.changeset
-/plugin/*/docs/
+/plugin/*/docs/*
+!/plugin/*/docs/*.md

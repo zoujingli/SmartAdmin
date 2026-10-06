@@ -17,11 +17,11 @@ use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Library\CoreController;
 use Library\Support\TenantContext;
+use Library\Support\WechatMessageCrypto;
 use Plugin\WechatClient\Service\WechatClientAccountService;
 use Plugin\WechatClient\Service\WechatClientReplyRuleService;
 use Plugin\WechatClient\Service\WechatClientUserService;
 use Psr\Http\Message\ResponseInterface;
-use We\Support\Xml;
 
 /**
  * 公众号官方推送入口。
@@ -70,7 +70,7 @@ final class PushController extends CoreController
                     'timestamp' => (string)$request->input('timestamp'),
                     'nonce' => (string)$request->input('nonce'),
                 ])
-                : Xml::decode($body);
+                : WechatMessageCrypto::decodeXml($body);
 
             // 订阅/取消订阅由微信官方推送触发，统一转换为内部事件，业务模块按需监听。
             $this->users->handleOfficialPush($account, $payload);

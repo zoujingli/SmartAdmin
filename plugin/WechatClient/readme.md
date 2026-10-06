@@ -32,6 +32,17 @@
 
 ## 快速接入
 
+### SDK 2.0 调用适配
+
+当前适配已验证到 WeChatDeveloper 2.0 分支 `0e40be801ca1f003ee3d098628c678c47320de60`，使用 `WeChatClient` / `WxAppClient` / `WxPayClient` 的 `call(Request)->json()`；依赖约束继续为 `^2.0@dev`，开发分支升级后需重新运行微信模块测试。参见 [上游迁移说明](https://github.com/zoujingli/WeChatDeveloper/blob/0e40be801ca1f003ee3d098628c678c47320de60/docs/migration-2.0.md)。
+
+- 既有 `officialRequest()` / `paymentRequest()` 继续返回数组；GET 参数进 query，其他请求参数进 JSON，素材上传使用 multipart。
+- 普通出站 `options` 只支持 `query`、`headers`、`multipart`、`timeout`（秒）及 `anonymous`；SDK 独占的认证头和 `access_token` 不允许覆盖，也不透传 Guzzle 的文件、代理或调试选项。
+- `decrypt_message` / `encrypt_message` 是插件本地回调入口，不发送给 SDK；只依赖 Token、EncodingAESKey、AppID，不需要 AppSecret。XML 根据解析树拒绝真实 DTD/实体声明，CDATA 中的普通文本正常处理。
+- 插件通过 Composer 要求 `zoujingli/smart-admin-wechat-message-crypto:^1.0` 能力，由包含新回调类的 Library `provide`；这是虚拟能力标识，不是另一个远程 Composer 包。不具备能力的旧 Library 会在依赖解析阶段被拒绝，升级时须将 `zoujingli/smart-admin-library` 显式列入 Composer 更新范围。基础库同时声明 `ext-dom` 与 `ext-simplexml`，不能只依赖宿主环境偶然安装扩展。
+- `decrypt_notification` 必须提供原始 `raw_body` 和微信签名头；本地验证平台序列号、RSA 签名及 300 秒时间窗口后再解密 AES-GCM。订单、金额、租户与幂等校验仍走原业务服务。
+- 退款请求使用官方 `v3/refund/domestic/refunds` 路径；JSAPI 签名由本地商户密钥 Provider 生成，不再依赖旧 SDK 辅助类。
+
 1. 确认根项目已启用 path repository，并安装本插件依赖。
 2. 执行数据库初始化或菜单同步，将插件菜单和权限写入系统菜单表。
 3. 在后台维护接口账号：直连模式填写 AppID、AppSecret、Token、EncodingAESKey；开放平台模式填写 JSON-RPC 网关地址、Key 和 Secret。

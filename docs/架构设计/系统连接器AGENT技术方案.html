@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07111f">
+  <meta name="description" content="系统连接器 AGENT 通用技术方案：场景、凭证、MCP、运行形态、架构、安全与验收。">
+  <title>系统连接器 × AGENT 技术方案</title>
+  <style>
+    :root {
+      --bg: #07111f;
+      --bg-2: #0a192d;
+      --panel: rgba(13, 31, 54, .78);
+      --line: rgba(159, 196, 255, .18);
+      --line-soft: rgba(159, 196, 255, .11);
+      --text: #eef6ff;
+      --muted: #9eb4ce;
+      --cyan: #42e8ff;
+      --violet: #9d7bff;
+      --green: #47e6a7;
+      --amber: #ffc96b;
+      --danger: #ff7e9d;
+      --shadow: 0 18px 70px rgba(0, 0, 0, .26);
+      --max: 1240px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 0%, rgba(66, 232, 255, .11), transparent 28rem),
+        radial-gradient(circle at 88% 7%, rgba(157, 123, 255, .13), transparent 30rem),
+        linear-gradient(135deg, var(--bg) 0%, var(--bg-2) 55%, #06101c 100%);
+      font: 15px/1.7 Inter, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    a { color: var(--cyan); text-decoration: none; }
+    a:hover { color: #baf9ff; }
+    button { font: inherit; }
+    .shell { width: min(var(--max), calc(100% - 40px)); margin: 0 auto; }
+    .topbar {
+      position: sticky; top: 0; z-index: 20; border-bottom: 1px solid var(--line-soft);
+      background: rgba(7, 17, 31, .84); backdrop-filter: blur(18px);
+    }
+    .topbar-inner { display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 68px; }
+    .brand { display: flex; align-items: center; gap: 12px; color: var(--text); font-weight: 700; letter-spacing: .03em; white-space: nowrap; }
+    .brand-mark {
+      width: 34px; height: 34px; display: grid; place-items: center; border-radius: 11px;
+      color: #04111e; background: linear-gradient(135deg, var(--cyan), var(--violet));
+      box-shadow: 0 0 26px rgba(66, 232, 255, .35); font-weight: 900;
+    }
+    nav { display: flex; align-items: center; gap: 5px; overflow-x: auto; scrollbar-width: none; }
+    nav::-webkit-scrollbar { display: none; }
+    nav a { color: var(--muted); padding: 8px 10px; border-radius: 8px; white-space: nowrap; font-size: 13px; }
+    nav a:hover, nav a.active { color: var(--text); background: rgba(66, 232, 255, .1); }
+    section { padding: 58px 0; scroll-margin-top: 78px; }
+    .hero { padding: 82px 0 54px; position: relative; overflow: hidden; }
+    .hero::after {
+      content: ""; position: absolute; top: 0; right: -80px; width: 420px; height: 260px;
+      background: linear-gradient(135deg, transparent, rgba(66, 232, 255, .08));
+      filter: blur(2px); transform: skewX(-22deg); pointer-events: none;
+    }
+    .hero-grid { display: grid; grid-template-columns: .86fr 1.14fr; gap: 42px; align-items: center; }
+    .eyebrow, .section-kicker {
+      color: var(--cyan); font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+    }
+    .eyebrow::before { content: ""; display: inline-block; width: 28px; height: 1px; margin: 0 8px 4px 0; background: var(--cyan); box-shadow: 0 0 12px var(--cyan); }
+    h1 { max-width: 680px; margin: 18px 0 20px; font-size: clamp(42px, 6vw, 76px); line-height: 1.05; letter-spacing: -.055em; }
+    .gradient-text { background: linear-gradient(100deg, #f2fbff 7%, var(--cyan) 48%, #b8a5ff 94%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .lead { max-width: 620px; margin: 0; color: var(--muted); font-size: clamp(17px, 2vw, 21px); }
+    .chips { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 26px; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px; border: 1px solid var(--line);
+      border-radius: 999px; color: #cfe4fb; background: rgba(255, 255, 255, .035); font-size: 12px;
+    }
+    .chip strong { color: var(--green); font-weight: 600; }
+    .chip.violet strong { color: #c8baff; }
+    .hero-result { margin-top: 26px; padding: 17px 19px; border: 1px solid rgba(71, 230, 167, .33); border-radius: 14px; background: linear-gradient(120deg, rgba(71, 230, 167, .1), rgba(66, 232, 255, .04)); }
+    .hero-result strong { color: var(--green); }
+    .hero-result p { margin: 3px 0 0; color: #d7e6f8; font-size: 13px; }
+    .hero-diagram {
+      position: relative; overflow: hidden; border: 1px solid rgba(159, 196, 255, .2); border-radius: 24px;
+      background: linear-gradient(145deg, rgba(9, 24, 44, .96), rgba(9, 15, 31, .9)); box-shadow: 0 26px 100px rgba(0,0,0,.32);
+    }
+    .hero-diagram::before, .diagram::before {
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      background-image: linear-gradient(rgba(159,196,255,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(159,196,255,.06) 1px, transparent 1px);
+      background-size: 34px 34px; mask-image: linear-gradient(to bottom, rgba(0,0,0,.9), transparent 92%);
+    }
+    .hero-diagram svg { position: relative; z-index: 1; display: block; width: 100%; height: auto; padding: 18px 14px 8px; }
+    .hero-caption { display: flex; justify-content: space-between; gap: 16px; padding: 4px 22px 18px; color: var(--muted); font-size: 12px; }
+    .hero-caption .live { color: var(--green); }
+    .hero-node { fill: rgba(15, 35, 61, .92); stroke: rgba(159,196,255,.28); stroke-width: 1.2; }
+    .hero-node-label { fill: var(--text); font-size: 14px; font-weight: 600; }
+    .hero-node-detail { fill: var(--muted); font-size: 10px; letter-spacing: .06em; }
+    .hero-kicker { fill: var(--muted); font-size: 10px; letter-spacing: 1.8px; }
+    .hero-line { fill: none; stroke: url(#hero-flow); stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 8 12; animation: dash 3.2s linear infinite; opacity: .86; }
+    .hero-line.reverse { animation-direction: reverse; animation-duration: 4.4s; stroke: url(#hero-flow-alt); }
+    .hero-packet { fill: var(--cyan); filter: url(#hero-glow); }
+    .hero-packet.green { fill: var(--green); }
+    .hero-core { fill: rgba(10,20,41,.95); stroke: url(#hero-core); stroke-width: 4; filter: url(#hero-glow); }
+    .hero-core-inner { fill: url(#hero-core); opacity: .9; transform-box: fill-box; transform-origin: center; animation: breathe 3.2s ease-in-out infinite; }
+    .hero-icon { fill: none; stroke: #07111f; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    @keyframes dash { to { stroke-dashoffset: -120; } }
+    @keyframes breathe { 0%, 100% { transform: scale(.94); opacity: .74; } 50% { transform: scale(1.06); opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) { .hero-line, .hero-core-inner, .hero-packet { animation: none; } }
+    .section-head { display: flex; align-items: end; justify-content: space-between; gap: 22px; margin-bottom: 25px; }
+    h2 { margin: 6px 0 0; font-size: clamp(27px, 4vw, 42px); line-height: 1.15; letter-spacing: -.035em; }
+    h3 { margin: 0 0 7px; font-size: 18px; line-height: 1.3; }
+    .section-note { max-width: 560px; margin: 0; color: var(--muted); }
+    .accent-line { width: 48px; height: 3px; margin-bottom: 17px; border-radius: 3px; background: linear-gradient(90deg, var(--cyan), var(--violet)); box-shadow: 0 0 16px rgba(66,232,255,.35); }
+    .panel { padding: 23px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); }
+    .panel p { margin: 7px 0 0; color: var(--muted); }
+    .panel ul { margin: 13px 0 0; padding-left: 19px; color: var(--muted); }
+    .panel li + li { margin-top: 5px; }
+    .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .stat { padding: 19px; border: 1px solid var(--line); border-radius: 16px; background: linear-gradient(145deg, rgba(17,44,76,.8), rgba(9,23,42,.6)); box-shadow: var(--shadow); }
+    .stat .num { color: var(--cyan); font-size: 32px; font-weight: 700; line-height: 1; letter-spacing: -.04em; }
+    .stat .label { margin-top: 8px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .overview-grid { display: grid; grid-template-columns: 1.12fr .88fr; gap: 16px; margin-top: 18px; }
+    .capability-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
+    .capability { min-height: 150px; padding: 19px; border: 1px solid var(--line); border-radius: 16px; background: rgba(12,28,49,.64); }
+    .capability:nth-child(1) { border-color: rgba(71,230,167,.4); }
+    .capability:nth-child(2) { border-color: rgba(66,232,255,.4); }
+    .capability:nth-child(3) { border-color: rgba(157,123,255,.4); }
+    .capability .index { color: var(--muted); font: 700 11px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .1em; }
+    .capability h3 { margin-top: 11px; }
+    .capability p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .profile { border-color: rgba(71,230,167,.4); background: linear-gradient(120deg, rgba(71,230,167,.1), rgba(66,232,255,.04)); }
+    .profile strong { color: var(--green); }
+    .scenario-table-wrap, .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 18px; background: rgba(12,28,49,.62); }
+    .scenario-table, .tool-table { width: 100%; min-width: 780px; border-collapse: collapse; font-size: 13px; }
+    .scenario-table th, .scenario-table td, .tool-table th, .tool-table td { padding: 14px; border-bottom: 1px solid var(--line-soft); text-align: left; vertical-align: top; }
+    .scenario-table th, .tool-table th { color: var(--muted); font-size: 12px; font-weight: 500; letter-spacing: .04em; }
+    .scenario-table td, .tool-table td { color: #d7e6f8; }
+    .scenario-table td:first-child, .tool-table td:first-child { color: var(--cyan); font-weight: 600; white-space: nowrap; }
+    .scenario-table tr:last-child td, .tool-table tr:last-child td { border-bottom: 0; }
+    .scenario-table .current td { background: rgba(71,230,167,.055); }
+    .tag { display: inline-flex; padding: 3px 8px; border-radius: 999px; color: #cfe4fb; background: rgba(255,255,255,.06); font-size: 11px; white-space: nowrap; }
+    .tag.green { color: var(--green); background: rgba(71,230,167,.12); }
+    .tag.violet { color: #c8baff; background: rgba(157,123,255,.12); }
+    .tag.amber { color: var(--amber); background: rgba(255,201,107,.1); }
+    .tag.danger { color: #ffabc1; background: rgba(255,126,157,.1); }
+    .mode-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .mode-card { min-height: 245px; padding: 20px; border: 1px solid var(--line); border-radius: 17px; background: linear-gradient(155deg, rgba(19,48,82,.84), rgba(9,25,45,.75)); }
+    .mode-card.current { border-color: rgba(71,230,167,.62); box-shadow: 0 0 28px rgba(71,230,167,.08); }
+    .mode-card.rejected { border-color: rgba(255,126,157,.4); }
+    .mode-card .mode-index { color: var(--muted); font: 700 11px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .1em; }
+    .mode-card h3 { margin-top: 14px; }
+    .mode-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .mode-card ul { margin: 13px 0 0; padding-left: 17px; color: #c5d6e9; font-size: 12px; }
+    .mode-card li + li { margin-top: 5px; }
+    .mode-card .tag { margin-top: 15px; }
+    .choice-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
+    .choice { padding: 17px 19px; border: 1px solid var(--line); border-radius: 15px; background: rgba(12,28,49,.63); }
+    .choice strong { display: block; margin-bottom: 5px; color: var(--text); }
+    .choice span { color: var(--muted); font-size: 13px; }
+    .agent-flow { position: relative; padding: 22px; border: 1px solid var(--line); border-radius: 22px; background: linear-gradient(145deg, rgba(11,32,58,.9), rgba(6,16,30,.86)); box-shadow: var(--shadow); overflow: hidden; }
+    .agent-flow::before { content: ""; position: absolute; inset: 0; pointer-events: none; background-image: linear-gradient(rgba(159,196,255,.055) 1px, transparent 1px), linear-gradient(90deg, rgba(159,196,255,.055) 1px, transparent 1px); background-size: 34px 34px; mask-image: linear-gradient(to bottom, rgba(0,0,0,.85), transparent 94%); }
+    .agent-flow__start, .agent-flow__decision, .agent-flow__branch, .agent-card { position: relative; z-index: 1; }
+    .agent-flow__start { max-width: 390px; margin: 0 auto; padding: 18px 22px; border: 1px solid rgba(66,232,255,.5); border-radius: 17px; background: linear-gradient(135deg, rgba(19,57,83,.9), rgba(10,32,57,.9)); text-align: center; box-shadow: 0 0 30px rgba(66,232,255,.08); }
+    .agent-flow__start .flow-label, .agent-flow__decision .flow-label { color: var(--cyan); font: 700 11px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; }
+    .agent-flow__start h3 { margin: 8px 0 3px; font-size: 22px; }
+    .agent-flow__start p { margin: 0; color: var(--muted); font-size: 13px; }
+    .agent-flow__connector { position: relative; z-index: 1; width: 2px; height: 28px; margin: 0 auto; background: linear-gradient(var(--cyan), var(--violet)); }
+    .agent-flow__connector::after { content: "↓"; position: absolute; left: 50%; bottom: -16px; color: var(--cyan); font-size: 20px; line-height: 1; text-shadow: 0 0 12px var(--cyan); transform: translateX(-50%); }
+    .agent-flow__decision { max-width: 620px; margin: 0 auto; padding: 15px 20px; border: 1px solid rgba(157,123,255,.48); border-radius: 15px; background: rgba(24,25,57,.86); text-align: center; }
+    .agent-flow__decision h3 { margin: 6px 0 2px; font-size: 19px; }
+    .agent-flow__decision p { margin: 0; color: var(--muted); font-size: 13px; }
+    .agent-flow__branches { display: grid; grid-template-columns: 1fr 1.45fr 1fr; gap: 12px; margin-top: 24px; align-items: start; }
+    .agent-flow__branch { padding: 14px; border: 1px solid var(--line); border-radius: 17px; background: rgba(8,22,40,.72); }
+    .agent-flow__branch::before { content: "↓"; position: absolute; top: -25px; left: 50%; color: var(--cyan); font-size: 20px; line-height: 1; text-shadow: 0 0 12px var(--cyan); transform: translateX(-50%); }
+    .agent-flow__branch.static { border-color: rgba(66,232,255,.35); }
+    .agent-flow__branch.realtime { border-color: rgba(71,230,167,.48); background: rgba(18,55,58,.34); }
+    .agent-flow__branch.automation { border-color: rgba(255,201,107,.38); }
+    .agent-flow__branch-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+    .agent-flow__branch-head h3 { margin: 0; font-size: 16px; }
+    .agent-flow__branch-head span { color: var(--muted); font: 700 10px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .1em; }
+    .agent-flow__branch .agent-flow__decision { margin: 0 0 12px; padding: 12px 13px; border-color: rgba(71,230,167,.45); background: rgba(8,32,39,.72); text-align: left; }
+    .agent-flow__branch .agent-flow__decision h3 { font-size: 15px; }
+    .agent-flow__branch .agent-flow__decision p { font-size: 12px; }
+    .agent-flow__cards { display: grid; gap: 10px; }
+    .agent-flow__cards.two { grid-template-columns: repeat(2, 1fr); }
+    .agent-card { min-height: 176px; padding: 15px; border: 1px solid var(--line); border-radius: 14px; background: linear-gradient(155deg, rgba(19,48,82,.84), rgba(9,25,45,.8)); }
+    .agent-card h4 { margin: 8px 0 9px; color: var(--text); font-size: 16px; line-height: 1.3; }
+    .agent-card__index { color: var(--muted); font: 700 10px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .1em; }
+    .agent-card__row { display: grid; grid-template-columns: 36px 1fr; gap: 6px; margin-top: 5px; font-size: 11px; line-height: 1.45; }
+    .agent-card__row span { color: var(--cyan); }
+    .agent-card__row p { margin: 0; color: #c5d6e9; }
+    .agent-card.recommended { border-color: rgba(71,230,167,.68); background: linear-gradient(155deg, rgba(29,72,75,.72), rgba(9,34,48,.82)); box-shadow: 0 0 22px rgba(71,230,167,.08); }
+    .agent-card.recommended .agent-card__index, .agent-card.recommended .agent-card__row span { color: var(--green); }
+    .agent-card.transition { border-color: rgba(255,201,107,.48); background: linear-gradient(155deg, rgba(70,55,30,.42), rgba(20,29,42,.82)); }
+    .agent-card.transition .agent-card__index, .agent-card.transition .agent-card__row span { color: var(--amber); }
+    .agent-flow__outcome { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 10px; margin: 23px auto 0; padding: 12px 16px; border: 1px dashed rgba(159,196,255,.3); border-radius: 13px; color: var(--muted); font-size: 12px; text-align: center; }
+    .agent-flow__outcome strong { color: var(--green); }
+    .mcp-value-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .mcp-value { min-height: 148px; padding: 19px; border: 1px solid var(--line); border-radius: 16px; background: rgba(12,28,49,.64); }
+    .mcp-value:nth-child(1), .mcp-value:nth-child(4) { border-color: rgba(66,232,255,.42); }
+    .mcp-value:nth-child(2), .mcp-value:nth-child(5) { border-color: rgba(157,123,255,.42); }
+    .mcp-value:nth-child(3), .mcp-value:nth-child(6) { border-color: rgba(71,230,167,.42); }
+    .mcp-value .index { color: var(--muted); font: 700 11px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .1em; }
+    .mcp-value h3 { margin-top: 11px; }
+    .mcp-value p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .mcp-boundary { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px; }
+    .mcp-boundary .panel { min-height: 164px; }
+    .mcp-boundary .panel:first-child { border-color: rgba(255,201,107,.34); }
+    .mcp-boundary .panel:last-child { border-color: rgba(71,230,167,.38); }
+    .diagram { position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: 22px; background: linear-gradient(145deg, rgba(11,32,58,.9), rgba(6,16,30,.86)); box-shadow: var(--shadow); }
+    .zone-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; position: relative; z-index: 2; padding: 16px 16px 0; }
+    .zone { padding: 11px 14px; border: 1px solid var(--line); border-radius: 12px; color: var(--muted); background: rgba(12,28,49,.55); font-size: 12px; }
+    .zone strong { display: block; margin-bottom: 2px; color: var(--text); font-size: 14px; }
+    .zone.system { border-color: rgba(71,230,167,.35); }
+    .zone.mcp { border-color: rgba(66,232,255,.35); }
+    .zone.agent { border-color: rgba(157,123,255,.4); }
+    .diagram svg { position: relative; z-index: 1; display: block; width: 100%; height: auto; }
+    .legend { display: flex; flex-wrap: wrap; gap: 15px; padding: 13px 20px 17px; border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 12px; }
+    .legend span { display: inline-flex; align-items: center; gap: 7px; }
+    .legend i { display: inline-block; width: 18px; height: 3px; border-radius: 2px; }
+    .legend .data { background: var(--green); box-shadow: 0 0 10px var(--green); }
+    .legend .call { background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
+    .legend .auth { background: var(--violet); box-shadow: 0 0 10px var(--violet); }
+    .flow { display: grid; grid-template-columns: repeat(6, 1fr); gap: 9px; }
+    .flow-step { position: relative; min-height: 174px; padding: 17px 15px; border: 1px solid var(--line); border-radius: 14px; background: linear-gradient(155deg, rgba(19,48,82,.86), rgba(9,25,45,.82)); }
+    .flow-step::after { content: "→"; position: absolute; right: -15px; top: 51px; z-index: 2; color: var(--cyan); font-size: 21px; text-shadow: 0 0 14px var(--cyan); }
+    .flow-step:last-child::after { display: none; }
+    .flow-num { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; color: #05111d; background: var(--cyan); font-size: 13px; font-weight: 800; box-shadow: 0 0 18px rgba(66,232,255,.4); }
+    .flow-step:nth-child(2n) .flow-num { background: var(--violet); box-shadow: 0 0 18px rgba(157,123,255,.4); }
+    .flow-step h3 { margin-top: 16px; font-size: 16px; }
+    .flow-step p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .flow-note { margin-top: 18px; border-color: rgba(66,232,255,.3); }
+    .flow-note strong { color: var(--cyan); }
+    .contract { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .contract pre { min-height: 255px; margin: 0; padding: 18px; overflow: auto; border: 1px solid rgba(66,232,255,.16); border-radius: 14px; background: #06101d; color: #cfe7ff; font: 12px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .key { color: #bba9ff; }
+    .value { color: #8ff4cb; }
+    .contract-explain { padding: 19px; border: 1px solid rgba(157,123,255,.2); border-radius: 14px; background: linear-gradient(145deg, rgba(157,123,255,.13), rgba(66,232,255,.06)); }
+    .contract-explain p { margin: 0 0 11px; color: var(--muted); }
+    .contract-explain p:last-child { margin-bottom: 0; }
+    .readonly { color: var(--green) !important; white-space: nowrap; }
+    .guard-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .guard { min-height: 158px; padding: 19px; border: 1px solid var(--line); border-radius: 16px; background: rgba(12,28,49,.65); }
+    .guard:nth-child(1) { border-color: rgba(157,123,255,.42); }
+    .guard:nth-child(2) { border-color: rgba(66,232,255,.42); }
+    .guard:nth-child(3) { border-color: rgba(71,230,167,.42); }
+    .guard:nth-child(4) { border-color: rgba(255,201,107,.38); }
+    .guard:nth-child(5) { border-color: rgba(159,196,255,.28); }
+    .guard.danger { border-color: rgba(255,126,157,.42); background: linear-gradient(145deg, rgba(105,29,59,.23), rgba(12,28,49,.66)); }
+    .guard .icon { margin-bottom: 8px; font-size: 24px; }
+    .guard p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .guard.danger h3 { color: #ffabc1; }
+    .security-strip { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px; }
+    .security-strip .panel { min-height: 145px; }
+    .timeline { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .timeline::before { content: ""; position: absolute; left: 8%; right: 8%; top: 19px; height: 1px; background: linear-gradient(90deg, var(--cyan), var(--violet), var(--green)); opacity: .65; }
+    .milestone { position: relative; padding-top: 50px; }
+    .milestone .dot { position: absolute; top: 9px; left: 0; width: 21px; height: 21px; border: 4px solid var(--bg); border-radius: 50%; background: var(--cyan); box-shadow: 0 0 18px rgba(66,232,255,.6); }
+    .milestone:nth-child(2) .dot { background: var(--violet); box-shadow: 0 0 18px rgba(157,123,255,.6); }
+    .milestone:nth-child(3) .dot { background: var(--amber); box-shadow: 0 0 18px rgba(255,201,107,.55); }
+    .milestone:nth-child(4) .dot { background: var(--green); box-shadow: 0 0 18px rgba(71,230,167,.55); }
+    .milestone h3 { font-size: 16px; }
+    .milestone p { margin: 4px 0 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .acceptance { margin-top: 22px; }
+    .acceptance td:first-child { color: var(--text); font-weight: 600; }
+    .acceptance td:last-child { color: var(--green); }
+    details { padding: 15px 0; border-top: 1px solid var(--line-soft); }
+    details:first-child { border-top: 0; }
+    summary { cursor: pointer; color: #dcecff; font-weight: 600; }
+    details p { margin: 9px 0 0; color: var(--muted); }
+    .footer { padding: 42px 0 64px; border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 12px; }
+    .footer strong { color: var(--text); }
+    .copy-btn { float: right; padding: 5px 9px; border: 1px solid rgba(66,232,255,.28); border-radius: 8px; color: var(--cyan); background: rgba(66,232,255,.08); cursor: pointer; font-size: 12px; }
+    .copy-btn:hover { background: rgba(66,232,255,.16); }
+    @media (max-width: 1040px) {
+      .hero-grid { grid-template-columns: 1fr; }
+      .mode-grid { grid-template-columns: repeat(2, 1fr); }
+      .flow { grid-template-columns: repeat(3, 1fr); gap: 12px; }
+      .flow-step::after { display: none; }
+      .stat-grid { grid-template-columns: repeat(2, 1fr); }
+      .timeline { grid-template-columns: repeat(2, 1fr); row-gap: 24px; }
+      .timeline::before { display: none; }
+      .agent-flow__branches { grid-template-columns: 1fr 1fr; }
+      .agent-flow__branch.realtime { grid-column: span 2; }
+    }
+    @media (max-width: 760px) {
+      .shell { width: min(var(--max), calc(100% - 26px)); }
+      .topbar-inner { align-items: flex-start; flex-direction: column; gap: 8px; padding: 12px 0; }
+      nav { width: 100%; }
+      .hero { padding-top: 55px; }
+      .section-head { display: block; }
+      .section-note { margin-top: 10px; }
+      .overview-grid, .security-strip, .contract, .mcp-boundary { grid-template-columns: 1fr; }
+      .capability-grid, .guard-grid, .choice-strip, .mcp-value-grid { grid-template-columns: 1fr 1fr; }
+      .zone-bar { grid-template-columns: 1fr; }
+      .agent-flow { padding: 14px; }
+      .agent-flow__branches { grid-template-columns: 1fr; }
+      .agent-flow__branch.realtime { grid-column: auto; }
+    }
+    @media (max-width: 500px) {
+      .stat-grid, .capability-grid, .mode-grid, .choice-strip, .guard-grid, .flow, .timeline, .mcp-value-grid { grid-template-columns: 1fr; }
+      .hero-diagram svg { min-width: 640px; }
+      .hero-diagram { overflow-x: auto; }
+      .agent-flow__cards.two { grid-template-columns: 1fr; }
+      h1 { font-size: 43px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <a class="brand" href="#top" aria-label="返回顶部"><span class="brand-mark">Σ</span><span>SMARTADMIN / CONNECTOR</span></a>
+      <nav aria-label="方案章节导航">
+        <a href="#overview">总览</a><a href="#scenarios">场景</a><a href="#agent-modes">Agent 方式</a><a href="#selection">模式选择</a><a href="#mcp-choice">MCP 选型</a><a href="#architecture">架构</a><a href="#flow">流程</a><a href="#contract">契约</a><a href="#security">安全</a><a href="#delivery">验收</a>
+      </nav>
+    </div>
+  </header>
+  <main id="top">
+    <section class="hero">
+      <div class="shell hero-grid">
+        <div>
+          <div class="eyebrow">Universal connector / 2026.09</div>
+          <h1><span class="gradient-text">系统连接器</span><br>把业务事实交给 AGENT</h1>
+          <p class="lead">统一处理身份、协议、工具、权限和证据，让不同业务系统以同一套边界接入 Agent。</p>
+          <div class="chips"><span class="chip"><strong>MCP</strong> 标准工具协议</span><span class="chip violet"><strong>OAUTH 2.1</strong> 用户授权</span><span class="chip"><strong>READ FIRST</strong> 默认只读</span><span class="chip"><strong>TENANT SAFE</strong> 数据范围继承</span></div>
+          <div class="hero-result"><strong>当前采购画像：业务系统实时只读分析</strong><p>WorkBuddy 应用模式 + Skill + MCP Server + 业务系统 OAuth/PKCE；写请求回到原系统页面人工确认。</p></div>
+        </div>
+        <div class="hero-diagram" aria-label="通用系统连接器从系统到 MCP 再到 Agent 的动态示意图">
+          <svg viewBox="0 0 900 430" role="img" aria-labelledby="hero-title hero-desc">
+            <title id="hero-title">系统、MCP、Agent 三段连接</title><desc id="hero-desc">系统提供业务事实和权限，MCP 负责标准化连接，Agent 负责理解、调用和解释。</desc>
+            <defs>
+              <linearGradient id="hero-flow" x1="0" x2="1"><stop offset="0" stop-color="#47e6a7"/><stop offset="1" stop-color="#42e8ff"/></linearGradient>
+              <linearGradient id="hero-flow-alt" x1="0" x2="1"><stop offset="0" stop-color="#9d7bff"/><stop offset="1" stop-color="#42e8ff"/></linearGradient>
+              <radialGradient id="hero-core"><stop offset="0" stop-color="#b9a8ff"/><stop offset=".55" stop-color="#6f5cff"/><stop offset="1" stop-color="#42e8ff"/></radialGradient>
+              <filter id="hero-glow"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+              <path id="hero-in" d="M240 153 C310 153 323 215 382 215"/><path id="hero-out" d="M518 215 C577 215 590 153 660 153"/>
+              <path id="hero-in-2" d="M240 255 C310 255 323 225 382 225"/><path id="hero-out-2" d="M518 225 C577 225 590 255 660 255"/>
+            </defs>
+            <g font-family="Inter, PingFang SC, sans-serif">
+              <text x="44" y="55" class="hero-kicker">SYSTEM</text><text x="44" y="78" class="hero-node-label">业务系统</text><text x="382" y="55" class="hero-kicker">MCP</text><text x="382" y="78" class="hero-node-label">连接与治理</text><text x="660" y="55" class="hero-kicker">AGENT</text><text x="660" y="78" class="hero-node-label">理解与解释</text>
+              <path class="hero-line" d="M240 153 C310 153 323 215 382 215"/><path class="hero-line reverse" d="M240 255 C310 255 323 225 382 225"/><path class="hero-line reverse" d="M518 215 C577 215 590 153 660 153"/><path class="hero-line" d="M518 225 C577 225 590 255 660 255"/>
+              <rect class="hero-node" x="34" y="124" width="206" height="58" rx="13"/><text x="55" y="151" class="hero-node-label">账号 / 权限 / 租户</text><text x="55" y="169" class="hero-node-detail">IDENTITY + POLICY</text>
+              <rect class="hero-node" x="34" y="226" width="206" height="58" rx="13"/><text x="55" y="253" class="hero-node-label">业务事实 / API</text><text x="55" y="271" class="hero-node-detail">DOMAIN DATA</text>
+              <rect class="hero-node" x="660" y="124" width="206" height="58" rx="13"/><text x="681" y="151" class="hero-node-label">Skill / 工具选择</text><text x="681" y="169" class="hero-node-detail">INTENT + CONTEXT</text>
+              <rect class="hero-node" x="660" y="226" width="206" height="58" rx="13"/><text x="681" y="253" class="hero-node-label">证据 / 回答 / 确认</text><text x="681" y="271" class="hero-node-detail">ANSWER + HUMAN GATE</text>
+              <circle class="hero-core" cx="450" cy="220" r="75"/><circle class="hero-core-inner" cx="450" cy="220" r="45"/><path class="hero-icon" d="M428 202 h44 M428 220 h44 M428 238 h44 M439 190 v60 M461 190 v60"/>
+              <text x="450" y="319" class="hero-node-label" text-anchor="middle">MCP SERVER / CONNECTOR</text><text x="450" y="339" class="hero-node-detail" text-anchor="middle">AUTH · TOOLS · POLICY · EVIDENCE</text>
+              <circle class="hero-packet" r="4"><animateMotion dur="2.8s" repeatCount="indefinite"><mpath href="#hero-in"/></animateMotion></circle><circle class="hero-packet green" r="4"><animateMotion dur="3.1s" begin="-.9s" repeatCount="indefinite"><mpath href="#hero-in-2"/></animateMotion></circle><circle class="hero-packet" r="4"><animateMotion dur="2.9s" begin="-1.4s" repeatCount="indefinite"><mpath href="#hero-out"/></animateMotion></circle><circle class="hero-packet green" r="4"><animateMotion dur="3.4s" begin="-2s" repeatCount="indefinite"><mpath href="#hero-out-2"/></animateMotion></circle>
+              <text x="450" y="391" class="hero-kicker" text-anchor="middle">READ ONLY · USER SCOPE · AUDITABLE RESULT</text>
+            </g>
+          </svg>
+          <div class="hero-caption"><span>统一接入面，业务系统可替换。</span><span class="live">● LIVE · 标准化链路</span></div>
+        </div>
+      </div>
+    </section>
+    <section id="overview">
+      <div class="shell">
+        <div class="section-head"><div><div class="section-kicker">01 / Overview</div><h2>通用方案边界</h2></div><p class="section-note">所有接入都落在四个可复用对象：身份、连接、工具、证据。</p></div>
+        <div class="stat-grid"><div class="stat"><div class="num">4</div><div class="label">通用对象：Identity / Connector / Tool / Evidence</div></div><div class="stat"><div class="num">3</div><div class="label">部署分区：业务系统、MCP、Agent</div></div><div class="stat"><div class="num">1</div><div class="label">授权入口：用户原系统 OAuth</div></div><div class="stat"><div class="num">0</div><div class="label">默认业务写工具</div></div></div>
+        <div class="capability-grid"><article class="capability"><div class="index">OBJECT 01</div><h3>身份与授权</h3><p>OAuth/PKCE、Scope、Token 生命周期、撤销和重新授权。</p></article><article class="capability"><div class="index">OBJECT 02</div><h3>连接与工具</h3><p>MCP Server、工具目录、参数白名单、错误模型和路由。</p></article><article class="capability"><div class="index">OBJECT 03</div><h3>事实与证据</h3><p>当前用户可见数据、查询时间、范围、脱敏结果和可追溯记录。</p></article></div>
+        <div class="overview-grid"><article class="panel"><div class="accent-line"></div><h3>通用输出</h3><ul><li>Agent 能发现可用能力并按工具契约调用。</li><li>业务系统继续负责身份、权限、租户和数据范围。</li><li>回答带查询时间、数据范围和证据引用。</li><li>写入、发布、删除、状态变更回到原页面确认。</li></ul></article><article class="panel profile"><div class="accent-line"></div><h3>当前采购画像</h3><p><strong>业务系统实时只读分析</strong>作为通用方案的一个落地实例：WorkBuddy 应用模式安装 Skill，通过业务系统 OAuth/PKCE 授权后连接 MCP Server，按该系统提供的工具读取业务记录、目录和活动。</p></article></div>
+      </div>
+    </section>
+    <section id="scenarios">
+      <div class="shell">
+        <div class="section-head"><div><div class="section-kicker">02 / Scenarios</div><h2>真实场景分类</h2></div><p class="section-note">先看数据时效、系统数量、写回需求和运行责任，再选择连接方式。</p></div>
+        <div class="scenario-table-wrap"><table class="scenario-table"><thead><tr><th>场景</th><th>数据特征</th><th>凭证 / 协议</th><th>运行形态</th><th>执行边界</th></tr></thead><tbody>
+          <tr><td>离线材料分析</td><td>用户上传文件，数据不要求实时</td><td>无连接 / 文件输入</td><td>普通模式</td><td><span class="tag green">只生成候选结果</span></td></tr>
+          <tr class="current"><td>单系统实时只读</td><td>当前账号可见的业务事实</td><td>OAuth/PKCE + MCP</td><td>应用模式</td><td><span class="tag green">当前采购画像</span></td></tr>
+          <tr><td>跨系统事实汇总</td><td>多个系统、时间和口径需要对齐</td><td>每系统独立 OAuth + MCP</td><td>应用模式</td><td><span class="tag violet">证据合并与冲突提示</span></td></tr>
+          <tr><td>辅助操作与人工确认</td><td>读取事实后生成候选修改</td><td>只读 MCP + 原系统页面</td><td>应用模式</td><td><span class="tag amber">人工确认后写回</span></td></tr>
+          <tr><td>后台自动化</td><td>定时、批量、无人值守</td><td>服务身份 + 工作流/API</td><td>工作流模式</td><td><span class="tag violet">审批、幂等、审计</span></td></tr>
+          <tr><td>遗留系统过渡</td><td>无 API 或标准授权</td><td>受控凭证 / 浏览器自动化</td><td>隔离任务</td><td><span class="tag danger">限时、可撤销、待迁移</span></td></tr>
+        </tbody></table></div>
+      </div>
+    </section>
+    <section id="agent-modes">
+      <div class="shell">
+        <div class="section-head"><div><div class="section-kicker">03 / Agent patterns</div><h2>常用 Agent 应用方式</h2></div><p class="section-note">方式先按数据来源和运行责任区分，再决定是否需要标准连接层。</p></div>
+        <div class="agent-flow" aria-label="常用 Agent 应用方式选择流程">
+          <div class="agent-flow__start"><div class="flow-label">START / TASK INPUT</div><h3>用户提出任务</h3><p>先判断数据来源、实时性和执行责任，再选择 Agent 接入方式。</p></div>
+          <div class="agent-flow__connector"></div>
+          <div class="agent-flow__decision"><div class="flow-label">DECISION 01</div><h3>是否只处理静态内容？</h3><p>不需要访问业务系统时，使用普通对话或文件知识库能力。</p></div>
+          <div class="agent-flow__branches">
+            <article class="agent-flow__branch static">
+              <div class="agent-flow__branch-head"><h3>静态内容分支</h3><span>NO LIVE DATA</span></div>
+              <div class="agent-flow__cards two">
+                <article class="agent-card"><div class="agent-card__index">PATH 01</div><h4>聊天 / Prompt-only</h4><div class="agent-card__row"><span>数据</span><p>对话输入，静态上下文</p></div><div class="agent-card__row"><span>连接</span><p>无需授权和工具发现</p></div><div class="agent-card__row"><span>限制</span><p>没有实时事实和业务权限</p></div><div class="agent-card__row"><span>适用</span><p>问答、创意、文本润色</p></div></article>
+                <article class="agent-card"><div class="agent-card__index">PATH 02</div><h4>静态文件分析 / RAG</h4><div class="agent-card__row"><span>数据</span><p>文件或知识库，按索引更新</p></div><div class="agent-card__row"><span>连接</span><p>文件授权或知识库 ACL</p></div><div class="agent-card__row"><span>限制</span><p>新鲜度、权限同步和引用质量</p></div><div class="agent-card__row"><span>适用</span><p>文档分析、制度问答</p></div></article>
+              </div>
+            </article>
+            <article class="agent-flow__branch realtime">
+              <div class="agent-flow__branch-head"><h3>实时业务分支</h3><span>LIVE DATA</span></div>
+              <div class="agent-flow__decision"><div class="flow-label">DECISION 02</div><h3>是否需要实时业务数据？</h3><p>继续判断系统接口、客户端范围和连接治理要求。</p></div>
+              <div class="agent-flow__cards two">
+                <article class="agent-card"><div class="agent-card__index">PATH 03</div><h4>API / SDK / Function Calling</h4><div class="agent-card__row"><span>数据</span><p>固定接口提供实时数据</p></div><div class="agent-card__row"><span>连接</span><p>OAuth、API Key 或服务身份</p></div><div class="agent-card__row"><span>限制</span><p>客户端耦合，治理重复建设</p></div><div class="agent-card__row"><span>适用</span><p>单系统 PoC、固定接口</p></div></article>
+                <article class="agent-card"><div class="agent-card__index">PATH 04</div><h4>插件 / Skill 直连</h4><div class="agent-card__row"><span>数据</span><p>由插件决定，可读实时数据</p></div><div class="agent-card__row"><span>连接</span><p>插件清单和客户端授权</p></div><div class="agent-card__row"><span>限制</span><p>绑定单一客户端，策略容易分散</p></div><div class="agent-card__row"><span>适用</span><p>固定应用内扩展</p></div></article>
+                <article class="agent-card transition"><div class="agent-card__index">PATH 05 · TRANSITION</div><h4>浏览器代理 / RPA</h4><div class="agent-card__row"><span>数据</span><p>网页内容和浏览器会话</p></div><div class="agent-card__row"><span>连接</span><p>用户登录态或受控会话</p></div><div class="agent-card__row"><span>限制</span><p>页面变化、验证码、登录失效</p></div><div class="agent-card__row"><span>适用</span><p>无 API/MCP 的临时接入</p></div></article>
+                <article class="agent-card recommended"><div class="agent-card__index">PATH 06 · PRODUCT</div><h4>MCP + Skill</h4><div class="agent-card__row"><span>数据</span><p>标准工具提供实时业务事实</p></div><div class="agent-card__row"><span>连接</span><p>OAuth/PKCE、Scope 和工具目录</p></div><div class="agent-card__row"><span>限制</span><p>需要 Server、契约和连接治理</p></div><div class="agent-card__row"><span>适用</span><p>多系统、跨客户端、实时分析</p></div></article>
+              </div>
+            </article>
+            <article class="agent-flow__branch automation">
+              <div class="agent-flow__branch-head"><h3>自动化分支</h3><span>UNATTENDED</span></div>
+              <div class="agent-flow__decision"><div class="flow-label">DECISION 03</div><h3>是否定时、批量、无人值守？</h3><p>需要稳定编排时使用服务身份和工作流。</p></div>
+              <div class="agent-flow__cards">
+                <article class="agent-card"><div class="agent-card__index">PATH 07</div><h4>工作流 / 服务 Agent</h4><div class="agent-card__row"><span>数据</span><p>事件、定时任务和批量数据</p></div><div class="agent-card__row"><span>连接</span><p>服务身份或工作负载身份</p></div><div class="agent-card__row"><span>限制</span><p>需要审批、幂等、重试和告警</p></div><div class="agent-card__row"><span>适用</span><p>后台自动化、批处理</p></div></article>
+              </div>
+            </article>
+          </div>
+          <div class="agent-flow__outcome"><strong>选择结果：</strong>静态任务保持普通模式；实时业务优先使用 MCP + Skill；无人值守任务进入工作流治理。</div>
+        </div>
+      </div>
+    </section>
+    <section id="selection">
+      <div class="shell">
+        <div class="section-head"><div><div class="section-kicker">04 / Selection</div><h2>凭证、协议与运行形态</h2></div><p class="section-note">三项分别决定“谁授权”“怎么连接”“在哪里运行”，不混用。</p></div>
+        <div class="mode-grid">
+          <article class="mode-card"><div class="mode-index">MODE 01 · OFFLINE</div><h3>普通模式 + 无连接</h3><p>上传材料后完成摘要、归纳、润色和候选内容生成。</p><ul><li>无需账号授权。</li><li>不读取业务系统实时数据。</li><li>适合一次性任务。</li></ul><span class="tag green">低风险</span></article>
+          <article class="mode-card"><div class="mode-index">MODE 02 · POC</div><h3>普通模式 + API / SDK</h3><p>单系统、短周期、固定接口的技术验证。</p><ul><li>不承担通用工具发现。</li><li>接口、身份和错误处理需自行封装。</li><li>验证完成后评估 MCP 化。</li></ul><span class="tag amber">验证用</span></article>
+          <article class="mode-card current"><div class="mode-index">MODE 03 · PRODUCT</div><h3>应用模式 + MCP + OAuth</h3><p>实时读取、多轮追问、Skill 和标准工具目录。</p><ul><li>用户在原系统授权页输入密码。</li><li>Agent 只拿授权结果，不接触密码。</li><li>每次调用重新校验权限和数据范围。</li></ul><span class="tag green">当前采购方案</span></article>
+          <article class="mode-card rejected"><div class="mode-index">MODE 04 · AUTOMATION</div><h3>服务身份 + 工作流</h3><p>无人值守的定时、批处理和跨系统编排。</p><ul><li>使用服务账号或工作负载身份。</li><li>需要审批、幂等、重试和告警。</li><li>不等同于用户聊天授权。</li></ul><span class="tag violet">独立治理</span></article>
+        </div>
+        <div class="choice-strip"><article class="choice"><strong>密码 + Agent</strong><span>禁止。密码只允许在原系统登录页输入，不能进入提示词、Skill、工具参数或日志。</span></article><article class="choice"><strong>MCP + Agent</strong><span>产品化默认。MCP 统一发现、调用、错误、Scope 和只读边界。</span></article><article class="choice"><strong>写入 + Agent</strong><span>不作为首期直连。返回候选内容，用户回原系统完成确认和审计。</span></article></div>
+      </div>
+    </section>
+    <section id="mcp-choice">
+      <div class="shell">
+        <div class="section-head"><div><div class="section-kicker">05 / Why MCP</div><h2>为什么使用 MCP</h2></div><p class="section-note">MCP 适合把实时业务能力做成可发现、可复用、可治理的连接层。</p></div>
+        <div class="mcp-value-grid">
+          <article class="mcp-value"><div class="index">VALUE 01</div><h3>统一发现</h3><p>客户端通过同一套协议发现工具和能力，不再为每个 Agent 单独硬编码接口。</p></article>
+          <article class="mcp-value"><div class="index">VALUE 02</div><h3>统一契约</h3><p>工具输入、输出、错误、参数白名单和只读边界集中定义，便于版本演进。</p></article>
+          <article class="mcp-value"><div class="index">VALUE 03</div><h3>集中授权</h3><p>OAuth、Scope、权限、租户、限流、脱敏和审计由连接层统一处理。</p></article>
+          <article class="mcp-value"><div class="index">VALUE 04</div><h3>跨客户端复用</h3><p>同一个 MCP Server 可以服务 WorkBuddy、内部 Agent 和其它兼容客户端。</p></article>
+          <article class="mcp-value"><div class="index">VALUE 05</div><h3>业务解耦</h3><p>业务系统保持原有 Service/API，Agent 只依赖工具契约，减少客户端定制。</p></article>
+          <article class="mcp-value"><div class="index">VALUE 06</div><h3>可运营</h3><p>连接、工具、版本、调用耗时、拒绝率和撤销动作有统一的观测入口。</p></article>
+        </div>
+        <div class="mcp-boundary">
+          <article class="panel"><div class="accent-line"></div><h3>不需要 MCP</h3><ul><li>聊天、摘要、润色和静态文件分析。</li><li>单系统、一次性、固定接口的 API / SDK PoC。</li><li>无人值守的内部工作流，直接使用服务身份和任务编排。</li></ul></article>
+          <article class="panel"><div class="accent-line"></div><h3>适合使用 MCP</h3><ul><li>实时数据、多轮追问和多个工具协作。</li><li>多个 Agent 客户端需要复用同一能力。</li><li>需要统一 OAuth、Scope、租户、审计和工具治理。</li><li>遗留系统已有稳定 API，需要逐步标准化接入。</li></ul></article>
+        </div>
+      </div>
+    </section>
+    <section id="architecture">
+      <div class="shell">
+        <div class="section-head"><div><div class="section-kicker">06 / Architecture</div><h2>系统 / MCP / Agent 三分区</h2></div><p class="section-note">系统保留事实和权限，MCP 负责标准连接与治理，Agent 负责理解、调用和解释。</p></div>
+        <div class="diagram" aria-label="通用系统连接器三分区架构图">
+          <div class="zone-bar"><div class="zone system"><strong>系统 / Domain</strong>账号、权限、租户、业务 API 和事实数据</div><div class="zone mcp"><strong>MCP / Connector</strong>授权、工具目录、策略、路由和证据</div><div class="zone agent"><strong>Agent / Client</strong>应用、Skill、模型循环和人工确认</div></div>
+          <svg viewBox="0 0 1200 690" role="img" aria-labelledby="arch-title arch-desc">
+            <title id="arch-title">系统、MCP、Agent 三分区架构图</title><desc id="arch-desc">左侧系统提供身份和业务事实，中间 MCP 进行标准化连接与治理，右侧 Agent 进行工具选择和结果解释。</desc>
+            <defs>
+              <linearGradient id="arch-cyan" x1="0" x2="1"><stop offset="0" stop-color="#42e8ff"/><stop offset="1" stop-color="#5d9dff"/></linearGradient><linearGradient id="arch-violet" x1="0" x2="1"><stop offset="0" stop-color="#9d7bff"/><stop offset="1" stop-color="#e19dff"/></linearGradient><linearGradient id="arch-green" x1="0" x2="1"><stop offset="0" stop-color="#47e6a7"/><stop offset="1" stop-color="#9ce878"/></linearGradient>
+              <filter id="arch-glow"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+              <marker id="arrow-cyan" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#42e8ff"/></marker><marker id="arrow-violet" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#9d7bff"/></marker><marker id="arrow-green" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#47e6a7"/></marker>
+            </defs>
+            <g font-family="Inter, PingFang SC, sans-serif">
+              <rect x="22" y="24" width="360" height="526" rx="24" fill="#0d2c34" fill-opacity=".54" stroke="#47e6a7" stroke-opacity=".42"/><rect x="420" y="24" width="360" height="526" rx="24" fill="#0b2a3f" fill-opacity=".6" stroke="#42e8ff" stroke-opacity=".48"/><rect x="818" y="24" width="360" height="526" rx="24" fill="#181936" fill-opacity=".64" stroke="#9d7bff" stroke-opacity=".5"/>
+              <text x="52" y="62" fill="#47e6a7" font-size="13" font-weight="700" letter-spacing="2">01 / SYSTEM</text><text x="52" y="87" fill="#eef6ff" font-size="22" font-weight="600">事实与边界</text><text x="450" y="62" fill="#42e8ff" font-size="13" font-weight="700" letter-spacing="2">02 / MCP</text><text x="450" y="87" fill="#eef6ff" font-size="22" font-weight="600">连接与治理</text><text x="848" y="62" fill="#c8baff" font-size="13" font-weight="700" letter-spacing="2">03 / AGENT</text><text x="848" y="87" fill="#eef6ff" font-size="22" font-weight="600">理解与行动</text>
+              <rect x="52" y="114" width="300" height="88" rx="15" fill="#102844" stroke="#47e6a7" stroke-opacity=".6"/><text x="76" y="144" fill="#47e6a7" font-size="12" font-weight="700">IDENTITY</text><text x="76" y="173" fill="#eef6ff" font-size="18" font-weight="600">OAuth / 用户会话</text><text x="76" y="192" fill="#9eb4ce" font-size="12">登录、授权、撤销</text>
+              <rect x="52" y="220" width="300" height="88" rx="15" fill="#102844" stroke="#47e6a7" stroke-opacity=".6"/><text x="76" y="250" fill="#47e6a7" font-size="12" font-weight="700">POLICY</text><text x="76" y="279" fill="#eef6ff" font-size="18" font-weight="600">权限 / 租户 / 数据范围</text><text x="76" y="298" fill="#9eb4ce" font-size="12">默认拒绝、按请求校验</text>
+              <rect x="52" y="326" width="300" height="100" rx="15" fill="#102844" stroke="#47e6a7" stroke-opacity=".6"/><text x="76" y="356" fill="#47e6a7" font-size="12" font-weight="700">DOMAIN API</text><text x="76" y="385" fill="#eef6ff" font-size="18" font-weight="600">Service / Mapper</text><text x="76" y="407" fill="#9eb4ce" font-size="12">业务查询、状态与关联</text>
+              <rect x="52" y="444" width="300" height="76" rx="15" fill="#102844" stroke="#47e6a7" stroke-opacity=".6"/><text x="76" y="474" fill="#47e6a7" font-size="12" font-weight="700">AUDIT</text><text x="76" y="499" fill="#9eb4ce" font-size="12">范围、耗时、结果、脱敏日志</text>
+              <rect x="450" y="114" width="300" height="88" rx="15" fill="#102844" stroke="#42e8ff" stroke-opacity=".68"/><text x="474" y="144" fill="#42e8ff" font-size="12" font-weight="700">AUTH BROKER</text><text x="474" y="173" fill="#eef6ff" font-size="18" font-weight="600">换票 / 刷新 / 撤销</text><text x="474" y="192" fill="#9eb4ce" font-size="12">Token 不进入模型上下文</text>
+              <rect x="450" y="220" width="300" height="88" rx="15" fill="#102844" stroke="#42e8ff" stroke-opacity=".68"/><text x="474" y="250" fill="#42e8ff" font-size="12" font-weight="700">MCP SERVER</text><text x="474" y="279" fill="#eef6ff" font-size="18" font-weight="600">工具发现 / JSON-RPC</text><text x="474" y="298" fill="#9eb4ce" font-size="12">能力清单、错误模型</text>
+              <rect x="450" y="326" width="300" height="100" rx="15" fill="#102844" stroke="#42e8ff" stroke-opacity=".68"/><text x="474" y="356" fill="#42e8ff" font-size="12" font-weight="700">POLICY GATE</text><text x="474" y="385" fill="#eef6ff" font-size="18" font-weight="600">只读工具 / 参数白名单</text><text x="474" y="407" fill="#9eb4ce" font-size="12">范围检查、限流、脱敏</text>
+              <rect x="450" y="444" width="300" height="76" rx="15" fill="#102844" stroke="#42e8ff" stroke-opacity=".68"/><text x="474" y="474" fill="#42e8ff" font-size="12" font-weight="700">EVIDENCE</text><text x="474" y="499" fill="#9eb4ce" font-size="12">queried_at · scope · references</text>
+              <rect x="848" y="114" width="300" height="88" rx="15" fill="#171d42" stroke="#9d7bff" stroke-opacity=".7"/><text x="872" y="144" fill="#c8baff" font-size="12" font-weight="700">CLIENT</text><text x="872" y="173" fill="#eef6ff" font-size="18" font-weight="600">应用 / 普通模式</text><text x="872" y="192" fill="#9eb4ce" font-size="12">连接安装、会话入口</text>
+              <rect x="848" y="220" width="300" height="88" rx="15" fill="#171d42" stroke="#9d7bff" stroke-opacity=".7"/><text x="872" y="250" fill="#c8baff" font-size="12" font-weight="700">SKILL</text><text x="872" y="279" fill="#eef6ff" font-size="18" font-weight="600">意图拆解 / 工具选择</text><text x="872" y="298" fill="#9eb4ce" font-size="12">上下文、参数和追问</text>
+              <rect x="848" y="326" width="300" height="100" rx="15" fill="#171d42" stroke="#9d7bff" stroke-opacity=".7"/><text x="872" y="356" fill="#c8baff" font-size="12" font-weight="700">AGENT LOOP</text><text x="872" y="385" fill="#eef6ff" font-size="18" font-weight="600">发现 → 调用 → 解释</text><text x="872" y="407" fill="#9eb4ce" font-size="12">事实引用、边界提示</text>
+              <rect x="848" y="444" width="300" height="76" rx="15" fill="#171d42" stroke="#9d7bff" stroke-opacity=".7"/><text x="872" y="474" fill="#c8baff" font-size="12" font-weight="700">HUMAN GATE</text><text x="872" y="499" fill="#9eb4ce" font-size="12">写请求回原系统页面确认</text>
+              <path d="M848 158 C820 158 808 158 780 158" fill="none" stroke="url(#arch-violet)" stroke-width="3" marker-end="url(#arrow-violet)" filter="url(#arch-glow)"/><text x="790" y="146" fill="#c8baff" font-size="11" text-anchor="end">工具调用</text><path d="M450 264 C420 264 410 264 382 264" fill="none" stroke="url(#arch-cyan)" stroke-width="3" marker-end="url(#arrow-cyan)" filter="url(#arch-glow)"/><text x="412" y="252" fill="#9ce8ff" font-size="11" text-anchor="end">查询请求</text><path d="M382 376 C410 376 420 376 450 376" fill="none" stroke="url(#arch-green)" stroke-width="2.5" stroke-dasharray="8 7" marker-end="url(#arrow-green)"/><text x="412" y="364" fill="#9ce8c6" font-size="11" text-anchor="end">事实结果</text><path d="M780 376 C808 376 820 376 848 376" fill="none" stroke="url(#arch-cyan)" stroke-width="2.5" stroke-dasharray="8 7" marker-end="url(#arrow-cyan)"/><text x="808" y="364" fill="#9ce8ff" font-size="11">证据响应</text>
+              <rect x="22" y="578" width="1156" height="78" rx="18" fill="#07111f" fill-opacity=".76" stroke="#9eb4ce" stroke-opacity=".18"/><text x="50" y="610" fill="#9eb4ce" font-size="12" letter-spacing="2">BOUNDARY</text><text x="50" y="638" fill="#eef6ff" font-size="18" font-weight="600">Agent 可以提出问题，但业务系统才拥有事实和写入权。</text><text x="790" y="638" fill="#47e6a7" font-size="13">READ ONLY · USER SCOPE · HUMAN CONFIRM</text>
+            </g>
+          </svg>
+          <div class="legend"><span><i class="data"></i>系统事实与权限</span><span><i class="call"></i>MCP 请求与响应</span><span><i class="auth"></i>Agent 意图与工具调用</span></div>
+        </div>
+      </div>
+    </section>
+    <section id="flow">
+      <div class="shell">
+        <div class="section-head"><div><div class="section-kicker">07 / Request flow</div><h2>一次调用链</h2></div><p class="section-note">授权只发生在原系统页面，模型上下文只接收经过策略过滤的结果。</p></div>
+        <div class="flow"><article class="flow-step"><div class="flow-num">1</div><h3>提出问题</h3><p>用户在普通模式或应用模式输入自然语言问题。</p></article><article class="flow-step"><div class="flow-num">2</div><h3>选择连接</h3><p>Skill 根据任务判断是否需要实时系统数据。</p></article><article class="flow-step"><div class="flow-num">3</div><h3>完成授权</h3><p>浏览器打开原系统 OAuth/PKCE 页面，用户自行输入账号密码。</p></article><article class="flow-step"><div class="flow-num">4</div><h3>发现工具</h3><p>MCP 返回当前连接可用的工具、Scope 和参数约束。</p></article><article class="flow-step"><div class="flow-num">5</div><h3>读取事实</h3><p>网关校验权限、租户、范围、参数和限流后调用业务查询。</p></article><article class="flow-step"><div class="flow-num">6</div><h3>返回解释</h3><p>Agent 基于事实和证据回答，写请求转人工确认。</p></article></div>
+        <article class="panel flow-note"><strong>会话数据边界：</strong>密码、Refresh Token、完整用户资料和未脱敏业务数据不进入模型上下文；工具结果带 queried_at、scope、evidence 和 redactions。</article>
+      </div>
+    </section>
+    <section id="contract">
+      <div class="shell">
+        <div class="section-head"><div><div class="section-kicker">08 / Contract</div><h2>工具契约</h2></div><p class="section-note">工具名表达业务能力，参数和输出固定，客户端不能传入任意字段、排序或查询表达式。</p></div>
+        <div class="table-wrap"><table class="tool-table"><thead><tr><th>工具</th><th>用途</th><th>输入</th><th>输出</th><th>权限</th></tr></thead><tbody>
+          <tr><td>resource.search</td><td>按关键词和状态检索资源</td><td>query、filters、page</td><td>items、total、scope</td><td class="readonly">READ</td></tr><tr><td>resource.get</td><td>读取单条资源详情</td><td>resource_type、id</td><td>item、queried_at</td><td class="readonly">READ</td></tr><tr><td>resource.relations</td><td>读取关联关系和上下游</td><td>resource_type、id、depth</td><td>nodes、edges</td><td class="readonly">READ</td></tr><tr><td>resource.activity</td><td>读取时间线和变更事实</td><td>resource_type、id、start_date、after_date</td><td>events、has_more</td><td class="readonly">READ</td></tr><tr><td>resource.catalog</td><td>读取产品、版本或分类目录</td><td>type、query</td><td>items、labels</td><td class="readonly">READ</td></tr><tr><td>resource.permissions</td><td>读取当前连接的可见范围</td><td>resource_type</td><td>scope、constraints</td><td class="readonly">READ</td></tr><tr><td>resource.evidence</td><td>获取回答引用所需的证据摘要</td><td>reference_ids</td><td>references、redactions</td><td class="readonly">READ</td></tr><tr><td>connector.health</td><td>检查连接状态和授权有效期</td><td>connection_id</td><td>status、expires_at</td><td class="readonly">READ</td></tr>
+        </tbody></table></div>
+        <div class="contract" style="margin-top:18px"><pre aria-label="MCP 工具调用示例"><span class="key">{
+  "method"</span>: <span class="value">"tools/call"</span>,
+  <span class="key">"params"</span>: {
+    <span class="key">"name"</span>: <span class="value">"resource.search"</span>,
+    <span class="key">"arguments"</span>: {
+      <span class="key">"resource_type"</span>: <span class="value">"work_item"</span>,
+      <span class="key">"query"</span>: <span class="value">"阻塞验收"</span>,
+      <span class="key">"filters"</span>: { <span class="key">"status"</span>: [<span class="value">"open"</span>] },
+      <span class="key">"page"</span>: { <span class="key">"number"</span>: 1, <span class="key">"size"</span>: 20 }
+    }
+  }
+}</pre><div class="contract-explain"><p><strong>输入：</strong>固定资源类型、白名单筛选、分页和日期边界；不接受字段名、SQL、脚本、任意 URL 或任意关联名。</p><p><strong>输出：</strong>业务数据与 scope、queried_at、evidence、redactions 一起返回。</p><p><strong>失败：</strong>身份无效返回重新授权；无权限返回拒绝；范围过大返回收敛建议；系统异常返回可重试标记。</p></div></div>
+      </div>
+    </section>
+    <section id="security">
+      <div class="shell">
+        <div class="section-head"><div><div class="section-kicker">09 / Security</div><h2>安全约束</h2></div><p class="section-note">连接器不能成为权限旁路；每一层都以原系统的账号、租户和审计为准。</p></div>
+        <div class="guard-grid"><article class="guard"><div class="icon">◈</div><h3>OAuth / PKCE</h3><p>账号密码只在原系统页面输入，连接器保存授权结果，不保存密码。</p></article><article class="guard"><div class="icon">⌁</div><h3>Scope 最小化</h3><p>按连接、工具和资源范围发放 Scope；授权升级重新同意。</p></article><article class="guard"><div class="icon">▣</div><h3>权限再校验</h3><p>每次工具调用重新验证用户、角色、租户和数据范围，缺少上下文默认拒绝。</p></article><article class="guard"><div class="icon">⌑</div><h3>参数与结果</h3><p>输入字段白名单、分页和限流；输出脱敏并限制长度，带证据元数据。</p></article><article class="guard"><div class="icon">◌</div><h3>审计与撤销</h3><p>记录连接、工具、范围、耗时、结果状态和撤销动作，敏感值全部脱敏。</p></article><article class="guard danger"><div class="icon">×</div><h3>写入隔离</h3><p>首期不注册创建、修改、发布、删除和状态变更工具；候选内容必须回原系统人工确认。</p></article></div>
+        <div class="security-strip"><article class="panel"><div class="accent-line"></div><h3>禁止传递</h3><p>密码、Refresh Token、Cookie、Authorization、数据库连接、租户全量资料和未脱敏日志。</p></article><article class="panel"><div class="accent-line"></div><h3>失败策略</h3><p>授权失效要求重新授权；权限不足停止调用；范围过大收敛查询；写请求返回人工确认入口。</p></article></div>
+      </div>
+    </section>
+    <section id="delivery">
+      <div class="shell">
+        <div class="section-head"><div><div class="section-kicker">10 / Delivery</div><h2>实施与验收</h2></div><p class="section-note">先固化通用契约，再接入一个真实系统，最后用真实用户任务验收交互和效率。</p></div>
+        <div class="timeline"><article class="milestone"><span class="dot"></span><h3>01 · 契约</h3><p>确定工具目录、Scope、错误模型、结果信封和写入边界。</p></article><article class="milestone"><span class="dot"></span><h3>02 · 联调</h3><p>完成 OAuth/PKCE、MCP 握手、权限再校验和真实数据查询。</p></article><article class="milestone"><span class="dot"></span><h3>03 · 体验</h3><p>验证安装、授权弹窗、首次调用、追问、失败提示和人工确认路径。</p></article><article class="milestone"><span class="dot"></span><h3>04 · 灰度</h3><p>按租户和 Scope 灰度，监控成功率、延迟、拒绝率和撤销效果。</p></article></div>
+        <div class="table-wrap acceptance"><table class="tool-table"><thead><tr><th>验收项</th><th>通过条件</th><th>结果</th></tr></thead><tbody><tr><td>安装与连接</td><td>安装 Skill 后能发现 MCP Server；未授权时自动打开原系统 OAuth 页面。</td><td>必测</td></tr><tr><td>数据一致性</td><td>查询结果与原系统页面一致，带用户、租户、范围和查询时间。</td><td>必测</td></tr><tr><td>安全边界</td><td>越权、跨租户、超范围、无效 Token 和写请求均被拒绝并留痕。</td><td>必测</td></tr><tr><td>交互效率</td><td>首次授权路径清晰；常见问题一次调用完成；失败提示给出下一步。</td><td>必测</td></tr><tr><td>可运营性</td><td>能撤销连接、查看调用记录、定位错误并按租户灰度。</td><td>必测</td></tr></tbody></table></div>
+        <article class="panel profile" style="margin-top:18px"><strong>当前采购落地：</strong>先选一个业务系统完成实时只读分析的真实联调和 WorkBuddy 体验验收，再复用同一套连接器契约接入其它系统。</article>
+      </div>
+    </section>
+    <section id="appendix">
+      <div class="shell"><div class="section-head"><div><div class="section-kicker">Appendix</div><h2>边界问答</h2></div><p class="section-note">用于现场说明方案取舍。</p></div><div class="panel">
+        <details open><summary>为什么不能把密码交给 Agent？</summary><p>密码属于原系统登录凭证，Agent、Skill 和模型上下文都不应接触。用户在原系统 OAuth 页面完成认证，连接器只使用短期授权结果。</p></details>
+        <details><summary>什么时候用普通模式？</summary><p>只处理用户上传材料、摘要、润色或一次性生成时使用普通模式；需要实时数据、多轮工具调用和固定连接时使用应用模式。</p></details>
+        <details><summary>什么时候可以增加写工具？</summary><p>先完成只读链路、权限复用、审计和人工确认。具备幂等、审批、回滚和独立审计后，再按业务逐项评估，不能直接开放通用写工具。</p></details>
+      </div></div>
+    </section>
+  </main>
+  <footer class="footer"><div class="shell"><button class="copy-btn" type="button" data-copy="#contract pre">复制示例</button><strong>系统连接器 × AGENT</strong> · 通用连接方案 · MCP / OAuth / Read-only / Evidence</div></footer>
+  <script>
+    (() => {
+      const links = [...document.querySelectorAll('nav a')];
+      const sections = links.map((link) => document.querySelector(link.getAttribute('href'))).filter(Boolean);
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          links.forEach((link) => link.classList.toggle('active', link.getAttribute('href') === '#' + entry.target.id));
+        });
+      }, { rootMargin: '-30% 0px -60% 0px', threshold: 0 });
+      sections.forEach((section) => observer.observe(section));
+      document.querySelector('.copy-btn')?.addEventListener('click', async (event) => {
+        const source = document.querySelector(event.currentTarget.dataset.copy);
+        if (!source) return;
+        await navigator.clipboard.writeText(source.textContent);
+        event.currentTarget.textContent = '已复制';
+        window.setTimeout(() => { event.currentTarget.textContent = '复制示例'; }, 1500);
+      });
+    })();
+  </script>
+</body>
+</html>
