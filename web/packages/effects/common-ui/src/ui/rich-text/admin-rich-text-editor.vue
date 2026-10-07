@@ -36,13 +36,14 @@
           @change="handleFilePicked"
         />
         <Editor
-          v-model="contentValue"
+          :model-value="contentValue"
           class="admin-rich-text-editor__body"
           :default-config="editorConfig"
           :mode="wangEditorMode"
           :style="editorBodyStyle"
           @customAlert="handleEditorAlert"
           @customPaste="handleEditorPaste"
+          @onChange="handleEditorChange"
           @onCreated="handleEditorCreated"
         />
       </template>
@@ -307,6 +308,15 @@ function handleEditorCreated(editor: IDomEditor) {
   richEditorRef.value = editor;
   getAttachmentUploadHandlers().set(editor, openFilePicker);
   editor.setHtml(normalizeVideoHtmlForEditor(contentValue.value || ''));
+}
+
+async function handleEditorChange(editor: IDomEditor) {
+  // 选区事件也会触发 change；等父表单的候选正文同步后再读取当前内容，
+  // 避免延迟的旧事件把 AI 回填或源码修改覆盖为空白/旧正文。
+  await nextTick();
+  if (richEditorRef.value !== editor || !props.visible) return;
+  const html = editor.getHtml();
+  if (html !== contentValue.value) contentValue.value = html;
 }
 
 function handleEditorAlert(info: string, type: 'error' | 'info' | 'success' | 'warning') {
