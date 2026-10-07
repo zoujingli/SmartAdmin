@@ -7,11 +7,13 @@ import { preferences, usePreferences } from '@vben/preferences';
 import { App, ConfigProvider, theme } from 'ant-design-vue';
 
 import { antdLocale } from '#/locales';
+import { getGlobalOverlay } from '#/plugins/global-overlay-provider';
 
 defineOptions({ name: 'App' });
 
 const { isDark } = usePreferences();
 const { tokens } = useAntdDesignTokens();
+const globalOverlay = getGlobalOverlay();
 
 const tokenTheme = computed(() => {
   const algorithm = isDark.value
@@ -34,6 +36,7 @@ const tokenTheme = computed(() => {
   <ConfigProvider :locale="antdLocale" :theme="tokenTheme">
     <App>
       <RouterView />
+      <component :is="globalOverlay" v-if="globalOverlay" />
     </App>
   </ConfigProvider>
 </template>
