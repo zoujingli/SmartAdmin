@@ -35,8 +35,9 @@
           type="file"
           @change="handleFilePicked"
         />
+        <!-- 仅用 default-html 初始化；正文回填由本组件统一处理，避免两层 watcher 重复替换。 -->
         <Editor
-          :model-value="contentValue"
+          :default-html="contentValue"
           class="admin-rich-text-editor__body"
           :default-config="editorConfig"
           :mode="wangEditorMode"
@@ -69,7 +70,7 @@ import type { UploadAsset } from '../upload/types';
 
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 
-import { Boot } from '@wangeditor/editor';
+import { Boot, DomEditor, SlateEditor } from '@wangeditor/editor';
 import { Editor, Toolbar } from '@wangeditor/editor-for-vue';
 import { message, RadioButton, RadioGroup, Tag, Textarea } from 'ant-design-vue';
 import '@wangeditor/editor/dist/css/style.css';
@@ -300,14 +301,34 @@ async function handleViewModeChange() {
   // 从源码模式回到可视化编辑时，用当前 HTML 重建编辑器节点，避免源码与可视化内容不同步。
   if (viewMode.value === 'visual') {
     await nextTick();
-    richEditorRef.value?.setHtml(normalizeVideoHtmlForEditor(contentValue.value || ''));
+    syncEditorContent();
   }
 }
 
 function handleEditorCreated(editor: IDomEditor) {
   richEditorRef.value = editor;
   getAttachmentUploadHandlers().set(editor, openFilePicker);
-  editor.setHtml(normalizeVideoHtmlForEditor(contentValue.value || ''));
+  syncEditorContent();
+}
+
+function syncEditorContent() {
+  const editor = richEditorRef.value;
+  const html = normalizeVideoHtmlForEditor(contentValue.value || '');
+  if (!editor || html === editor.getHtml()) return;
+  const wasFocused = editor.isFocused();
+  // 整段替换先撤销 DOM 选区，避免延迟的 selectionchange 再访问已移除节点。
+  editor.blur();
+  editor.deselect();
+  editor.setHtml(html);
+  // 外部整段替换后，旧选区可能指向已移除的段落；记录新正文内的有效光标，
+  // 避免再次应用候选或切换模式时，wangEditor 恢复旧选区并把正文清空。
+  editor.select(SlateEditor.start(editor, []));
+  // 正文 DOM 更新后才恢复原焦点，源码输入和预览状态不抢焦点。
+  if (wasFocused) {
+    void nextTick(() => {
+      if (richEditorRef.value === editor && props.visible && viewMode.value === 'visual') editor.focus();
+    });
+  }
 }
 
 async function handleEditorChange(editor: IDomEditor) {
@@ -532,14 +553,23 @@ async function mountEditor() {
   if (editorMounted.value) return;
   editorMounted.value = true;
   await nextTick();
-  richEditorRef.value?.setHtml(normalizeVideoHtmlForEditor(contentValue.value || ''));
+  syncEditorContent();
 }
 
 function destroyEditor() {
-  if (richEditorRef.value) {
-    getAttachmentUploadHandlers().delete(richEditorRef.value);
+  const editor = richEditorRef.value;
+  if (editor) {
+    getAttachmentUploadHandlers().delete(editor);
+    if (!editor.isDestroyed) {
+      // wangEditor 5.1.23 销毁时仅解绑监听，未取消选区节流尾调用；
+      // 先清理该回调，避免关闭表单后再访问已销毁实例。
+      const textarea = DomEditor.getTextarea(editor) as unknown as {
+        onDOMSelectionChange?: { cancel: () => void };
+      };
+      textarea.onDOMSelectionChange?.cancel();
+      editor.destroy();
+    }
   }
-  richEditorRef.value?.destroy();
   richEditorRef.value = undefined;
   editorMounted.value = false;
 }
@@ -552,12 +582,7 @@ watch(() => props.visible, (visible) => {
   destroyEditor();
 }, { immediate: true });
 
-watch(() => props.modelValue, (value) => {
-  const next = value || '';
-  if (richEditorRef.value && next !== richEditorRef.value.getHtml()) {
-    richEditorRef.value.setHtml(normalizeVideoHtmlForEditor(next));
-  }
-});
+watch(() => props.modelValue, syncEditorContent);
 
 watch(uploading, (value) => emit('uploading-change', value), { immediate: true });
 
