@@ -313,8 +313,14 @@ function handleEditorCreated(editor: IDomEditor) {
 
 function syncEditorContent() {
   const editor = richEditorRef.value;
-  const html = normalizeVideoHtmlForEditor(contentValue.value || '');
-  if (!editor || html === editor.getHtml()) return;
+  if (!editor) return;
+  const value = contentValue.value || '';
+  const currentHtml = editor.getHtml();
+  // 编辑器自身输入经 v-model 原样回传时保留正文和选区；DOMParser 会改写 img/br 等
+  // 标签的序列化形式，不能先归一化再比较，否则普通输入会被误判为外部整段替换。
+  if (value === currentHtml) return;
+  const html = normalizeVideoHtmlForEditor(value);
+  if (html === currentHtml) return;
   const wasFocused = editor.isFocused();
   // 整段替换先撤销 DOM 选区，避免延迟的 selectionchange 再访问已移除节点。
   editor.blur();

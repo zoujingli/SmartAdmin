@@ -112,6 +112,20 @@ try {
     console.error('Browser page body:', (await page.locator('body').innerText()).slice(0, 4_000));
     throw failure;
   }
+  // Chromium 与模拟 DOM 对 img/br 的序列化不同；必须用真实按键覆盖 v-model 回传，
+  // 确认每次输入后选区仍在图片下方，下一字符也不能落到正文开头。
+  const body = editor.locator('[data-slate-editor]');
+  await page.evaluate(() => window.fixture.editors[0].focus(true));
+  await page.keyboard.type('A');
+  await expect.poll(() => page.evaluate(() => {
+    const selection = window.getSelection();
+    return { text: selection?.anchorNode?.textContent, offset: selection?.anchorOffset };
+  })).toEqual({ text: '正文结束A', offset: 5 });
+  await page.keyboard.type('B');
+  await expect(body.locator('> p').last()).toHaveText('正文结束AB');
+  await expect(body.locator('> p').first()).toHaveText('上方正文：浮层不应透出文字或裁切按钮。');
+  await expect.poll(() => page.evaluate(() => window.fixture.state.values[0].endsWith('<p>正文结束AB</p>'))).toBe(true);
+  console.log('PASS: continuous typing after images keeps the caret and form content');
   await image.click();
   await expect(bar).toBeVisible();
   await expect(bar.locator('button')).toHaveCount(6);
